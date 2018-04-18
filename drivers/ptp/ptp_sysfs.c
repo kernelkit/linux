@@ -148,6 +148,33 @@ out:
 }
 static DEVICE_ATTR(pps_enable, 0220, NULL, pps_enable_store);
 
+static ssize_t pps_offset_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+	struct ptp_clock_info *ops = ptp->info;
+	struct ptp_clock_request req = { .type = PTP_CLK_REQ_PPS_OFFSET };
+	int rc, offset;
+	int err = -EINVAL;
+
+	if (!capable(CAP_SYS_TIME))
+		return -EPERM;
+
+	rc = kstrtoint(buf, 0, &offset);
+	if (rc)
+		goto out;
+
+	err = ops->enable(ops, &req, offset);
+	if (err)
+		goto out;
+
+	return count;
+out:
+	return err;
+}
+static DEVICE_ATTR(pps_offset,   0220, NULL, pps_offset_store);
+
 static struct attribute *ptp_attrs[] = {
 	&dev_attr_clock_name.attr,
 
@@ -162,6 +189,7 @@ static struct attribute *ptp_attrs[] = {
 	&dev_attr_fifo.attr,
 	&dev_attr_period.attr,
 	&dev_attr_pps_enable.attr,
+	&dev_attr_pps_offset.attr,
 	NULL
 };
 
@@ -181,6 +209,9 @@ static umode_t ptp_is_attribute_visible(struct kobject *kobj,
 		if (!info->n_per_out)
 			mode = 0;
 	} else if (attr == &dev_attr_pps_enable.attr) {
+		if (!info->pps)
+			mode = 0;
+	} else if (attr == &dev_attr_pps_offset.attr) {
 		if (!info->pps)
 			mode = 0;
 	}
