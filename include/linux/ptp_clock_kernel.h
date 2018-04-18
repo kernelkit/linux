@@ -18,6 +18,7 @@ struct ptp_clock_request {
 		PTP_CLK_REQ_EXTTS,
 		PTP_CLK_REQ_PEROUT,
 		PTP_CLK_REQ_PPS,
+		PTP_CLK_REQ_PPS_OFFSET,
 	} type;
 	union {
 		struct ptp_extts_request extts;
