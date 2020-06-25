@@ -1,0 +1,80 @@
+#include "cpm01-p01.dts"
+
+&gpio_sfp_ctrl {
+	#address-cells = <1>;
+	#size-cells = <0>;
+    reg = <0x61>;
+};
+
+&tusb_cpm {
+	#address-cells = <1>;
+	#size-cells = <0>;
+    reg = <0x60>;
+};
+
+&id_eeprom_cpm {
+	reg = <0x51>;
+};
+
+&pruss1_eth0_phy {
+	/delete-property/ ti,fiber-mode;
+	/delete-property/ ti,link-loss-low;
+};
+
+&pruss1_eth1_phy {
+	/delete-property/ ti,fiber-mode;
+	/delete-property/ ti,link-loss-low;
+};
+
+&omap_dwc3_1 {
+	/delete-property/ extcon;
+};
+
+&omap_dwc3_2 {
+	/delete-property/ extcon;
+};
+
+/* we cannot delete extcon_usb_cpm node because it's used in alias. So we delete the properties instead*/
+&extcon_usb_cpm {
+/delete-property/ vbus-gpio;
+/delete-property/ id-gpio;
+/delete-property/ vbus-out-gpio;
+};
+
+&extcon_usb_bpm {
+/delete-property/ vbus-gpio;
+/delete-property/ id-gpio;
+/delete-property/ vbus-out-gpio;
+};
+
+&mmc1 {
+	no-1-8-v;
+	pinctrl-names = "default", "hs";
+	/delete-property/ pinctrl-2;
+};
+
+/delete-node/ &sfp_ddmi10;
+
+/delete-node/ &mram_128;
+
+&gpmc {
+	mram_2MB{
+		compatible = "mtd-ram";
+		reg = <1 0 0x200000>;	/*CSn1, 2MB */
+		bank-width = <1>;	/* GPMC_CONFIG1_DEVICESIZE(1), 8 bit */
+		gpmc,mux-add-data = <0>;	/* no muxing GPMC_CONFIG1_MUXTYPE(2) */
+
+		gpmc,cs-on-ns = <3>;
+		gpmc,cs-rd-off-ns = <52>; /*tHZCE*/
+		gpmc,cs-wr-off-ns = <30>; /*tHZCE*/
+
+		gpmc,we-on-ns = <3>;	/* CONFIG4 */
+		gpmc,we-off-ns = <22>;
+		gpmc,oe-on-ns = <11>;	/* tLZOE*/
+		gpmc,oe-off-ns = <52>; /* tHZOE*/
+
+		gpmc,access-ns = <48>; /* T_AA*/
+		gpmc,rd-cycle-ns = <71>; /* T_RC*/
+		gpmc,wr-cycle-ns = <45>; /* T_WC*/
+	};
+};
