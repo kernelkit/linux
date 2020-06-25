@@ -1,0 +1,1271 @@
+/*
+ * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "am5748.dtsi"
+#include "dra7-mmc-iodelay.dtsi"
+#include "dra74x-mmc-iodelay.dtsi"
+#include "dra76x-mmc-iodelay.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/* begin of #include "am57xx-idk-common.dtsi" */
+
+/ {
+	aliases {
+		ethernet1 = &pruss1_emac0;
+		ethernet2 = &pruss1_emac1;
+		ethernet3 = &pruss2_emac0;
+		ethernet4 = &pruss2_emac1;
+		rtc2 = &rtc2;
+        	pruss_iep1 = &pruss1_iep;
+        	pruss_iep2 = &pruss2_iep;
+
+		tusb_cpm = &tusb_cpm;
+		tusb_bpm = &tusb_bpm;
+		extcon_usb_cpm = &extcon_usb_cpm;
+		extcon_usb_bpm = &extcon_usb_bpm;
+
+	};
+	
+	chosen {
+		stdout-path = &uart8;
+	};
+
+	vmain: fixedregulator-vmain {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3_MAIN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	v_5V: fixedregulator-vmain {
+		compatible = "regulator-fixed";
+		regulator-name = "5V0_LDO";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	v3_3d: fixedregulator-v3_3d {
+		compatible = "regulator-fixed";
+		regulator-name = "V3_3D";
+		vin-supply = <&vmain>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vtt_fixed: fixedregulator-vtt {
+		/* TPS51200 */
+		compatible = "regulator-fixed";
+		regulator-name = "vtt_fixed";
+		vin-supply = <&v3_3d>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	src_clk_x1: src_clk_x1 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
+	};
+
+	/* Dual mac ethernet application node on icss1 */
+	pruss1_eth: pruss1_eth {
+		status = "okay";
+		compatible = "ti,am57-prueth";
+		prus = <&pru1_0>, <&pru1_1>;
+		ti,pruss-gp-mux-sel = <0>,	/* GP, default */
+				              <4>;	/* MII2, needed for PRUSS1_MII1 */
+		sram = <&ocmcram1>;
+		interrupt-parent = <&pruss1_intc>;
+		mii-rt = <&pruss1_mii_rt>;
+		interrupts = <20>, <21>, <7>;
+		interrupt-names = "rx_lre_hp", "rx_lre_lp", "iep_cap_cmp";
+		iep = <&pruss1_iep>;
+		ecap = <&pruss1_ecap>;
+
+		pruss1_emac0: ethernet-mii0 {
+			phy-handle = <&pruss1_eth0_phy>;
+			phy-mode = "mii";
+			interrupts = <20>, <26>, <23>;
+			interrupt-names = "rx", "emac_ptp_tx", "hsr_ptp_tx";
+			ti,no-half-duplex;
+			/* Filled in by bootloader */
+			local-mac-address = [00 00 00 00 00 00];
+		};
+
+		pruss1_emac1: ethernet-mii1 {
+			phy-handle = <&pruss1_eth1_phy>;
+			phy-mode = "mii";
+			interrupts = <21>, <27>, <24>;
+			interrupt-names = "rx", "emac_ptp_tx", "hsr_ptp_tx";
+			ti,no-half-duplex;
+			/* Filled in by bootloader */
+			local-mac-address = [00 00 00 00 00 00];
+		};
+	};
+	
+	/* Dual-MAC Ethernet application node on PRU-ICSS2 */
+	pruss2_eth: pruss2_eth {
+		status = "okay";
+		compatible = "ti,am57-prueth";
+		prus = <&pru2_0>, <&pru2_1>;
+	    	ti,pruss-gp-mux-sel = <4>,	/* MII2, needed for PRUSS1_MII0 */
+			                  <4>;	/* MII2, needed for PRUSS1_MII1 */
+		sram = <&ocmcram1>;
+		interrupt-parent = <&pruss2_intc>;
+		mii-rt = <&pruss2_mii_rt>;
+		interrupts = <20>, <21>, <7>;
+		interrupt-names = "rx_lre_hp", "rx_lre_lp", "iep_cap_cmp";
+		iep = <&pruss2_iep>;
+		ecap = <&pruss2_ecap>;
+
+		pruss2_emac0: ethernet-mii0 {
+			phy-handle = <&pruss2_eth0_phy>;
+			phy-mode = "mii";
+			interrupts = <20>, <26>, <23>;
+			interrupt-names = "rx", "emac_ptp_tx", "hsr_ptp_tx";
+			ti,no-half-duplex;
+			/* Filled in by bootloader */
+			local-mac-address = [00 00 00 00 00 00];
+		};
+
+		pruss2_emac1: ethernet-mii1 {
+			phy-handle = <&pruss2_eth1_phy>;
+			phy-mode = "mii";
+			interrupts = <21>, <27>, <24>;
+			interrupt-names = "rx", "emac_ptp_tx", "hsr_ptp_tx";
+			ti,no-half-duplex;
+			/* Filled in by bootloader */
+			local-mac-address = [00 00 00 00 00 00];
+		};
+	};
+
+	uio_cpu0_wdt: uio_cpu0_wdt@482a0000 {
+               compatible = "pg-cpu-wdt";
+               reg = <0x0 0x482a0000 0x0 0x1000>;
+               interrupts = < GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH >;
+               interrupt-parent = <&gic>;
+	};
+
+	uio_cpu1_wdt: uio_cpu1_wdt@482a0000 {
+               compatible = "pg-cpu-wdt";
+               reg = <0x0 0x482a0000 0x0 0x1000>;
+               interrupts = < GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH >;
+               interrupt-parent = <&gic>;
+	};
+};
+
+&dra7_pmx_core {
+	dcan1_pins_default: dcan1_pins_default {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x37d0, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* dcan1_tx */
+			DRA7XX_CORE_IOPAD(0x37d4, PIN_INPUT_PULLUP | MUX_MODE0)		/* dcan1_rx */
+		>;
+	};
+
+	dcan1_pins_sleep: dcan1_pins_sleep {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x37d0, MUX_MODE15 | PULL_UP)	/* dcan1_tx.off */
+			DRA7XX_CORE_IOPAD(0x37d4, MUX_MODE15 | PULL_UP)	/* dcan1_rx.off */
+		>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps659038: tps659038@58 {
+		compatible = "ti,tps659038";
+		reg = <0x58>;
+		interrupts-extended = <&gpio6 16 IRQ_TYPE_LEVEL_HIGH
+			       &dra7_pmx_core 0x418>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		ti,system-power-controller;
+		ti,palmas-override-powerhold;
+
+		tps659038_pmic {
+			compatible = "ti,tps659038-pmic";
+
+			smps12-in-supply = <&vmain>;
+			smps3-in-supply = <&vmain>;
+			smps45-in-supply = <&vmain>;
+			smps6-in-supply = <&vmain>;
+			smps7-in-supply = <&vmain>;
+			smps8-in-supply = <&vmain>;
+			smps9-in-supply = <&vmain>;
+			ldo1-in-supply = <&v_5V>;
+			ldo2-in-supply = <&v_5V>;
+			ldo3-in-supply = <&vmain>;
+			ldo4-in-supply = <&vmain>;
+			ldo9-in-supply = <&vmain>;
+			ldoln-in-supply = <&vmain>;
+			ldousb-in-supply = <&v_5V>;
+			ldortc-in-supply = <&vmain>;
+
+			regulators {
+				smps12_reg: smps12 {
+					/* VDD_MPU */
+					regulator-name = "smps12";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps3_reg: smps3 {
+					/* VDD_DDR EMIF1 EMIF2 */
+					regulator-name = "smps3";
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps45_reg: smps45 {
+					/* VDD_DSPEVE on AM572 */
+					/* VDD_IVA + VDD_DSP on AM571 */
+					/* VDD_Mix on CPM */
+					regulator-name = "smps45";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps6_reg: smps6 {
+					/* VDD_Core on CPM 
+					   GPU on IDK */
+					regulator-name = "smps6";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps7_reg: smps7 {
+					/* GMAC PHY voltage on CPM
+					   VDD_CORE on IDK  */
+					regulator-name = "smps7";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps8_reg: smps8 {
+					/* 1.8 V on CPM */
+					/* 5728 - VDD_IVAHD */
+					/* 5718 - N.C. test point */
+					regulator-name = "smps8";
+				};
+
+				ldo1_reg: ldo1 {
+					/* VDDSHV8 - VSDMMC  */
+					/* NOTE: on rev 1.3a, data supply */
+					regulator-name = "ldo1";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo2_reg: ldo2 {
+					/* VDDSH18V */
+					regulator-name = "ldo2";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo3_reg: ldo3 {
+					/* R1.3a 572x V1_8PHY_LDO3: USB, SATA */
+					regulator-name = "ldo3";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				/* LDO4-9 unused */
+
+				ldoln_reg: ldoln {
+					/* VDDA_1V8_PLL */
+					regulator-name = "ldoln";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldousb_reg: ldousb {
+					/* VDDA_3V_USB: VDDA_USBHS33 */
+					regulator-name = "ldousb";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldortc_reg: ldortc {
+					/* VDDA_RTC  */
+					regulator-name = "ldortc";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				regen1: regen1 {
+					/* VDD_3V3_ON */
+					regulator-name = "regen1";
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				regen2: regen2 {
+					/* Needed for PMIC internal resource */
+					regulator-name = "regen2";
+					regulator-boot-on;
+					regulator-always-on;
+				};
+			};
+		};
+
+		tps659038_pwr_button: tps659038_pwr_button {
+			compatible = "ti,palmas-pwrbutton";
+			interrupt-parent = <&tps659038>;
+			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+			wakeup-source;
+			ti,palmas-long-press-seconds = <12>;
+		};
+
+		tps659038_gpio: tps659038_gpio {
+			compatible = "ti,palmas-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
+};
+
+&mac {
+	status = "okay";
+	slaves = <1>;
+};
+
+&dcan1 {
+	status = "okay";
+	pinctrl-names = "default", "sleep", "active";
+	pinctrl-0 = <&dcan1_pins_sleep>;
+	pinctrl-1 = <&dcan1_pins_sleep>;
+	pinctrl-2 = <&dcan1_pins_default>;
+};
+
+/* enable CAN controller 2*/
+&dcan2 {
+	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+
+	spi-max-frequency = <76800000>;
+	m25p80@0 {
+		compatible = "n25q256a", "jedec,spi-nor";
+		spi-max-frequency = <48000000>;
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table.
+		 * The ROM checks the first four physical blocks
+		 * for a valid file to boot and the flash here is
+		 * 64KiB block size.
+		 */
+		partition@0 {
+			label = "QSPI.SPL";
+			reg = <0x00000000 0x000040000>;
+		};
+		partition@1 {
+			label = "QSPI.u-boot";
+			reg = <0x00040000 0x00100000>;
+		};
+		partition@2 {
+			label = "QSPI.u-boot-spl-os";
+			reg = <0x00140000 0x00080000>;
+		};
+		partition@3 {
+			label = "QSPI.u-boot-env";
+			reg = <0x001c0000 0x00010000>;
+		};
+		partition@4 {
+			label = "QSPI.u-boot-env.backup1";
+			reg = <0x001d0000 0x0010000>;
+		};
+		partition@5 {
+			label = "QSPI.kernel";
+			reg = <0x001e0000 0x0800000>;
+		};
+		partition@6 {
+			label = "QSPI.file-system";
+			reg = <0x009e0000 0x01620000>;
+		};
+	};
+};
+
+&gpu {
+	status = "okay";
+};
+
+&bb2d {
+	status = "okay";
+};
+
+
+&pruss1_tm {
+	status = "okay";
+};
+
+&pruss2_tm {
+	status = "okay";
+};
+
+&cpu0 {
+	vdd-supply = <&smps12_reg>;
+};
+
+/* end of of #include "am57xx-idk-common.dtsi" */
+
+
+/* begin of #include "am572x-idk-common.dtsi" */
+
+#include "dra74-ipu-dsp-common.dtsi"
+
+/ {
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+};
+
+/* end of of #include "am572x-idk-common.dtsi" */
+
+
+/ {
+	model = "PGGA CPM";
+	compatible = "ti,am5748", "ti,dra762", "ti,dra7";
+
+	/* CPM status LEDs connected to SFP I/O expander*/
+	status_leds {
+		compatible = "gpio-leds";
+		led-green {
+			label = "cpm:led1:green";
+			gpios = <&gpioex 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led-yellow {
+			label = "cpm:led2:yellow";
+			gpios = <&gpioex 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led-red {
+			label = "cpm:led3:red";
+			gpios = <&gpioex 2 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+};
+
+&cpsw_emac0 {
+	phy-handle = <&ethphy0>;
+	phy-mode = "rgmii";
+	/delete-property/ dual_emac_res_vlan;
+};
+
+&davinci_mdio {
+	ethphy0: ethernet-phy@0 {
+		reg = <1>;
+	};
+};
+
+/delete-node/ &cpsw_emac1;
+
+&uart8 {
+	status = "okay";
+};
+
+&qspi {
+	spi-max-frequency = <96000000>;
+	m25p80@0 {
+		spi-max-frequency = <96000000>;
+	};
+};
+
+/* We support only 3V3 modes*/
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&v3_3d>;
+	vqmmc-supply = <&ldo1_reg>;
+	bus-width = <4>;
+	non-removable;
+	disable-wp;
+	pinctrl-names = "default", "hs", "sdr104";
+	pinctrl-0 = <&mmc1_pins_default_no_clk_pu>;
+	pinctrl-1 = <&mmc1_pins_hs>;
+	pinctrl-2 = <&mmc1_pins_sdr104 &mmc1_iodelay_sdr104_conf>;
+};
+
+&gpio4 { /* makes sure PRST_N stays high*/
+	ti,no-reset-on-init;
+};
+
+/* SPI for backplane for future enhancement*/
+&mcspi1 {
+	status = "okay";
+	ti,pindir-d0-out-d1-in;
+};
+
+/* general purpose memory controller for SRAM and MRAM*/ 
+&gpmc {
+	status = "okay";
+
+	/* chip select ranges */
+	/* <cs-number> 0 <physical address of mapping> <size>*/
+	ranges = <0 0  0x01000000   0x200000   /* Chipselect 0, SRAM*/
+              	  1 0  0x02000000   0x200000 >; /* Chipselect 1, MRAM*/
+	
+	sram{
+		compatible = "mtd-ram";
+		reg = <0 0 0x200000>; /*CSn0, 2MB */
+		bank-width = <1>; /* GPMC_CONFIG1_DEVICESIZE(1), 8 bit */
+		gpmc,mux-add-data = <0>;/* no muxing GPMC_CONFIG1_MUXTYPE(2) */
+		gpmc,cs-on-ns = <3>;
+		gpmc,cs-rd-off-ns = <60>; /*tHZCE*/
+		gpmc,cs-wr-off-ns = <48>; /*tHZCE*/
+
+		gpmc,we-on-ns = <3>;	/* CONFIG4 */
+		gpmc,we-off-ns = <45>;
+		gpmc,oe-on-ns = <11>;	/* tLZOE*/
+		gpmc,oe-off-ns = <60>; /* tHZOE*/
+
+		gpmc,access-ns = <56>; /* T_AA*/
+		gpmc,rd-cycle-ns = <82>; /* T_RC*/
+		gpmc,wr-cycle-ns = <52>; /* T_WC*/
+	};
+
+	mram_128kB{
+		compatible = "mtd-ram";
+		reg = <1 0 0x20000>;	/*CSn1, 128kb */
+		bank-width = <1>;	/* GPMC_CONFIG1_DEVICESIZE(1), 8 bit */
+		gpmc,mux-add-data = <0>;	/* no muxing GPMC_CONFIG1_MUXTYPE(2) */
+
+		gpmc,cs-on-ns = <3>;
+		gpmc,cs-rd-off-ns = <52>; /*tHZCE*/
+		gpmc,cs-wr-off-ns = <30>; /*tHZCE*/
+
+		gpmc,we-on-ns = <3>;	/* CONFIG4 */
+		gpmc,we-off-ns = <22>;
+		gpmc,oe-on-ns = <11>;	/* tLZOE*/
+		gpmc,oe-off-ns = <52>; /* tHZOE*/
+
+		gpmc,access-ns = <48>; /* T_AA*/
+		gpmc,rd-cycle-ns = <71>; /* T_RC*/
+		gpmc,wr-cycle-ns = <45>; /* T_WC*/
+	};
+};
+
+/* I2C for backplane: touch screen */
+&i2c2 {
+	status = "okay";
+	clock-frequency = <100000>;
+	touchscreen: ili251x@41 {
+		status = "okay";
+		compatible = "ili251x";
+
+		reg = <0x41>;
+
+		reset-gpios = <&gpio4 29 GPIO_ACTIVE_LOW>;
+
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <480>;
+
+		max-fingers = <6>;
+	};
+};
+
+/* CPM peripherals */
+&i2c3 {
+	status = "okay";
+	clock-frequency = <100000>;
+			
+	/* TUSB320 USB-C power delivery chip: no driver needed: direct access via I2C from user space*/
+	tusb_cpm: tusb_cpm@61 {
+			reg = <0x61>;
+			compatible = "dummy";
+			label = "USB_POWERCHIP_CPM";
+	};			
+
+	/* i2c mux PCA9548 */	
+	mux@70 {
+		compatible = "nxp,pca9548";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c_cpm_0:i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			label = "i2c_cpm_0_L";
+
+			id_eeprom_cpm:id_eeprom_cpm@54 {
+				compatible = "atmel,24c64";
+				label = "ID_EEPROM_CPM";
+				reg = <0x54>;
+				pagesize = <32>;
+			};
+
+			/* crypto chip: no driver needed: direct access via I2C from user space */
+			crypto_cpm:crypto_cpm@60 {
+				reg = <0x60>;
+				compatible = "dummy";
+				label = "CRYPTO_CHIP_CPM";
+			};			
+		
+			/*Temperature sensor A2001*/
+			TMP75_A2001@48 {
+				compatible = "ti,tmp75";
+				reg = <0x48>;
+				label = "TEMP_ETHPHY_CPM";
+			};
+			/*Temperature sensor A2003*/
+			TMP75_A2003@49 {
+				compatible = "ti,tmp75";
+				label = "TEMP_PMIC_SOC_CPM";
+				reg = <0x49>;
+			};
+			/*Temperature sensor A2006*/
+			TMP75_A2006@4b {
+				compatible = "ti,tmp75";
+				label = "TEMP_PSU_CPM";
+				reg = <0x4b>;
+			};
+
+			rtc2: RTC_A2002@32 {
+				compatible = "epson,rx8900";
+				reg = <0x32>;
+				interrupt-parent = <&gpio5>;
+				interrupts = < 18 IRQ_TYPE_EDGE_FALLING >; /*check level*/
+			};
+	
+			/* LED driver for SFP control and status LEDs*/
+			gpio_sfp_ctrl: gpio_sfp_control@64 {
+				compatible = "ti,lp3943";
+				reg = <0x64>;
+
+				gpioex: gpio {
+					compatible = "ti,lp3943-gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+				
+				pwm3943: pwm {
+					compatible = "ti,lp3943-pwm";
+					#pwm-cells = <2>;
+					ti,pwm0 = <0 1 2>;
+				};
+			};
+		};
+		i2c_cpm_1:i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sfp_eeprom@50 {
+				compatible = "atmel,24c02";
+				label = "SFP_EEPROM_PRU10_CPM";
+				reg = <0x50>;
+			};
+			sfp_ddmi@51 {
+				compatible = "atmel,24c02";
+				label = "SFP_DDMI_PRU10_CPM";
+				reg = <0x51>;
+			};
+		};
+		i2c_cpm_2:i2c@2 {
+			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sfp_eeprom@50 {
+				compatible = "atmel,24c02";
+				label = "SFP_EEPROM_PRU11_CPM";
+				reg = <0x50>;
+			};
+			sfp_ddmi@51 {
+				compatible = "atmel,24c02";
+				label = "SFP_DDMI_PRU11_CPM";
+				reg = <0x51>;
+			};
+		};
+		i2c_cpm_3:i2c@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sfp_eeprom@50 {
+				compatible = "atmel,24c02";
+				label = "SFP_EEPROM_PRU20_CPM";
+				reg = <0x50>;
+			};
+			sfp_ddmi@51 {
+				compatible = "atmel,24c02";
+				label = "SFP_DDMI_PRU20_CPM";
+				reg = <0x51>;
+			};
+		};
+		i2c_cpm_4:i2c@4 {
+			reg = <4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sfp_eeprom@50 {
+				compatible = "atmel,24c02";
+				label = "SFP_EEPROM_PRU21_CPM";
+				reg = <0x50>;
+			};
+			sfp_ddmi@51 {
+				compatible = "atmel,24c02";
+				label = "SFP_DDMI_PRU21_CPM";
+				reg = <0x51>;
+			};
+		};
+	};
+};
+	
+/* I2C for BPM */
+&i2c4 {
+	status = "okay";
+	clock-frequency = <100000>;
+		
+	/* I2c mux pca9546 */	
+	mux@72 {
+		/* On the BPM we use the pca9546 but the attribute definition for the pca9546 is missing in the driver of the kernel 4.9. So we 
+		   use pca9545 which has the same attributes*/
+		compatible = "nxp,pca9545";
+		reg = <0x72>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c_bpm_0: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			swi1_smgt@5f {
+				compatible = "dummy";
+				reg = <0x5f>;
+				label = "ETH_SWITCH_1_BPM";
+				status = "okay";
+			}; 
+		};
+		i2c_bpm_1: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			swi2_smgt@5f {
+				compatible = "dummy";
+				reg = <0x5f>;
+				label = "ETH_SWITCH_2_BPM";
+				status = "okay";
+			};
+		};
+		i2c_bpm_2: i2c@2 {
+			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			LED_mux@32 {
+				compatible = "ti,lp5569";
+				reg = <0x32>;
+				status = "okay";
+				clock-mode = /bits/8 <1>;
+
+				chan0 {
+					chan-name = "bpm:led3:red";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan1 {
+					chan-name = "bpm:led3:blue";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan2 {
+					chan-name = "bpm:led3:green";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan3 {
+					chan-name = "bpm:led1:red";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan4 {
+					chan-name = "bpm:led1:blue";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan5 {
+					chan-name = "bpm:led1:green";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan6 {
+					chan-name = "bpm:led2:red";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan7 {
+					chan-name = "bpm:led2:blue";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};
+				chan8 {
+					chan-name = "bpm:led2:green";
+					led-cur = /bits/ 8 <0x20>;
+					max-cur = /bits/ 8 <0x60>;
+				};					
+			};
+		};
+		i2c_bpm_3:i2c@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			id_eeprom_bpm@51 {
+				compatible = "atmel,24c64";
+				reg = <0x51>;
+				label = "ID_EEPROM_BPM";
+				pagesize = <32>;
+			};
+
+			/* TUSB320 USB-C power delivery chip: no driver needed: direct access via I2C from user space*/
+			tusb_bpm: tusb_bpm@61 {
+					label = "USB_POWERCHIP_BPM";
+					compatible = "dummy";
+					reg = <0x61>;
+				};			
+			
+			/* crypto chip: no driver needed: direct access via I2C from user space */
+			crypto_bpm:crypto_bpm@60 {
+				reg = <0x60>;
+				compatible = "dummy";
+				label = "CRYPTO_CHIP_BPM";
+			};			
+			swi3_smgt@5f {
+				compatible = "dummy";
+				reg = <0x5f>;
+				label = "ETH_SWITCH_3_BPM";
+				status = "okay";
+			};
+		};
+	};
+};
+
+/* I2C5 for LHMI */
+&i2c5 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&pruss1_mdio {
+	status = "okay";
+	pruss1_eth0_phy: ethernet-phy@0 {
+		reg = <1>;
+		ti,link-loss-low;
+		ti,fiber-mode;
+	};
+
+	pruss1_eth1_phy: ethernet-phy@1 {
+		reg = <2>;
+		ti,link-loss-low;
+		ti,fiber-mode;
+	};
+};
+
+/*CPM's pruss2_eth1_phy has GPIO different from IDK571*/
+&pruss2_mdio {
+	status = "okay";
+	pruss2_eth0_phy: ethernet-phy@0 {
+		reg = <3>;
+		ti,link-loss-low;
+		ti,fiber-mode;
+	};
+
+	pruss2_eth1_phy: ethernet-phy@1 {
+		reg = <4>;
+		ti,link-loss-low;
+		ti,fiber-mode;
+	};
+};
+
+/* LHMI */
+
+/ {
+	aliases {
+		display0 = &lcd;
+	};
+
+	lcd_bl: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ehrpwm2 0 50000 0>; /* pwms = <&ehrpwm2 0 50000 1>;*/
+		brightness-levels = <0 51 53 56 62 75 101 152 255>;
+		default-brightness-level = <8>;
+	};
+
+	lcd: display {
+		compatible = "osddisplays,osd070t1718-19ts", "panel-dpi";
+		status = "okay";
+
+		backlight = <&lcd_bl>;
+		label = "lcd";
+
+		panel-timing {
+			clock-frequency = <30000000>;
+			hactive = <800>;
+			vactive = <480>;
+
+			hfront-porch = <40>;
+			hback-porch = <88>;
+			hsync-len = <20>;
+
+			vfront-porch = <13>;
+			vback-porch = <32>;
+			vsync-len = <2>;
+
+			hsync-active = <0>; /*QQQ*/
+			vsync-active = <0>; /*QQQ*/
+			de-active = <1>; /*QQQ*/
+			pixelclk-active = <1>; /*QQQ*/
+		};
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+	};
+
+	/*lvds: lvds {
+		compatible = "lvds-encoder";
+		status = "okay";
+		
+		fsl,data-width = <24>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		
+			port@0 {
+				reg = <0>;
+
+				lvds_in: endpoint {
+					remote-endpoint = <&dpi_out>;
+					data-lines = <24>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_out: endpoint {
+					remote-endpoint = <&lcd_in>;
+				};
+			};
+		};
+	};*/
+};
+
+&epwmss2 {
+	status = "okay";
+};
+
+&ehrpwm2 {
+	status = "okay";
+};
+
+&dss {
+	status = "okay";
+
+	vdda_video-supply = <&ldoln_reg>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@2 {
+			reg = <2>;
+
+			dpi_out: endpoint {
+				remote-endpoint = <&lcd_in>;
+				data-lines = <24>;
+			};
+		};
+	};
+};
+
+&touchscreen {
+	interrupt-parent = <&gpio4>;
+	interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&emif1 {
+	status = "okay";
+};
+
+/* USB related */
+
+&usb2_phy1 {
+	phy-supply = <&ldousb_reg>;
+};
+
+&usb2_phy2 {
+	phy-supply = <&ldousb_reg>;
+};
+
+&usb1 {
+	dr_mode = "otg";
+};
+
+&usb2 {
+	dr_mode = "otg";
+};
+
+/ {
+	extcon_usb_cpm: extcon_usb_cpm {
+		compatible = "linux,extcon-usb-gpio";
+		vbus-gpios = <&gpio5 6 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&gpio5 8 GPIO_ACTIVE_HIGH>;
+	};
+
+	extcon_usb_bpm: extcon_usb_bpm {
+		compatible = "linux,extcon-usb-gpio";
+		vbus-gpios = <&gpio5 7 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&omap_dwc3_1 {
+ extcon = <&extcon_usb_cpm>;
+};
+
+&omap_dwc3_2 {
+ extcon = <&extcon_usb_bpm>;
+};
+
+/* PTP BC related */
+/{
+	ptp_bc: ptp_bc {
+		compatible = "ti,am57-bc";
+		pps-sel0-gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
+		pps-sel1-gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&mac {
+	/* cptr pps1 generator and latch properties */
+	pps_timer = <&timer16>;
+	latch_timer = <&timer15>;
+	pinctrl-names = "pwm_off", "pwm_on",
+			"latch_on", "latch_off";
+	pinctrl-0 = <&pps1_timer16_pwm_off>;
+	pinctrl-1 = <&pps1_timer16_pwm_on>;
+	pinctrl-2 = <&pps1_timer15_latch_on>;
+	pinctrl-3 = <&pps1_timer15_latch_off>;
+
+	pps-enable-gpios = <&gpio7 25 GPIO_ACTIVE_HIGH>;
+
+    assigned-clocks = <&l4per3_clkctrl DRA7_L4PER3_TIMER16_CLKCTRL 24>, <&l4per3_clkctrl DRA7_L4PER3_TIMER15_CLKCTRL 24>;
+    assigned-clock-parents = <&abe_giclk_div>, <&abe_giclk_div>;
+};
+
+&dpll_abe_ck {
+	assigned-clocks = <&dpll_abe_ck>;
+	assigned-clock-rates = <50000000>;
+};
+
+&pruss1_iep {
+	pinctrl-names = "sync0_off", "sync0_on", "latch0_off", "latch0_on";
+	pinctrl-0 = <&pr1_edc_sync0_off>;
+	pinctrl-1 = <&pr1_edc_sync0_on>;
+	pinctrl-2 = <&pr1_edc_latch0_off>;
+	pinctrl-3 = <&pr1_edc_latch0_on>;
+};
+
+&pruss2_iep {
+	pinctrl-names = "sync0_off", "sync0_on", "latch0_off", "latch0_on";
+	pinctrl-0 = <&pr2_edc_sync0_off>;
+	pinctrl-1 = <&pr2_edc_sync0_on>;
+	pinctrl-2 = <&pr2_edc_latch0_off>;
+	pinctrl-3 = <&pr2_edc_latch0_on>;
+};
+
+/* PTP Boundary clock related signals*/
+&dra7_pmx_core {
+
+	pps1_timer16_pwm_on: pps1_timer16_pwm_on {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x36a0, PIN_OUTPUT | MUX_MODE10)
+		>;
+	};
+
+	pps1_timer16_pwm_off: pps1_timer16_pwm_off {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x36a0, PIN_OUTPUT | MUX_MODE15)
+		>;
+	};
+
+	pps1_timer15_latch_on: pps1_timer15_latch_on {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x369C, PIN_INPUT | MUX_MODE10)
+		>;
+	};
+
+	pps1_timer15_latch_off: pps1_timer15_latch_off {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x369C, PIN_INPUT | MUX_MODE15)
+		>;
+	};
+
+	pr1_edc_sync0_on: pr1_edc_sync0_on {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3724, PIN_OUTPUT | MUX_MODE13)
+		>;
+	};
+
+	pr1_edc_sync0_off: pr1_edc_sync0_off {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3724, PIN_OUTPUT | MUX_MODE15)
+		>;
+	};
+
+	pr1_edc_latch0_on: pr1_edc_latch0_on {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3694, PIN_INPUT | MUX_MODE12)
+		>;
+	};
+
+	pr1_edc_latch0_off: pr1_edc_latch0_off {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3694, PIN_INPUT | MUX_MODE15)
+		>;
+	};
+
+	pr2_edc_sync0_on: pr2_edc_sync0_on {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3728, PIN_OUTPUT | MUX_MODE13)
+		>;
+	};
+
+	pr2_edc_sync0_off: pr2_edc_sync0_off {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3728, PIN_OUTPUT | MUX_MODE15)
+		>;
+	};
+
+	pr2_edc_latch0_on: pr2_edc_latch0_on {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3698, PIN_INPUT | MUX_MODE12)
+		>;
+	};
+
+	pr2_edc_latch0_off: pr2_edc_latch0_off {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3698, PIN_INPUT | MUX_MODE15)
+		>;
+	};
+};
+
+/*GPIO symbolic name definitions*/
+
+&gpio1 {
+/*                    0  1  2  3  4      5 */
+    gpio-line-names = "","","","","SID4","SID5";
+};
+
+&gpio2 {
+/*                    0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16     17     18 19 20 21 22 23 24 25 26 27 28 29     30  31 */
+    gpio-line-names = "","","","","","","","","","","","","","","","","SID0","SID1","","","","","","","","","","","","SID2","","PS_FAIL_N";
+};
+
+&gpio4 {
+/*                    0  1  2  3  4  5  6  7  8  9  10 11 12  13             14 15 16 17 18 19 20 21 22 23 24 25 26           27 28 29 30*/
+    gpio-line-names = "","","","","","","","","","","","","","USB1_CC_INT_N","","","","","","","","","","","","","CAN_SILENT","","","","LHMI_DISP_BLEN";
+};
+
+&gpio5 {
+/*                    0  1  2  3  4  5  6  7  8  9                   10 11 12 13 14 15 16 17 18 19*/
+    gpio-line-names = "","","","","","","","","","USB1_INT_VBUS_DET","","","","","","","","","","USB2_CC_INT_N";
+};
+
+&gpio6 {
+/*                    0  1  2  3  4  5  6  7  8  9*/
+    gpio-line-names = "","","","","","","","","","USB2_INT_VBUS_DET";
+};
+
+&gpio7 {
+/*                    0  1  2  3  4  5  6  7  8  9  10 11               12 13  14      15             16*/
+    gpio-line-names = "","","","","","","","","","","","GPIO_TRANSC_OE","","", "SID3", "INT_FAULT_N", "INT_FAULT_SET";
+};
+
+&gpioex {
+/*                    0  1  2  3                    4                 5  */
+    gpio-line-names = "","","","ETH10_SFP_DISABLE","ETH10_SFP_DETECT","","ETH11_SFP_DISABLE","ETH11_SFP_DETECT","","ETH20_SFP_DISABLE","ETH20_SFP_DETECT","","ETH21_SFP_DISABLE","ETH21_SFP_DETECT";
+};
+
+
+&cpu_crit {
+	temperature = <135000>; /* milliCelsius */
+};
+
+&gpu_crit {
+	temperature = <135000>; /* milliCelsius */
+};
+
+&core_crit {
+	temperature = <135000>; /* milliCelsius */
+};
+
+&dspeve_crit {
+	temperature = <135000>; /* milliCelsius */
+};
+
+&iva_crit {
+	temperature = <135000>; /* milliCelsius */
+};
+
+&wdt2 {
+	status = "okay";
+};

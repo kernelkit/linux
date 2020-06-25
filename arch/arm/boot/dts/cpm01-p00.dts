@@ -1,0 +1,35 @@
+#include "cpm01-p01.dts"
+
+&omap_dwc3_1 {
+	/delete-property/ extcon;
+};
+
+&omap_dwc3_2 {
+	/delete-property/ extcon;
+};
+
+/* we cannot delete extcon_usb_cpm node because it's used in alias. So we delete the properties instead*/
+&extcon_usb_cpm {
+/delete-property/ vbus-gpio;
+/delete-property/ id-gpio;
+/delete-property/ vbus-out-gpio;
+};
+
+&extcon_usb_bpm {
+/delete-property/ vbus-gpio;
+/delete-property/ id-gpio;
+/delete-property/ vbus-out-gpio;
+};
+
+&id_eeprom_cpm {
+	reg = <0x51>;
+};
+
+&mmc1 {
+	no-1-8-v;
+	pinctrl-names = "default", "hs";
+	/delete-property/ pinctrl-2;
+};
+
+/delete-node/ &sfp_ddmi10;
+
