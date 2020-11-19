@@ -13,6 +13,23 @@
 #include <linux/regmap.h>
 
 struct icss_iep;
+struct pps {
+	struct pinctrl_state *pin_on;
+	struct pinctrl_state *pin_off;
+	int enable;
+	int offset;
+	int next_op;
+	enum {
+		OP_DISABLE_SYNC,
+		OP_ENABLE_SYNC,
+	} report_ops[4];
+};
+
+struct extts {
+	struct pinctrl_state *pin_on;
+	struct pinctrl_state *pin_off;
+};
+
 
 /* Firmware specific clock operations */
 struct icss_iep_clockops {
