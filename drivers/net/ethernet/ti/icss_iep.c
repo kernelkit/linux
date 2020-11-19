@@ -16,8 +16,10 @@
 #include <linux/timekeeping.h>
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "icss_iep.h"
+#include "ptp_bc.h"
 
 #define IEP_MAX_DEF_INC		0xf
 #define IEP_MAX_COMPEN_INC		0xfff
@@ -124,6 +126,14 @@ struct icss_iep {
 	u64 period;
 	u32 latch_enable;
 	struct hrtimer sync_timer;
+
+	int bc_clkid;
+	int pruss_id;
+	bool bc_pps_sync;
+	struct pinctrl *pins;
+	struct extts extts[2];
+	struct pps pps[2];
+
 };
 
 static u32 icss_iep_readl(struct icss_iep *iep, int reg)
@@ -466,6 +476,7 @@ static void icss_iep_update_to_next_boundary(struct icss_iep *iep, u64 start_ns)
 	start_ns += p_ns - 1;
 	offset = do_div(start_ns, p_ns);
 	start_ns = start_ns * p_ns;
+	start_ns += iep->pps[0].offset;
 	/* If it is too close to update, shift to next boundary */
 	if (p_ns - offset < 10)
 		start_ns += p_ns;
@@ -546,10 +557,31 @@ static int icss_iep_perout_enable_hw(struct icss_iep *iep,
 static int icss_iep_perout_enable(struct icss_iep *iep,
 				  struct ptp_perout_request *req, int on)
 {
+	struct timespec64 ts;
 	unsigned long flags;
 	int ret = 0;
+	s64 ns;
 
 	mutex_lock(&iep->ptp_clk_mutex);
+
+	/* this enables a pps for external measurement */
+	if (req->index != 0) {
+		ret = -EOPNOTSUPP;
+		goto exit;
+	}
+
+	if (on) {
+		ts.tv_sec = req->period.sec;
+		ts.tv_nsec = req->period.nsec;
+		ns = timespec64_to_ns(&ts);
+		if (ns != NSEC_PER_SEC) {
+			dev_err(iep->dev,
+				"Unsupported period %llu ns. Device supports only 1 sec period.\n",
+				ns);
+			ret = -EOPNOTSUPP;
+			goto exit;
+		}
+	}
 
 	if (iep->pps_enabled) {
 		ret = -EBUSY;
@@ -558,6 +590,14 @@ static int icss_iep_perout_enable(struct icss_iep *iep,
 
 	if (iep->perout_enabled == !!on)
 		goto exit;
+
+	if (on) {
+		if (iep->pps[1].pin_on)
+			pinctrl_select_state(iep->pins, iep->pps[1].pin_on);
+	} else {
+		if (iep->pps[1].pin_off)
+			pinctrl_select_state(iep->pins, iep->pps[1].pin_off);
+	}
 
 	spin_lock_irqsave(&iep->irq_lock, flags);
 	ret = icss_iep_perout_enable_hw(iep, req, on);
@@ -609,7 +649,7 @@ static irqreturn_t icss_iep_cap_cmp_handler(int irq, void *dev_id)
 		ptp_clock_event(iep->ptp_clock, &pevent);
 		dev_dbg(iep->dev, "IEP:pps ts: %llu next:%llu:\n", ns, ns_next);
 
-		hrtimer_start(&iep->sync_timer, ms_to_ktime(110), /* 100ms + buffer */
+		hrtimer_start(&iep->sync_timer, ms_to_ktime(30), /* 20ms + buffer */
 			      HRTIMER_MODE_REL);
 
 		ret = IRQ_HANDLED;
@@ -671,16 +711,23 @@ static int icss_iep_pps_enable(struct icss_iep *iep, int on)
 		rq.perout.period.nsec = 0;
 		rq.perout.start.sec = ts.tv_sec + 2;
 		rq.perout.start.nsec = 0;
+		if (iep->pps[0].pin_on)
+			pinctrl_select_state(iep->pins, iep->pps[0].pin_on);
 		ret = icss_iep_perout_enable_hw(iep, &rq.perout, on);
 	} else {
 		hrtimer_cancel(&iep->sync_timer);
 		ret = icss_iep_perout_enable_hw(iep, &rq.perout, on);
+		if (iep->pps[0].pin_off)
+			pinctrl_select_state(iep->pins, iep->pps[0].pin_off);
 	}
 
 	if (!ret)
 		iep->pps_enabled = !!on;
 
 	spin_unlock_irqrestore(&iep->irq_lock, flags);
+
+	if (!iep->pps_enabled && iep->pps[0].pin_on)
+		pinctrl_select_state(iep->pins, iep->pps[0].pin_off);
 
 exit:
 	mutex_unlock(&iep->ptp_clk_mutex);
@@ -707,9 +754,13 @@ static int icss_iep_extts_enable(struct icss_iep *iep, u32 index, int on)
 	if (on) {
 		val |= cap;
 		iep->latch_enable |= BIT(index);
+		if (iep->extts[index].pin_on)
+			pinctrl_select_state(iep->pins, iep->extts[index].pin_on);
 	} else {
 		val &= ~cap;
 		iep->latch_enable &= ~BIT(index);
+		if (iep->extts[index].pin_on)
+			pinctrl_select_state(iep->pins, iep->extts[index].pin_off);
 	}
 	regmap_write(iep->map, ICSS_IEP_CAPTURE_CFG_REG, val);
 
@@ -723,14 +774,26 @@ static int icss_iep_ptp_enable(struct ptp_clock_info *ptp,
 			       struct ptp_clock_request *rq, int on)
 {
 	struct icss_iep *iep = container_of(ptp, struct icss_iep, ptp_info);
+	bool ok;
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_PEROUT:
 		return icss_iep_perout_enable(iep, &rq->perout, on);
 	case PTP_CLK_REQ_PPS:
+		/* command line only enables the one for internal sync */
+		if (iep->bc_pps_sync) {
+			ok = ptp_bc_clock_sync_enable(iep->bc_clkid, on);
+			if (!ok) {
+				pr_info("iep error: bc clk sync pps enable denied\n");
+				return -EBUSY;
+			}
+		}
 		return icss_iep_pps_enable(iep, on);
 	case PTP_CLK_REQ_EXTTS:
 		return icss_iep_extts_enable(iep, rq->extts.index, on);
+	case PTP_CLK_REQ_PPS_OFFSET:
+		iep->pps[0].offset = on;
+		return 0;
 	default:
 		break;
 	}
@@ -758,6 +821,101 @@ static enum hrtimer_restart icss_iep_sync0_work(struct hrtimer *timer)
 		     IEP_SYNC_CTRL_SYNC_N_EN(0) | IEP_SYNC_CTRL_SYNC_EN);
 
 	return HRTIMER_NORESTART;
+}
+
+static int iep_get_pps_extts_pins(struct icss_iep *iep)
+{
+	struct pinctrl_state *on, *off;
+	u32 has_on_off;
+	struct pinctrl *pins;
+
+	pins = devm_pinctrl_get(iep->dev);
+	if (IS_ERR(pins)) {
+		iep->pins = NULL;
+		dev_dbg(iep->dev, "request for sync latch pins failed: %ld\n",
+			PTR_ERR(pins));
+		return PTR_ERR(pins);
+	}
+
+	iep->pins = pins;
+	has_on_off = 0;
+
+	on = pinctrl_lookup_state(iep->pins, "sync0_on");
+	if (!IS_ERR(on))
+		has_on_off |= BIT(1);
+
+	off = pinctrl_lookup_state(iep->pins, "sync0_off");
+	if (!IS_ERR(off))
+		has_on_off |= BIT(0);
+
+	if (has_on_off == 0x3) {
+		iep->pps[0].pin_on = on;
+		iep->pps[0].pin_off = off;
+		dev_err(iep->dev, "PPS pins configured\n");
+	}
+
+	has_on_off = 0;
+
+	on = pinctrl_lookup_state(iep->pins, "latch0_on");
+	if (!IS_ERR(on))
+		has_on_off |= BIT(1);
+
+	off = pinctrl_lookup_state(iep->pins, "latch0_off");
+	if (!IS_ERR(off))
+		has_on_off |= BIT(0);
+
+	if (has_on_off == 0x3) {
+		iep->extts[0].pin_on = on;
+		iep->extts[0].pin_off = off;
+		dev_err(iep->dev, "Latch pins configured\n");
+	}
+
+	has_on_off = 0;
+
+	if (iep->pps[0].pin_on && iep->extts[0].pin_on)
+		iep->bc_pps_sync = true;
+	else
+		iep->bc_pps_sync = false;
+
+	iep->bc_clkid = -1;
+
+	on = pinctrl_lookup_state(iep->pins, "sync1_on");
+	if (!IS_ERR(on))
+		has_on_off |= BIT(1);
+
+	off = pinctrl_lookup_state(iep->pins, "sync1_off");
+	if (!IS_ERR(off))
+		has_on_off |= BIT(0);
+
+	if (has_on_off == 0x3) {
+		iep->pps[1].pin_on = on;
+		iep->pps[1].pin_off = off;
+		iep->ptp_info.n_per_out = 1;
+	}
+
+	return 0;
+}
+
+#define MAX_PPS                      2
+#define MAX_EXTTS                    2
+static void iep_pps_pins_off(struct icss_iep *iep)
+{
+	int i;
+
+	for (i = 0; i < MAX_PPS; i++) {
+		if (iep->pps[i].pin_off)
+			pinctrl_select_state(iep->pins, iep->pps[i].pin_off);
+	}
+}
+
+static void iep_extts_pins_off(struct icss_iep *iep)
+{
+	int i;
+
+	for (i = 0; i < MAX_EXTTS; i++) {
+		if (iep->extts[i].pin_off)
+			pinctrl_select_state(iep->pins, iep->extts[i].pin_off);
+	}
 }
 
 struct icss_iep *icss_iep_get(struct device_node *np)
@@ -814,6 +972,8 @@ struct icss_iep *icss_iep_get(struct device_node *np)
 	    !(iep->plat_data->flags & ICSS_IEP_SLOW_COMPEN_REG_SUPPORT))
 		goto exit;
 
+	iep_get_pps_extts_pins(iep);
+
 	if (iep->cap_cmp_irq || (iep->ops && iep->ops->perout_enable)) {
 		iep->ptp_info.n_per_out = 1;
 		iep->ptp_info.pps = 1;
@@ -821,6 +981,12 @@ struct icss_iep *icss_iep_get(struct device_node *np)
 
 	if (iep->cap_cmp_irq || (iep->ops && iep->ops->extts_enable))
 		iep->ptp_info.n_ext_ts = 2;
+
+	if (iep->ptp_info.pps)
+		iep_pps_pins_off(iep);
+
+	if (iep->ptp_info.n_ext_ts)
+		iep_extts_pins_off(iep);
 
 exit:
 	return iep;
@@ -843,6 +1009,8 @@ void icss_iep_put(struct icss_iep *iep)
 		free_irq(iep->cap_cmp_irq, iep);
 		hrtimer_cancel(&iep->sync_timer);
 	}
+	if (iep->pins)
+		devm_pinctrl_put(iep->pins);
 }
 EXPORT_SYMBOL_GPL(icss_iep_put);
 
@@ -863,7 +1031,7 @@ int icss_iep_init(struct icss_iep *iep, const struct icss_iep_clockops *clkops,
 	icss_iep_set_default_inc(iep, def_inc);
 	icss_iep_set_compensation_inc(iep, def_inc);
 	icss_iep_set_compensation_count(iep, 0);
-	regmap_write(iep->map, ICSS_IEP_SYNC_PWIDTH_REG, iep->refclk_freq / 10); /* 100 ms pulse */
+	regmap_write(iep->map, ICSS_IEP_SYNC_PWIDTH_REG, iep->refclk_freq / 50); /* 20 ms pulse */
 	regmap_write(iep->map, ICSS_IEP_SYNC0_PERIOD_REG, 0);
 	if (iep->plat_data->flags & ICSS_IEP_SLOW_COMPEN_REG_SUPPORT)
 		icss_iep_set_slow_compensation_count(iep, 0);
@@ -873,7 +1041,7 @@ int icss_iep_init(struct icss_iep *iep, const struct icss_iep_clockops *clkops,
 		icss_iep_enable(iep);
 
 	iep->cycle_time_ns = cycle_time_ns;
-	icss_iep_set_counter(iep, 0);
+	icss_iep_set_counter(iep, ktime_to_ns(ktime_get_real()));
 
 	iep->clk_tick_time = def_inc;
 
@@ -883,6 +1051,19 @@ int icss_iep_init(struct icss_iep *iep, const struct icss_iep_clockops *clkops,
 		iep->ptp_clock = NULL;
 		dev_err(iep->dev, "Failed to register ptp clk %d\n", ret);
 	}
+
+	if (iep->bc_pps_sync) {
+		ret = of_alias_get_id(dev_of_node(iep->dev), "pruss_iep");
+
+		dev_info(iep->dev, "ptp bc clktype %d\n", ret);
+
+		iep->bc_clkid = ptp_bc_clock_register(ret == 2 ? PTP_BC_CLOCK_TYPE_PRUICSS2 :
+						      PTP_BC_CLOCK_TYPE_PRUICSS1);
+		ret = 0;
+	}
+
+	dev_info(iep->dev, "iep ptp bc clkid %d\n", iep->bc_clkid);
+	ptp_bc_mux_ctrl_register(NULL, NULL, NULL);
 
 	return ret;
 }
@@ -895,6 +1076,7 @@ int icss_iep_exit(struct icss_iep *iep)
 		iep->ptp_clock = NULL;
 	}
 	icss_iep_disable(iep);
+	ptp_bc_clock_unregister(iep->bc_clkid);
 
 	return 0;
 }
