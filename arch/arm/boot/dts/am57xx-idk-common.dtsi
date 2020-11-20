@@ -190,6 +190,11 @@
 			local-mac-address = [00 00 00 00 00 00];
 		};
 	};
+
+	ptp_bc: ptp_bc {
+		compatible = "ti,am57-bc";
+		status = "disabled";
+	};
 };
 
 &dra7_pmx_core {
