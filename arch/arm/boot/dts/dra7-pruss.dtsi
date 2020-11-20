@@ -5,6 +5,13 @@
  * Common PRUSS data for TI AM57xx platforms
  */
 
+/ {
+	aliases {
+		pruss_iep1 = &pruss1_iep;
+		pruss_iep2 = &pruss2_iep;
+	};
+};
+
 &ocp {
 	pruss1_tm: target-module@4b226000 {
 		compatible = "ti,sysc-pruss", "ti,sysc";

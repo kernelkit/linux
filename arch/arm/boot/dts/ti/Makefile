@@ -27,7 +27,9 @@ dtb-y += am57xx-evm.dtbo \
 	dra71-evm-lcd-auo-g101evn01.0.dtbo \
 	dra71-evm-nand.dtbo \
 	dra76-evm-tfp410.dtbo \
-	am57xx-idk-pps.dtbo
+	am571x-idk-pps.dtbo \
+	am572x-idk-pps.dtbo \
+	am574x-idk-pps.dtbo
 
 ifneq ($(DTC),)
   DTC_PATH=$(dir $(DTC))
