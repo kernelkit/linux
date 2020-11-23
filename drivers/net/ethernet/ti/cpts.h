@@ -20,6 +20,14 @@
 #include <linux/skbuff.h>
 #include <linux/ptp_classify.h>
 #include <linux/timecounter.h>
+#ifdef CONFIG_TI_1PPS_DM_TIMER
+#include <linux/gpio.h>
+#endif
+#ifdef CONFIG_TI_1PPS_DM_TIMER
+#include <linux/kthread.h>
+#include <clocksource/timer-ti-dm.h>
+#include <linux/platform_data/dmtimer-omap.h>
+#endif
 
 struct cpsw_cpts {
 	u32 idver;                /* Identification and version */
@@ -89,6 +97,11 @@ enum {
 #define CPTS_FIFO_DEPTH 16
 #define CPTS_MAX_EVENTS 32
 
+#define CPTS_EVENT_HWSTAMP_TIMEOUT 200 /* ms */
+
+#define CPTS_MAX_EXT_TS 4
+#define CPTS_PPS_HW_INDEX 3
+
 struct cpts_event {
 	struct list_head list;
 	unsigned long tmo;
@@ -111,6 +124,7 @@ struct cpts {
 	int phc_index;
 	struct clk *refclk;
 	struct list_head events;
+	struct list_head events_pps;
 	struct list_head pool;
 	struct cpts_event pool_data[CPTS_MAX_EVENTS];
 	unsigned long ov_check_period;
@@ -122,6 +136,46 @@ struct cpts {
 	struct completion	ts_push_complete;
 	u32 ext_ts_inputs;
 	u32 hw_ts_enable;
+
+#ifdef CONFIG_TI_1PPS_DM_TIMER
+	u8 use_1pps_gen;
+	u8 use_1pps_latch;
+	u8 use_1pps_ref;
+	u8 pps_latch_receive;
+	int pps_hw_index;
+	int pps_enable;
+	int pps_state;
+	int pps_latch_state;
+	int ref_enable;
+	int ptp_adjusted;
+	struct omap_dm_timer *odt;/* timer for 1PPS generator */
+	const struct omap_dm_timer_ops *odt_ops;
+	struct omap_dm_timer *odt2;/* timer for 1PPS latch */
+	const struct omap_dm_timer_ops *odt2_ops;
+	s32 ppb_new;
+	u64 hw_timestamp;
+	u32 pps_latch_offset;
+	int pps_offset;
+	spinlock_t bc_mux_lock; /* protect mux control gpio (pps_enable_gpio) */
+
+	struct pinctrl *pins;
+	struct pinctrl_state *pin_state_pwm_off;
+	struct pinctrl_state *pin_state_pwm_on;
+	struct pinctrl_state *pin_state_ref_off;
+	struct pinctrl_state *pin_state_ref_on;
+	struct pinctrl_state *pin_state_latch_off;
+	struct pinctrl_state *pin_state_latch_on;
+
+	struct gpio_desc *pps_enable_gpiod;
+	struct gpio_desc *ref_enable_gpiod;
+
+	int pps_tmr_irqn;
+	int pps_latch_irqn;
+	int bc_clkid;
+
+	struct kthread_worker *pps_kworker;
+	struct kthread_delayed_work pps_work;
+#endif
 };
 
 void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);

@@ -226,4 +226,13 @@ config TI_PTP_BC
          makes sure that no more than one constituent clock enables
          pps for internal sync purpose at any given instant of time.
 
+config TI_1PPS_DM_TIMER
+	bool "TI 1PPS dm timer implementation"
+	depends on OMAP_DM_TIMER
+	---help---
+	  This driver supports PTP 1PPS signal generation using dm timer. This
+	  feature is available at the AM571(4)x-idk platform with hardware
+	  rework and the similar hardware modifications will be required for
+	  other TI EVMs and custom platforms.
+
 endif # NET_VENDOR_TI
