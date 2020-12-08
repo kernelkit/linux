@@ -375,10 +375,16 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 	struct videomode vm;
 	unsigned int i;
 
+	//workaround to remove a kernel error dump for an early return, the patch contains a warning to keep track of this for future releases.
+	dev_warn(dev, "panel-simple.c early return.\n");
+	return;
+	/*
 	if (WARN_ON(desc->num_modes)) {
-		dev_err(dev, "Reject override mode: panel has a fixed mode\n");
-		return;
+			dev_err(dev, "Reject override mode: panel has a fixed mode\n");
+			return;
 	}
+	*/
+
 	if (WARN_ON(!desc->num_timings)) {
 		dev_err(dev, "Reject override mode: no timings specified\n");
 		return;
