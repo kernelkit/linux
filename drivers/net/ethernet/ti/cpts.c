@@ -213,6 +213,8 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 
 		dev_dbg(cpts->dev, "CPTS_EV: %d high:%08X low:%08x\n",
 			type, event->high, event->low);
+		trace_printk("CPTS_EV: %d high:%08X low:%08x ts:%llu\n",
+			     type, event->high, event->low, event->timestamp);
 		switch (type) {
 		case CPTS_EV_PUSH:
 			WRITE_ONCE(cpts->cur_timestamp, lo);
