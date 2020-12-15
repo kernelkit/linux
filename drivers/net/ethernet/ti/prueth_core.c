@@ -1638,8 +1638,8 @@ static void icss_ptp_dram_init(struct prueth_emac *emac)
 	void __iomem *sram = emac->prueth->mem[PRUETH_MEM_SHARED_RAM].va;
 	u64 temp64;
 
-	writew(186, sram + MII_RX_CORRECTION_OFFSET);
-	writew(726, sram + MII_TX_CORRECTION_OFFSET);
+	writew(0, sram + MII_RX_CORRECTION_OFFSET);
+	writew(0, sram + MII_TX_CORRECTION_OFFSET);
 
 	/* Initialize RCF to 1 (Linux N/A) */
 	writel(1 * 1024, sram + TIMESYNC_TC_RCF_OFFSET);
