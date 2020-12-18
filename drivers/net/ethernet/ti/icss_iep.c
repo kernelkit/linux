@@ -65,13 +65,9 @@ enum {
 
 	ICSS_IEP_CAP6_RISE_REG0,
 	ICSS_IEP_CAP6_RISE_REG1,
-	ICSS_IEP_CAP6_FALL_REG0,
-	ICSS_IEP_CAP6_FALL_REG1,
 
 	ICSS_IEP_CAP7_RISE_REG0,
 	ICSS_IEP_CAP7_RISE_REG1,
-	ICSS_IEP_CAP7_FALL_REG0,
-	ICSS_IEP_CAP7_FALL_REG1,
 
 	ICSS_IEP_CMP_CFG_REG,
 	ICSS_IEP_CMP_STAT_REG,
@@ -913,13 +909,9 @@ static const struct icss_iep_plat_data am654_icss_iep_plat_data = {
 
 		[ICSS_IEP_CAP6_RISE_REG0] = 0x50,
 		[ICSS_IEP_CAP6_RISE_REG1] = 0x54,
-		[ICSS_IEP_CAP6_FALL_REG0] = 0x58,
-		[ICSS_IEP_CAP6_FALL_REG1] = 0x5c,
 
 		[ICSS_IEP_CAP7_RISE_REG0] = 0x60,
 		[ICSS_IEP_CAP7_RISE_REG1] = 0x64,
-		[ICSS_IEP_CAP7_FALL_REG0] = 0x68,
-		[ICSS_IEP_CAP7_FALL_REG1] = 0x6c,
 
 		[ICSS_IEP_CMP_CFG_REG] = 0x70,
 		[ICSS_IEP_CMP_STAT_REG] = 0x74,
@@ -955,13 +947,9 @@ static const struct icss_iep_plat_data am57xx_icss_iep_plat_data = {
 
 		[ICSS_IEP_CAP6_RISE_REG0] = 0x50,
 		[ICSS_IEP_CAP6_RISE_REG1] = 0x54,
-		[ICSS_IEP_CAP6_FALL_REG0] = 0x58,
-		[ICSS_IEP_CAP6_FALL_REG1] = 0x5c,
 
 		[ICSS_IEP_CAP7_RISE_REG0] = 0x60,
 		[ICSS_IEP_CAP7_RISE_REG1] = 0x64,
-		[ICSS_IEP_CAP7_FALL_REG0] = 0x68,
-		[ICSS_IEP_CAP7_FALL_REG1] = 0x6c,
 
 		[ICSS_IEP_CMP_CFG_REG] = 0x70,
 		[ICSS_IEP_CMP_STAT_REG] = 0x74,
@@ -988,7 +976,6 @@ static bool am335x_icss_iep_valid_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case ICSS_IEP_GLOBAL_CFG_REG ... ICSS_IEP_CAPTURE_STAT_REG:
 	case ICSS_IEP_CAP6_RISE_REG0:
-	case ICSS_IEP_CAP6_FALL_REG0:
 	case ICSS_IEP_CMP_CFG_REG ... ICSS_IEP_CMP0_REG0:
 	case ICSS_IEP_CMP8_REG0 ... ICSS_IEP_SYNC_START_REG:
 		return true;
@@ -1018,10 +1005,8 @@ static const struct icss_iep_plat_data am335x_icss_iep_plat_data = {
 		[ICSS_IEP_CAPTURE_STAT_REG] = 0x14,
 
 		[ICSS_IEP_CAP6_RISE_REG0] = 0x30,
-		[ICSS_IEP_CAP6_FALL_REG0] = 0x34,
 
 		[ICSS_IEP_CAP7_RISE_REG0] = 0x38,
-		[ICSS_IEP_CAP7_FALL_REG0] = 0x3C,
 
 		[ICSS_IEP_CMP_CFG_REG] = 0x40,
 		[ICSS_IEP_CMP_STAT_REG] = 0x44,
