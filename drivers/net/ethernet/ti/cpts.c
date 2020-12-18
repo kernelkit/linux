@@ -196,12 +196,12 @@ static void cpts_update_cur_time(struct cpts *cpts, int match,
 	reinit_completion(&cpts->ts_push_complete);
 
 	/* use spin_lock_irqsave() here as it has to run very fast */
-	spin_lock_irqsave(&cpts->lock, flags);
+	local_irq_save(flags);
 	ptp_read_system_prets(sts);
 	cpts_write32(cpts, TS_PUSH, ts_push);
 	cpts_read32(cpts, ts_push);
 	ptp_read_system_postts(sts);
-	spin_unlock_irqrestore(&cpts->lock, flags);
+	local_irq_restore(flags);
 
 	if (cpts->irq_poll && cpts_fifo_read(cpts, match) && match != -1)
 		dev_err(cpts->dev, "cpts: unable to obtain a time stamp\n");
