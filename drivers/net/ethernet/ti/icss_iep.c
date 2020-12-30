@@ -125,7 +125,7 @@ struct icss_iep {
 	int cap_cmp_irq;
 	u64 period;
 	u32 latch_enable;
-	struct hrtimer sync_timer;
+	struct delayed_work sync_work;
 
 	int bc_clkid;
 	int pruss_id;
@@ -648,9 +648,7 @@ static irqreturn_t icss_iep_cap_cmp_handler(int irq, void *dev_id)
 		pevent.index = index;
 		ptp_clock_event(iep->ptp_clock, &pevent);
 		dev_dbg(iep->dev, "IEP:pps ts: %llu next:%llu:\n", ns, ns_next);
-
-		hrtimer_start(&iep->sync_timer, ms_to_ktime(30), /* 20ms + buffer */
-			      HRTIMER_MODE_REL);
+		schedule_delayed_work(&iep->sync_work, msecs_to_jiffies(30)); /* 20ms + buffer */
 
 		ret = IRQ_HANDLED;
 	}
@@ -715,7 +713,6 @@ static int icss_iep_pps_enable(struct icss_iep *iep, int on)
 			pinctrl_select_state(iep->pins, iep->pps[0].pin_on);
 		ret = icss_iep_perout_enable_hw(iep, &rq.perout, on);
 	} else {
-		hrtimer_cancel(&iep->sync_timer);
 		ret = icss_iep_perout_enable_hw(iep, &rq.perout, on);
 		if (iep->pps[0].pin_off)
 			pinctrl_select_state(iep->pins, iep->pps[0].pin_off);
@@ -812,15 +809,15 @@ static struct ptp_clock_info icss_iep_ptp_info = {
 	.enable		= icss_iep_ptp_enable,
 };
 
-static enum hrtimer_restart icss_iep_sync0_work(struct hrtimer *timer)
+static void icss_iep_sync0_work(struct work_struct *work)
 {
-	struct icss_iep *iep = container_of(timer, struct icss_iep, sync_timer);
+	struct delayed_work *dw = to_delayed_work(work);
+	struct icss_iep *iep = container_of(dw, struct icss_iep, sync_work);
 
 	regmap_write(iep->map, ICSS_IEP_SYNC_CTRL_REG, 0);
 	regmap_write(iep->map, ICSS_IEP_SYNC_CTRL_REG,
 		     IEP_SYNC_CTRL_SYNC_N_EN(0) | IEP_SYNC_CTRL_SYNC_EN);
-
-	return HRTIMER_NORESTART;
+	icss_iep_writel(iep, ICSS_IEP_SYNC0_STAT_REG, 1);
 }
 
 static int iep_get_pps_extts_pins(struct icss_iep *iep)
@@ -961,8 +958,7 @@ struct icss_iep *icss_iep_get(struct device_node *np)
 			dev_err(iep->dev, "Request irq failed for cap_cmp %d\n", ret);
 			goto put_iep_device;
 		}
-		hrtimer_init(&iep->sync_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		iep->sync_timer.function = icss_iep_sync0_work;
+		INIT_DELAYED_WORK(&iep->sync_work, icss_iep_sync0_work);
 	}
 
 	iep->ptp_info = icss_iep_ptp_info;
@@ -1007,7 +1003,7 @@ void icss_iep_put(struct icss_iep *iep)
 	iep->cap_cmp_irq = 0;
 	if (iep->cap_cmp_irq) {
 		free_irq(iep->cap_cmp_irq, iep);
-		hrtimer_cancel(&iep->sync_timer);
+		cancel_delayed_work(&iep->sync_work);
 	}
 	if (iep->pins)
 		devm_pinctrl_put(iep->pins);
