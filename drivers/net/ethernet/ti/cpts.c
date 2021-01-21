@@ -1945,15 +1945,18 @@ static void cpts_latch_proc(struct cpts *cpts, u32 latch_cnt)
 {
 	u32 offset = 0xFFFFFFFFUL - latch_cnt + 1;
 	u32 reload_cnt = CPTS_LATCH_TMR_RELOAD_CNT;
+	unsigned long flags;
 	static bool skip;
 	static int init_cnt;
 
 	if (!cpts)
 		return;
 
+	spin_lock_irqsave(&cpts->lock, flags);
 	cpts->pps_latch_offset = offset * CPTS_TMR_CLK_PERIOD +
 				 CPTS_TMR_LATCH_DELAY;
 	cpts->pps_latch_receive = true;
+	spin_unlock_irqrestore(&cpts->lock, flags);
 
 	/* Timer poll state machine */
 	switch (cpts->pps_latch_state) {
