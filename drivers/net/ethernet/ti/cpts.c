@@ -1923,6 +1923,11 @@ static inline void cpts_latch_pps_stop(struct cpts *cpts)
 	WRITE_TCLR(cpts->odt2, v);
 
 	cpts->pps_latch_state = INIT;
+
+	/* enable tmr irq for init-  no overflow/hwts from now */
+	writel_relaxed(OMAP_TIMER_INT_CAPTURE, cpts->odt2->irq_ena);
+	__omap_dm_timer_write(cpts->odt2, OMAP_TIMER_WAKEUP_EN_REG,
+			      OMAP_TIMER_INT_CAPTURE, 0);
 }
 
 static inline void cpts_latch_pps_start(struct cpts *cpts)
@@ -1933,6 +1938,10 @@ static inline void cpts_latch_pps_start(struct cpts *cpts)
 	v = READ_TCLR(cpts->odt2);
 	v |= BIT(11);
 	WRITE_TCLR(cpts->odt2, v);
+
+	/* disable tmr irq - overflow/hwts will do from now */
+	writel_relaxed(0, cpts->odt2->irq_ena);
+	__omap_dm_timer_write(cpts->odt2, OMAP_TIMER_WAKEUP_EN_REG, 0, 0);
 }
 
 static void cpts_latch_proc_init(struct cpts *cpts)
