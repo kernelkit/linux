@@ -1929,6 +1929,8 @@ static inline void cpts_latch_pps_stop(struct cpts *cpts)
 	WRITE_TCLR(cpts->odt2, v);
 
 	cpts->pps_latch_state = INIT;
+	cpts->pps_latch_offset = 0;
+	cpts->pps_latch_receive = 0;
 }
 
 static inline void cpts_latch_pps_start(struct cpts *cpts)
