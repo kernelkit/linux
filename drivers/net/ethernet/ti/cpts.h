@@ -141,7 +141,6 @@ struct cpts {
 	u8 use_1pps_gen;
 	u8 use_1pps_latch;
 	u8 use_1pps_ref;
-	u8 pps_latch_receive;
 	int pps_hw_index;
 	int pps_enable;
 	int pps_state;
@@ -154,7 +153,6 @@ struct cpts {
 	const struct omap_dm_timer_ops *odt2_ops;
 	s32 ppb_new;
 	u64 hw_timestamp;
-	u32 pps_latch_offset;
 	int pps_offset;
 	spinlock_t bc_mux_lock; /* protect mux control gpio (pps_enable_gpio) */
 
