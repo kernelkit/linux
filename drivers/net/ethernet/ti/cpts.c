@@ -2087,7 +2087,6 @@ static irqreturn_t cpts_1pps_tmr_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int latch_cnt;
 static irqreturn_t cpts_1pps_latch_interrupt(int irq, void *dev_id)
 {
 	struct cpts *cpts = (struct cpts *)dev_id;
@@ -2095,11 +2094,6 @@ static irqreturn_t cpts_1pps_latch_interrupt(int irq, void *dev_id)
 	writel_relaxed(OMAP_TIMER_INT_CAPTURE, cpts->odt2->irq_stat);
 
 	cpts_latch_proc(cpts, READ_TCAP(cpts->odt2));
-
-	if (latch_cnt <= 100)
-		latch_cnt++;
-	if ((latch_cnt % 10) == 0)
-		dev_dbg(cpts->dev, "%s %d\n", __func__, latch_cnt);
 
 	return IRQ_HANDLED;
 }
