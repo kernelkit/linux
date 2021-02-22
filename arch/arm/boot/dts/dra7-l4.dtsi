@@ -1203,6 +1203,7 @@
 					 <&timer_sys_clk_div>;
 				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				ti,local-timer-cpu0;
 			};
 		};
 
@@ -1232,6 +1233,7 @@
 					 <&timer_sys_clk_div>;
 				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+				ti,local-timer-cpu1;
 			};
 		};
 
