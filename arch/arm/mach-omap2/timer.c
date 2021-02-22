@@ -43,6 +43,7 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/dmtimer-omap.h>
 #include <linux/sched_clock.h>
+#include <linux/cpu.h>
 
 #include <asm/mach/time.h>
 
@@ -78,6 +79,15 @@ static struct irq_desc *clkev_irq_desc;
 
 /* Clockesource hwmod for am437x suspend */
 static struct omap_hwmod *clocksource_gpt_hwmod;
+
+struct local_gpt_device {
+	struct clock_event_device evt;
+	struct omap_dm_timer timer;
+};
+
+#define to_gpt_dev(_evt) container_of(_evt, struct local_gpt_device, evt)
+
+static DEFINE_PER_CPU(struct local_gpt_device, gptimer_evt);
 
 #ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
 static unsigned long arch_timer_freq;
@@ -408,6 +418,110 @@ void tick_broadcast(const struct cpumask *mask)
 }
 #endif
 
+static int omap_gptimer_starting_cpu(unsigned int cpu)
+{
+	struct local_gpt_device *dev = per_cpu_ptr(&gptimer_evt, cpu);
+
+	clockevents_config_and_register(&dev->evt, dev->timer.rate, 0,
+					ULONG_MAX);
+
+	irq_force_affinity(dev->timer.irq, cpumask_of(cpu));
+
+	return 0;
+}
+
+static int local_timer_shutdown(struct clock_event_device *evt)
+{
+	struct local_gpt_device *dev = to_gpt_dev(evt);
+
+	__omap_dm_timer_stop(&dev->timer, OMAP_TIMER_POSTED, dev->timer.rate);
+
+	return 0;
+}
+
+static int local_timer_set_next_event(unsigned long cycles,
+					struct clock_event_device *evt)
+{
+	struct local_gpt_device *dev = to_gpt_dev(evt);
+
+	__omap_dm_timer_load_start(&dev->timer, OMAP_TIMER_CTRL_ST,
+				0xffffffff - cycles, OMAP_TIMER_POSTED);
+
+	return 0;
+}
+
+static irqreturn_t local_timer_irq(int irq, void *arg)
+{
+	struct local_gpt_device *dev = arg;
+
+	__omap_dm_timer_write_status(&dev->timer, OMAP_TIMER_INT_OVERFLOW);
+
+	dev->evt.event_handler(&dev->evt);
+	return IRQ_HANDLED;
+}
+
+static int __init omap_gp_timer_setup_locals(const char *fck_source)
+{
+	int cpu = 0;
+	struct device_node *np;
+	int ret;
+	char prop[32];
+	struct local_gpt_device *dev;
+	struct clock_event_device *evt;
+
+	for_each_possible_cpu(cpu) {
+		np = of_get_cpu_node(cpu, NULL);
+		if (!np)
+			break;
+
+		dev = per_cpu_ptr(&gptimer_evt, cpu);
+
+		sprintf(prop, "ti,local-timer-cpu%d", cpu);
+
+		dev->timer.errata = omap_dm_timer_get_errata();
+
+		__omap_dm_timer_override_errata(&dev->timer,
+				OMAP_TIMER_ERRATA_I103_I767);
+
+		evt = &dev->evt;
+
+		ret = omap_dm_timer_init_one(&dev->timer, fck_source,
+				prop, &evt->name, OMAP_TIMER_POSTED);
+
+		if (ret) {
+			pr_err("%s: timer init failed: %d.\n", __func__,
+				ret);
+			return ret;
+		}
+
+		evt->rating = 500;
+		evt->cpumask = cpumask_of(cpu);
+		evt->features = CLOCK_EVT_FEAT_ONESHOT;
+		evt->set_next_event = local_timer_set_next_event;
+		evt->set_state_oneshot_stopped = local_timer_shutdown;
+		evt->set_state_shutdown = local_timer_shutdown;
+		evt->irq = dev->timer.irq;
+
+		ret = request_irq(evt->irq, local_timer_irq,
+			IRQF_TIMER | IRQF_NOBALANCING, "local-gptimer", dev);
+		if (ret) {
+			pr_err("%s: request irq failed: %d.\n", __func__,
+				ret);
+			return ret;
+		}
+
+		__omap_dm_timer_int_enable(&dev->timer, OMAP_TIMER_INT_OVERFLOW);
+		pr_info("OMAP clockevent: using local gp%s for cpu%d, irq %d\n",
+			evt->name, cpu, evt->irq);
+	}
+
+	cpuhp_setup_state(CPUHP_AP_OMAP_DM_TIMER_STARTING,
+			  "clockevents/omap/gptimer:starting",
+			  omap_gptimer_starting_cpu, NULL);
+
+	return 0;
+}
+
 static void __init omap2_gp_clockevent_init(int gptimer_id,
 						const char *fck_source,
 						const char *property)
@@ -454,6 +568,9 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 
 	if (soc_is_am437x())
 		omap_clkevt_late_ack_init();
+
+	if (soc_is_dra7xx())
+		omap_gp_timer_setup_locals(fck_source);
 
 	pr_info("OMAP clockevent source: %s at %lu Hz\n", clockevent_gpt.name,
 		clkev.rate);
@@ -625,7 +742,7 @@ void __init omap3_secure_sync32k_timer_init(void)
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX) || \
-	defined(CONFIG_SOC_AM43XX)
+	defined(CONFIG_SOC_AM43XX) || defined(CONFIG_SOC_DRA7XX)
 void __init omap3_gptimer_timer_init(void)
 {
 	__omap_sync32k_timer_init(2, "timer_sys_ck", NULL,
