@@ -2498,7 +2498,6 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->mark = po->sk.sk_mark;
 	skb->tstamp = sockc->transmit_time;
 	skb_setup_tx_timestamp(skb, sockc->tsflags);
-	skb_zcopy_set_nouarg(skb, ph.raw);
 
 	skb_reserve(skb, hlen);
 	skb_reset_network_header(skb);
@@ -2553,6 +2552,11 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		len_max = PAGE_SIZE;
 		len = ((to_write > len_max) ? len_max : to_write);
 	}
+
+	if (skb_shinfo(skb)->nr_frags)
+		skb_zcopy_set_nouarg(skb, ph.raw);
+	else
+		skb_shinfo(skb)->destructor_arg = ph.raw;
 
 	packet_parse_headers(skb, sock);
 
@@ -2643,7 +2647,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	void *data;
 	int len_sum = 0;
 	int status = TP_STATUS_AVAILABLE;
-	int hlen, tlen, copylen = 0;
+	int hlen, tlen, copylen = 0, alloclen;
 	long timeo = 0;
 
 	mutex_lock(&po->pg_vec_lock);
@@ -2737,9 +2741,16 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 						    vnet_hdr->hdr_len);
 		}
 		copylen = max_t(int, copylen, dev->hard_header_len);
+		alloclen = hlen + tlen + sizeof(struct sockaddr_ll) +
+			  (copylen - dev->hard_header_len);
+
+		if (copylen + tp_len < PAGE_SIZE) {
+			alloclen += tp_len;
+			copylen = tp_len;
+		}
+
 		skb = sock_alloc_send_skb(&po->sk,
-				hlen + tlen + sizeof(struct sockaddr_ll) +
-				(copylen - dev->hard_header_len),
+				alloclen,
 				!need_wait, &err);
 
 		if (unlikely(skb == NULL)) {
