@@ -480,7 +480,7 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
 		ether_addr_copy(eth_hdr(skb)->h_source, port->dev->dev_addr);
 	}
 	INC_CNT_TX_AB(port->type, port->hsr);
-	return dev_queue_xmit(skb);
+	return dev_direct_xmit(skb, 0);
 }
 
 static void stripped_skb_get_shared_info(struct sk_buff *skb_stripped,
