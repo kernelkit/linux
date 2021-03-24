@@ -248,7 +248,14 @@ static struct sk_buff *prp_fill_rct(struct sk_buff *skb,
 	if (skb_put_padto(skb, min_size))
 		return NULL;
 
-	trailer = (struct prp_rct *)skb_put(skb, HSR_HLEN);
+	/* Check for already existing PRP tag */
+	if (skb->is_hsr)
+		trailer = (struct prp_rct *)(skb_tail_pointer(skb) - HSR_HLEN);
+	else
+		trailer = (struct prp_rct *)skb_put(skb, HSR_HLEN);
+
+	skb->is_hsr = 1;
+
 	lsdu_size = skb->len - 14;
 	if (frame->is_vlan)
 		lsdu_size -= 4;
@@ -327,25 +334,28 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 	struct hsr_ethhdr *hsr_ethhdr;
 	u16 s;
 
+	/* HACK/Optimization: Reuse the SKB passed to hsr_xmit() for both
+	 * slaves. This avoids the allocation and freeing of new SKBs.  The hsr
+	 * device's tailroom/headroom settings make sure that enough space is
+	 * available.
+	 */
+	skb = skb_get(skb_o);
+
 	if (port->hsr->prot_version > HSR_V1) {
-		skb = skb_copy_expand(skb_o, skb_headroom(skb_o),
-				      skb_tailroom(skb_o) + HSR_HLEN,
-				      GFP_ATOMIC);
-		skb = prp_fill_rct(skb, frame, port);
-		return skb;
+		return prp_fill_rct(skb, frame, port);
 	} else if ((port->hsr->prot_version == HSR_V1) &&
-		   (port->hsr->hsr_mode == IEC62439_3_HSR_MODE_T)) {
-		return skb_clone(skb_o, GFP_ATOMIC);
+		 (port->hsr->hsr_mode == IEC62439_3_HSR_MODE_T)) {
+		return skb;
 	}
 
-	/* Create the new skb with enough headroom to fit the HSR tag */
-	skb = __pskb_copy(skb_o, skb_headroom(skb_o) + HSR_HLEN, GFP_ATOMIC);
-	if (!skb)
-		return NULL;
 	skb_reset_mac_header(skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		skb->csum_start += HSR_HLEN;
+
+	/* If this SKB has been expanded before just fill the HSR tag. */
+	if (skb->is_hsr)
+		goto fill_tag;
 
 	movelen = ETH_HLEN;
 	if (frame->is_vlan)
@@ -356,9 +366,12 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 	memmove(dst, src, movelen);
 	skb_reset_mac_header(skb);
 
+fill_tag:
 	skb = hsr_fill_tag(skb, frame, port, port->hsr->prot_version);
 	if (!skb)
 		return NULL;
+
+	skb->is_hsr = 1;
 
 	if (REDINFO_T(skb) == DIRECTED_TX)
 		return skb;

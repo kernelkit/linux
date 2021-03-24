@@ -817,6 +817,10 @@ void hsr_dev_setup(struct net_device *dev)
 	 * it means "Does not change network namespaces".
 	 */
 	dev->features |= NETIF_F_NETNS_LOCAL;
+
+	/* Make sure enough headroom/tailroom is available */
+	dev->needed_headroom += HSR_HLEN;
+	dev->needed_tailroom += HSR_HLEN;
 }
 
 /* Return true if dev is a HSR master; return false otherwise.
