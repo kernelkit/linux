@@ -247,10 +247,16 @@ int pruss_intc_configure(struct device *dev,
 
 		intc->config_map.sysev_to_ch[i] = ch;
 		pruss_intc_update_cmr(intc, i, ch);
-		bitmap_set(sysevt_bitmap, i, 1);
 		ch_mask |= BIT(ch);
 		idx = i / CMR_EVT_PER_REG;
 		intc->config_map.sysev_use_cnt[i]++;
+
+		/* unmask PRU cores events only */
+		host = intc_config->ch_to_host[ch];
+		if (host < MIN_PRU_HOST_INT) {
+			bitmap_set(sysevt_bitmap, i, 1);
+			dev_dbg(dev, "SYSEVT%d -> CH%d -> HOST%d unmask\n", i, ch, host);
+		}
 
 		dev_dbg(dev, "SYSEVT%d -> CH%d (CMR%d 0x%08x) uc:%d\n", i, ch, idx,
 			pruss_intc_read_reg(intc, PRU_INTC_CMR(idx)),
@@ -441,11 +447,12 @@ static void pruss_intc_init(struct pruss_intc *intc)
 
 	/*
 	 * configure polarity (SIPR register) to active high and
-	 * type (SITR register) to pulse interrupt for all system events
+	 * type (SITR register) to pulse interrupt, and mask for all system events
 	 */
 	for (i = 0; i < num_event_type_regs; i++) {
 		pruss_intc_write_reg(intc, PRU_INTC_SIPR(i), 0xffffffff);
 		pruss_intc_write_reg(intc, PRU_INTC_SITR(i), 0);
+		pruss_intc_write_reg(intc, PRU_INTC_ECR(i), 0);
 	}
 
 	/* clear all interrupt channel map registers, 4 events per register */
