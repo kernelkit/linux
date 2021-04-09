@@ -2038,6 +2038,7 @@ static u32 cpts_latch_proc(struct cpts *cpts)
 	u32 pps_latch_offset;
 
 	latch_cnt = READ_TCAP(cpts->odt2);
+	writel_relaxed(OMAP_TIMER_INT_CAPTURE, cpts->odt2->irq_stat);
 	offset = 0xFFFFFFFFUL - latch_cnt + 1;
 
 	pps_latch_offset = offset * CPTS_TMR_CLK_PERIOD +  CPTS_TMR_LATCH_DELAY;
