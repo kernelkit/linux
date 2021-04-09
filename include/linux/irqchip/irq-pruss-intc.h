@@ -31,6 +31,8 @@ struct device;
 struct pruss_intc_config {
 	s8 sysev_to_ch[MAX_PRU_SYS_EVENTS];
 	s8 ch_to_host[MAX_PRU_CHANNELS];
+	u8 sysev_use_cnt[MAX_PRU_SYS_EVENTS];
+	s8 ch_use_cnt[MAX_PRU_CHANNELS];
 };
 
 #if IS_ENABLED(CONFIG_TI_PRUSS_INTC)
