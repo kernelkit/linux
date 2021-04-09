@@ -657,7 +657,6 @@ do_latch:
 	sts = icss_iep_readl(iep, ICSS_IEP_CAPTURE_STAT_REG);
 	if (!sts)
 		goto cap_cmp_exit;
-
 	for (i = 0; i < iep->ptp_info.n_ext_ts; i++) {
 		if (sts & IEP_CAP_CFG_CAPNR_1ST_EVENT_EN(i * 2)) {
 			ns = icss_iep_readl(iep,
@@ -920,7 +919,6 @@ struct icss_iep *icss_iep_get(struct device_node *np)
 	struct platform_device *pdev;
 	struct device_node *iep_np;
 	struct icss_iep *iep;
-	int ret;
 
 	iep_np = of_parse_phandle(np, "iep", 0);
 	if (!iep_np || !of_device_is_available(iep_np))
@@ -951,15 +949,8 @@ struct icss_iep *icss_iep_get(struct device_node *np)
 	iep->cap_cmp_irq = of_irq_get_byname(np, "iep_cap_cmp");
 	if (iep->cap_cmp_irq < 0) {
 		iep->cap_cmp_irq = 0;
-	} else {
-		ret = request_irq(iep->cap_cmp_irq, icss_iep_cap_cmp_handler, IRQF_TRIGGER_HIGH,
-				  "iep_cap_cmp", iep);
-		if (ret) {
-			dev_err(iep->dev, "Request irq failed for cap_cmp %d\n", ret);
-			goto put_iep_device;
-		}
-		INIT_DELAYED_WORK(&iep->sync_work, icss_iep_sync0_work);
 	}
+	INIT_DELAYED_WORK(&iep->sync_work, icss_iep_sync0_work);
 
 	iep->ptp_info = icss_iep_ptp_info;
 
@@ -986,11 +977,6 @@ struct icss_iep *icss_iep_get(struct device_node *np)
 
 exit:
 	return iep;
-
-put_iep_device:
-	put_device(iep->dev);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(icss_iep_get);
 
@@ -1001,10 +987,7 @@ void icss_iep_put(struct icss_iep *iep)
 	device_unlock(iep->dev);
 	put_device(iep->dev);
 	iep->cap_cmp_irq = 0;
-	if (iep->cap_cmp_irq) {
-		free_irq(iep->cap_cmp_irq, iep);
-		cancel_delayed_work(&iep->sync_work);
-	}
+
 	if (iep->pins)
 		devm_pinctrl_put(iep->pins);
 }
@@ -1061,12 +1044,24 @@ int icss_iep_init(struct icss_iep *iep, const struct icss_iep_clockops *clkops,
 	dev_info(iep->dev, "iep ptp bc clkid %d\n", iep->bc_clkid);
 	ptp_bc_mux_ctrl_register(NULL, NULL, NULL);
 
+	if (iep->cap_cmp_irq) {
+		ret = request_irq(iep->cap_cmp_irq, icss_iep_cap_cmp_handler, IRQF_TRIGGER_HIGH,
+				  "iep_cap_cmp", iep);
+		if (ret)
+			dev_err(iep->dev, "Request irq failed for cap_cmp %d\n", ret);
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(icss_iep_init);
 
 int icss_iep_exit(struct icss_iep *iep)
 {
+	if (iep->cap_cmp_irq) {
+		free_irq(iep->cap_cmp_irq, iep);
+		cancel_delayed_work(&iep->sync_work);
+	}
+
 	if (iep->ptp_clock) {
 		ptp_clock_unregister(iep->ptp_clock);
 		iep->ptp_clock = NULL;

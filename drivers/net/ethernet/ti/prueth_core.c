@@ -1701,14 +1701,7 @@ static int emac_ndo_open(struct net_device *ndev)
 	if (PRUETH_IS_LRE(prueth))
 		prueth_lre_set_stats(prueth, prueth->lre_stats);
 
-	if (!prueth->emac_configured) {
-		icss_ptp_dram_init(emac);
-		ret = icss_iep_init(prueth->iep, NULL, NULL, 0);
-		if (ret) {
-			netdev_err(ndev, "Failed to initialize iep: %d\n", ret);
-			goto free_mem;
-		}
-	}
+
 
 	/* initialize ecap for interrupt pacing */
 	if (!IS_ERR(ecap))
@@ -1717,13 +1710,22 @@ static int emac_ndo_open(struct net_device *ndev)
 	if (!PRUETH_IS_EMAC(prueth)) {
 		ret = prueth_sw_boot_prus(prueth, ndev);
 		if (ret)
-			goto iep_exit;
+			goto free_mem;
 	} else {
 		/* boot the PRU */
 		ret = emac_set_boot_pru(emac, ndev);
 		if (ret) {
 			netdev_err(ndev, "failed to boot PRU: %d\n", ret);
-			goto iep_exit;
+			goto free_mem;
+		}
+	}
+
+	if (!prueth->emac_configured) {
+		icss_ptp_dram_init(emac);
+		ret = icss_iep_init(prueth->iep, NULL, NULL, 0);
+		if (ret) {
+			netdev_err(ndev, "Failed to initialize iep: %d\n", ret);
+			goto rproc_shutdown;
 		}
 	}
 
@@ -1732,7 +1734,7 @@ static int emac_ndo_open(struct net_device *ndev)
 	else
 		ret = prueth_lre_request_irqs(emac);
 	if (ret)
-		goto rproc_shutdown;
+		goto iep_exit;
 
 	if (!PRUETH_IS_EMAC(prueth) && !PRUETH_IS_SWITCH(prueth)) {
 		/* HSR/PRP. Enable NAPI when first port is initialized */
@@ -1763,14 +1765,14 @@ static int emac_ndo_open(struct net_device *ndev)
 
 	return 0;
 
+iep_exit:
+	if (!prueth->emac_configured)
+		icss_iep_exit(prueth->iep);
 rproc_shutdown:
 	if (!PRUETH_IS_EMAC(prueth))
 		prueth_sw_shutdown_prus(emac, ndev);
 	else
 		rproc_shutdown(emac->pru);
-iep_exit:
-	if (!prueth->emac_configured)
-		icss_iep_exit(prueth->iep);
 free_mem:
 	prueth_free_memory(emac->prueth);
 unlock_mutex:
