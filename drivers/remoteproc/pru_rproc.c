@@ -78,13 +78,16 @@ enum pru_type {
  * @mask1: address mask1 used to identify PRU core id
  * @mask2: address mask2 used to identify PRU core id
  * @type: type of the PRU core (PRU, RTU, Tx_PRU)
+ * @intc_fixup: triple evt,channel,host to apply to all FW INTC mappings
  * @is_k3: flag used to identify the need for special load & event handling
  */
 struct pru_private_data {
 	u32 mask1;
 	u32 mask2;
 	enum pru_type type;
+	u8 intc_fixup[3];
 	unsigned int is_k3 : 1;
+	unsigned int is_intc_fixup : 1;
 };
 
 /**
@@ -884,6 +887,21 @@ static int pru_handle_vendor_intrmap(struct rproc *rproc,
 		dev_dbg(dev, "chnl-to-host[%d] -> %d\n", i, intr_no);
 	}
 
+	if (pru->data->is_intc_fixup) {
+		sys_evt = pru->data->intc_fixup[0];
+		chnl = pru->data->intc_fixup[1];
+		intr_no = pru->data->intc_fixup[2];
+
+		/* apply fixup for INTC mapping if not specified in FW intrmap */
+		if (pru->intc_config.sysev_to_ch[sys_evt] == -1 &&
+		    pru->intc_config.ch_to_host[chnl] == -1) {
+			pru->intc_config.sysev_to_ch[sys_evt] = chnl;
+			pru->intc_config.ch_to_host[chnl] = intr_no;
+			dev_info(dev, "intr mapping apply fixup SYSEVT%d -> CH%d -> HOST%d\n",
+				 sys_evt, chnl, intr_no);
+		}
+	}
+
 	pru->fw_has_intc_rsc = 1;
 
 	ret = pruss_intc_configure(pru->dev, &pru->intc_config);
@@ -1321,6 +1339,14 @@ static const struct pru_private_data pru_data = {
 	.type = PRU_TYPE_PRU,
 };
 
+static const struct pru_private_data am57x_pru_data = {
+	.mask1 = PRU0_IRAM_ADDR_MASK,
+	.mask2 = PRU1_IRAM_ADDR_MASK,
+	.type = PRU_TYPE_PRU,
+	.intc_fixup = { 7, 7, 8 }, /* Fixup for IEP CMP IRQ */
+	.is_intc_fixup = 1,
+};
+
 static const struct pru_private_data k3_pru_data = {
 	.mask1 = PRU0_IRAM_ADDR_MASK,
 	.mask2 = PRU1_IRAM_ADDR_MASK,
@@ -1345,7 +1371,7 @@ static const struct pru_private_data k3_tx_pru_data = {
 static const struct of_device_id pru_rproc_match[] = {
 	{ .compatible = "ti,am3356-pru",   .data = &pru_data, },
 	{ .compatible = "ti,am4376-pru",   .data = &pru_data, },
-	{ .compatible = "ti,am5728-pru",   .data = &pru_data, },
+	{ .compatible = "ti,am5728-pru",   .data = &am57x_pru_data, },
 	{ .compatible = "ti,k2g-pru",      .data = &pru_data, },
 	{ .compatible = "ti,am654-pru",    .data = &k3_pru_data, },
 	{ .compatible = "ti,am654-rtu",    .data = &k3_rtu_data, },
