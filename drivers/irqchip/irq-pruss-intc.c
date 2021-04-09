@@ -469,7 +469,8 @@ static void pruss_intc_irq_ack(struct irq_data *data)
 	struct pruss_intc *intc = irq_data_get_irq_chip_data(data);
 	unsigned int hwirq = data->hwirq;
 
-	pruss_intc_check_write(intc, PRU_INTC_SICR, hwirq);
+	if (hwirq != 7)
+		pruss_intc_check_write(intc, PRU_INTC_SICR, hwirq);
 }
 
 static void pruss_intc_irq_mask(struct irq_data *data)
@@ -485,7 +486,12 @@ static void pruss_intc_irq_unmask(struct irq_data *data)
 	struct pruss_intc *intc = irq_data_get_irq_chip_data(data);
 	unsigned int hwirq = data->hwirq;
 
+	if (hwirq == 7)
+		pruss_intc_check_write(intc, PRU_INTC_SICR, hwirq);
 	pruss_intc_check_write(intc, PRU_INTC_EISR, hwirq);
+	pr_debug("unmask INTChwirq:%d %08x %08x\n", hwirq,
+			pruss_intc_read_reg(intc, PRU_INTC_SRSR(1)),
+			pruss_intc_read_reg(intc, PRU_INTC_SRSR(0)));
 }
 
 static int pruss_intc_irq_reqres(struct irq_data *data)
@@ -639,6 +645,11 @@ static void pruss_intc_irq_handler(struct irq_desc *desc)
 
 	i += MIN_PRU_HOST_INT;
 
+	pr_debug("INTC:%d %08x %08x %08x %08x \n", i,
+			pruss_intc_read_reg(intc, PRU_INTC_SRSR(1)),
+			pruss_intc_read_reg(intc, PRU_INTC_SRSR(0)),
+			pruss_intc_read_reg(intc, PRU_INTC_SECR(1)),
+			pruss_intc_read_reg(intc, PRU_INTC_SECR(0)));
 	/* get highest priority pending PRUSS system event */
 	hipir = pruss_intc_read_reg(intc, PRU_INTC_HIPIR(i));
 	while (!(hipir & INTC_HIPIR_NONE_HINT)) {
