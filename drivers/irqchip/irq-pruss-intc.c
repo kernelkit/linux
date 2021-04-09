@@ -232,10 +232,17 @@ int pruss_intc_configure(struct device *dev,
 
 		/* check if sysevent already assigned */
 		if (intc->config_map.sysev_to_ch[i] != PRU_INTC_FREE) {
-			dev_err(dev, "event %d (req. channel %d) already assigned to channel %d\n",
-				i, ch, intc->config_map.sysev_to_ch[i]);
-			ret = -EEXIST;
-			goto fail_evt;
+			if (intc->config_map.sysev_to_ch[i] == ch) {
+				intc->config_map.sysev_use_cnt[i]++;
+				dev_dbg(dev, "re-use SYSEVT%d -> CH%d uc:%d\n",
+					i, ch, intc->config_map.sysev_use_cnt[i]);
+				continue;
+			} else {
+				dev_err(dev, "event %d (req. channel %d) already assigned to channel %d\n",
+					i, ch, intc->config_map.sysev_to_ch[i]);
+				ret = -EEXIST;
+				goto fail_evt;
+			}
 		}
 
 		intc->config_map.sysev_to_ch[i] = ch;
@@ -243,9 +250,11 @@ int pruss_intc_configure(struct device *dev,
 		bitmap_set(sysevt_bitmap, i, 1);
 		ch_mask |= BIT(ch);
 		idx = i / CMR_EVT_PER_REG;
+		intc->config_map.sysev_use_cnt[i]++;
 
-		dev_dbg(dev, "SYSEVT%d -> CH%d (CMR%d 0x%08x)\n", i, ch, idx,
-			pruss_intc_read_reg(intc, PRU_INTC_CMR(idx)));
+		dev_dbg(dev, "SYSEVT%d -> CH%d (CMR%d 0x%08x) uc:%d\n", i, ch, idx,
+			pruss_intc_read_reg(intc, PRU_INTC_CMR(idx)),
+			intc->config_map.sysev_use_cnt[i]);
 	}
 
 	/*
@@ -260,18 +269,17 @@ int pruss_intc_configure(struct device *dev,
 
 		/* check if channel already assigned */
 		if (intc->config_map.ch_to_host[i] != PRU_INTC_FREE) {
-			dev_err(dev, "channel %d (req. intr_no %d) already assigned to intr_no %d\n",
-				i, host, intc->config_map.ch_to_host[i]);
-			ret = -EEXIST;
-			goto fail_ch;
-		}
-
-		/* check if host intr is already in use by other PRU */
-		if (intc->host_mask & (1U << host)) {
-			dev_err(dev, "%s: host intr %d already in use\n",
-				__func__, host);
-			ret = -EEXIST;
-			goto fail_ch;
+			if (intc->config_map.ch_to_host[i] == host) {
+				intc->config_map.ch_use_cnt[i]++;
+				dev_dbg(dev, "re-use CH%d -> HOST%d uc:%d\n",
+					i, host, intc->config_map.ch_use_cnt[i]);
+				continue;
+			} else {
+				dev_err(dev, "%s: host intr %d already in use\n",
+					__func__, host);
+				ret = -EEXIST;
+				goto fail_ch;
+			}
 		}
 
 		intc->config_map.ch_to_host[i] = host;
@@ -279,9 +287,11 @@ int pruss_intc_configure(struct device *dev,
 		ch_mask |= BIT(i);
 		host_mask |= BIT(host);
 		idx = i / HMR_CH_PER_REG;
+		intc->config_map.ch_use_cnt[i]++;
 
-		dev_dbg(dev, "CH%d -> HOST%d (HMR%d 0x%08x)\n", i, host, idx,
-			pruss_intc_read_reg(intc, PRU_INTC_HMR(idx)));
+		dev_dbg(dev, "CH%d -> HOST%d (HMR%d 0x%08x) uc:%d\n", i, host, idx,
+			pruss_intc_read_reg(intc, PRU_INTC_HMR(idx)),
+			intc->config_map.ch_use_cnt[i]);
 	}
 
 	dev_info(dev, "configured system_events[%d-0] = %*pb\n",
@@ -369,6 +379,9 @@ int pruss_intc_unconfigure(struct device *dev,
 		if (ch < 0)
 			continue;
 
+		if (--intc->config_map.sysev_use_cnt[i])
+			continue;
+
 		/* mark sysevent free in global map */
 		intc->config_map.sysev_to_ch[i] = PRU_INTC_FREE;
 		bitmap_set(sysevt_bitmap, i, 1);
@@ -379,6 +392,9 @@ int pruss_intc_unconfigure(struct device *dev,
 	for (i = 0; i < num_intrs; i++) {
 		host = intc_config->ch_to_host[i];
 		if (host < 0)
+			continue;
+
+		if (--intc->config_map.ch_use_cnt[i])
 			continue;
 
 		/* mark channel free in global map */
