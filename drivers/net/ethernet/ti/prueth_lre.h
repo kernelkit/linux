@@ -192,8 +192,6 @@ void prueth_lre_set_stats(struct prueth *prueth,
 void prueth_lre_get_stats(struct prueth *prueth,
 			  struct lre_statistics *pstats);
 void prueth_lre_config_check_flags(struct prueth *prueth);
-int prueth_lre_napi_poll_lpq(struct napi_struct *napi, int budget);
-int prueth_lre_napi_poll_hpq(struct napi_struct *napi, int budget);
 void prueth_lre_free_memory(struct prueth *prueth);
 void prueth_lre_process_check_flags_event(struct prueth *prueth);
 int prueth_lre_nt_insert(struct prueth *prueth,

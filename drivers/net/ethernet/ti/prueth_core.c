@@ -1736,14 +1736,6 @@ static int emac_ndo_open(struct net_device *ndev)
 	if (ret)
 		goto iep_exit;
 
-	if (!PRUETH_IS_EMAC(prueth) && !PRUETH_IS_SWITCH(prueth)) {
-		/* HSR/PRP. Enable NAPI when first port is initialized */
-		if (!prueth->emac_configured) {
-			napi_enable(&prueth->napi_hpq);
-			napi_enable(&prueth->napi_lpq);
-		}
-	}
-
 	/* start PHY */
 	phy_start(emac->phydev);
 
@@ -1809,8 +1801,6 @@ static int emac_ndo_stop(struct net_device *ndev)
 			hrtimer_cancel(&prueth->tbl_check_timer);
 			kthread_cancel_work_sync(&prueth->nt_work);
 			kthread_destroy_worker(prueth->nt_kworker);
-			napi_disable(&prueth->napi_lpq);
-			napi_disable(&prueth->napi_hpq);
 		}
 	}
 
@@ -3007,12 +2997,8 @@ static int prueth_netdev_init(struct prueth *prueth,
 		ndev->lredev_ops = &prueth_lredev_ops;
 #endif
 
-	/* for HSR/PRP,  register napi for port 1 */
+	/* for HSR/PRP */
 	if (prueth->support_lre && emac->port_id == PRUETH_PORT_MII0) {
-		netif_napi_add(ndev, &prueth->napi_hpq,
-			       prueth_lre_napi_poll_hpq, EMAC_POLL_WEIGHT);
-		netif_napi_add(ndev, &prueth->napi_lpq,
-			       prueth_lre_napi_poll_lpq, EMAC_POLL_WEIGHT);
 		prueth->hp->ndev = ndev;
 		prueth->hp->priority = 0;
 		prueth->lp->ndev = ndev;
@@ -3043,13 +3029,6 @@ static void prueth_netdev_exit(struct prueth *prueth,
 
 	phy_disconnect(emac->phydev);
 
-	if (!PRUETH_IS_EMAC(prueth) && !PRUETH_IS_SWITCH(prueth)) {
-		if (prueth->support_lre &&
-		    emac->port_id == PRUETH_PORT_MII0) {
-			netif_napi_del(&prueth->napi_hpq);
-			netif_napi_del(&prueth->napi_lpq);
-		}
-	}
 	prueth->emac[mac] = NULL;
 }
 
