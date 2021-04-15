@@ -630,7 +630,7 @@ static void nt_updater(struct kthread_work *work)
 }
 
 static int prueth_lre_emac_rx_packets(struct prueth_emac *emac,
-				      int quota, u8 qid1, u8 qid2)
+				      u8 qid1, u8 qid2)
 {
 	struct prueth *prueth = emac->prueth;
 	void *ocmc_ram = (__force void *)prueth->mem[PRUETH_MEM_OCMC].va;
@@ -666,6 +666,7 @@ static int prueth_lre_emac_rx_packets(struct prueth_emac *emac,
 	rxqueue = &sw_queue_infos[PRUETH_PORT_HOST][qid1];
 	rxqueue_o = &sw_queue_infos[PRUETH_PORT_HOST][qid2];
 
+retry:
 	overflow_cnt = readb(&queue_desc->overflow_cnt);
 	overflow_cnt_o = readb(&queue_desc_o->overflow_cnt);
 
@@ -765,7 +766,7 @@ static int prueth_lre_emac_rx_packets(struct prueth_emac *emac,
 			ret = emac_rx_packet(emac_p, &update_rd_ptr,
 					     *pkt_info_p, rxqueue_p);
 			if (ret)
-				return ret;
+				return IRQ_HANDLED;
 
 			used++;
 		}
@@ -788,63 +789,34 @@ static int prueth_lre_emac_rx_packets(struct prueth_emac *emac,
 
 		port0_q_empty = (bd_rd_ptr == bd_wr_ptr) ? 1 : 0;
 		port1_q_empty = (bd_rd_ptr_o == bd_wr_ptr_o) ? 1 : 0;
-
-		/* all we have room for? */
-		if (used >= quota)
-			return used;
 	}
 
-	return used;
+	if (used) {
+		used = 0;
+		goto retry;
+	}
+
+	return IRQ_HANDLED;
 }
 
-int prueth_lre_napi_poll_lpq(struct napi_struct *napi, int budget)
-{
-	struct prueth *prueth = container_of(napi, struct prueth, napi_lpq);
-	struct net_device *ndev = prueth->lp->ndev;
-	struct prueth_emac *emac = netdev_priv(ndev);
-	u8 qid1 = PRUETH_QUEUE2, qid2 = PRUETH_QUEUE4;
-	int num_rx_packets;
-
-	num_rx_packets = prueth_lre_emac_rx_packets(emac, budget, qid1, qid2);
-	if (num_rx_packets < budget)
-		emac_finish_napi(emac, napi, prueth->rx_lpq_irq);
-
-	return num_rx_packets;
-}
-
-int prueth_lre_napi_poll_hpq(struct napi_struct *napi, int budget)
-{
-	struct prueth *prueth = container_of(napi, struct prueth, napi_hpq);
-	struct net_device *ndev = prueth->hp->ndev;
-	struct prueth_emac *emac = netdev_priv(ndev);
-	u8 qid1 = PRUETH_QUEUE1, qid2 = PRUETH_QUEUE3;
-	int num_rx_packets;
-
-	num_rx_packets = prueth_lre_emac_rx_packets(emac, budget, qid1, qid2);
-	if (num_rx_packets < budget)
-		emac_finish_napi(emac, napi, prueth->rx_hpq_irq);
-
-	return num_rx_packets;
-}
-
-irqreturn_t prueth_lre_emac_rx_hardirq(int irq, void *dev_id)
+irqreturn_t prueth_lre_emac_rx_hardirq_lp(int irq, void *dev_id)
 {
 	struct prueth_ndev_priority *ndev_prio =
 		(struct prueth_ndev_priority *)dev_id;
 	struct net_device *ndev = ndev_prio->ndev;
 	struct prueth_emac *emac = netdev_priv(ndev);
-	struct prueth *prueth = emac->prueth;
 
-	/* disable Rx system event */
-	if (ndev_prio->priority == 1) {
-		disable_irq_nosync(prueth->rx_lpq_irq);
-		napi_schedule(&prueth->napi_lpq);
-	} else {
-		disable_irq_nosync(prueth->rx_hpq_irq);
-		napi_schedule(&prueth->napi_hpq);
-	}
+	return prueth_lre_emac_rx_packets(emac, PRUETH_QUEUE2, PRUETH_QUEUE4);
+}
 
-	return IRQ_HANDLED;
+irqreturn_t prueth_lre_emac_rx_hardirq_hp(int irq, void *dev_id)
+{
+	struct prueth_ndev_priority *ndev_prio =
+		(struct prueth_ndev_priority *)dev_id;
+	struct net_device *ndev = ndev_prio->ndev;
+	struct prueth_emac *emac = netdev_priv(ndev);
+
+	return prueth_lre_emac_rx_packets(emac, PRUETH_QUEUE1, PRUETH_QUEUE3);
 }
 
 int prueth_lre_request_irqs(struct prueth_emac *emac)
@@ -869,15 +841,15 @@ int prueth_lre_request_irqs(struct prueth_emac *emac)
 	if (prueth->emac_configured)
 		return 0;
 
-	ret = request_irq(prueth->rx_hpq_irq, prueth_lre_emac_rx_hardirq,
-			  IRQF_TRIGGER_HIGH, "eth_hp_int", prueth->hp);
+	ret = request_threaded_irq(prueth->rx_hpq_irq, NULL, prueth_lre_emac_rx_hardirq_hp,
+			  IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "eth_hp_int", prueth->hp);
 	if (ret) {
 		netdev_err(emac->ndev, "unable to request RX HPQ IRQ\n");
 		goto free_ptp_irq;
 	}
 
-	ret = request_irq(prueth->rx_lpq_irq, prueth_lre_emac_rx_hardirq,
-			  IRQF_TRIGGER_HIGH, "eth_lp_int", prueth->lp);
+	ret = request_threaded_irq(prueth->rx_lpq_irq, NULL, prueth_lre_emac_rx_hardirq_lp,
+			  IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "eth_lp_int", prueth->lp);
 	if (ret) {
 		netdev_err(emac->ndev, "unable to request RX LPQ IRQ\n");
 		goto free_rx_hpq_irq;
