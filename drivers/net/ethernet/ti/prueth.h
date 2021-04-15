@@ -435,9 +435,6 @@ struct prueth {
 	/* HSR-PRP */
 	bool support_lre;
 	struct prueth_ndev_priority *hp, *lp;
-	/* NAPI for lp and hp queue scans */
-	struct napi_struct napi_lpq;
-	struct napi_struct napi_hpq;
 	int rx_lpq_irq;
 	int rx_hpq_irq;
 	unsigned int hsr_mode;
@@ -492,14 +489,6 @@ irqreturn_t prueth_ptp_tx_irq_handle(int irq, void *dev);
 irqreturn_t prueth_ptp_tx_irq_work(int irq, void *dev);
 
 extern const struct prueth_queue_desc queue_descs[][NUM_QUEUES];
-
-static inline void emac_finish_napi(struct prueth_emac *emac,
-				    struct napi_struct *napi,
-				    int irq)
-{
-	napi_complete(napi);
-	enable_irq(irq);
-}
 
 void emac_mc_filter_bin_allow(struct prueth_emac *emac, u8 hash);
 void emac_mc_filter_bin_disallow(struct prueth_emac *emac, u8 hash);
