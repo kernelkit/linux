@@ -1193,7 +1193,8 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	/* Check for wrap around */
 	if (update_block >= buffer_desc_count) {
 		update_block %= buffer_desc_count;
-		buffer_wrapped = true;
+		if (update_block)
+			buffer_wrapped = true;
 	}
 
 	/* calculate new pointer in ram */
