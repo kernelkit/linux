@@ -597,7 +597,17 @@ static void __blk_mq_complete_request(struct request *rq)
 	 * for not degrading IO performance by irqsoff latency.
 	 */
 	if (q->nr_hw_queues == 1) {
+		/*
+		 * On PREEMPT_RT don't push the long running I/O to softirq,
+		 * because it can stall e.g., networking code.
+		 *
+		 * Finish processing directly in preemptable kworkers.
+		 */
+#ifdef CONFIG_PREEMPT_RT
+		q->mq_ops->complete(rq);
+#else
 		__blk_complete_request(rq);
+#endif
 		return;
 	}
 
