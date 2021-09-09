@@ -363,7 +363,7 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 	if (REDINFO_T(skb) == DIRECTED_TX)
 		return skb;
 
-	skb_shinfo(skb)->tx_flags = skb_shinfo(skb_o)->tx_flags;
+	skb_shinfo(skb)->tx_flags |= skb_shinfo(skb_o)->tx_flags & SKBTX_ANY_TSTAMP;
 	skb->sk = skb_o->sk;
 
 	/* TODO: should check socket option instead? */
