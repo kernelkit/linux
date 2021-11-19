@@ -59,7 +59,7 @@
 /* SHARED RAM */
 
 /* 8 bytes of VLAN PCP to RX QUEUE MAPPING */
-#define ICSS_LRE_QUEUE_2_PCP_MAP_OFFSET		0x120
+#define ICSS_LRE_QUEUE_2_PCP_MAP_OFFSET		0x124
 #define ICSS_LRE_START				0x140
 
 /* Number of frames successfully sent over port A/B that are HSR/PRP tagged */
