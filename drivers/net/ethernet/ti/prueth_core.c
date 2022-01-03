@@ -385,6 +385,18 @@ static void prueth_hostconfig(struct prueth *prueth)
 
 static void prueth_mii_init(struct prueth *prueth)
 {
+	/* Configuration of Tx_IPG */
+	regmap_update_bits(prueth->mii_rt,
+			   PRUSS_MII_RT_TX_IPG0,
+			   PRUSS_MII_RT_TX_IPG_IPG_MASK,
+			   (TX_MIN_IPG) <<
+			   PRUSS_MII_RT_TX_IPG_IPG_SHIFT);
+	regmap_update_bits(prueth->mii_rt,
+			   PRUSS_MII_RT_TX_IPG1,
+			   PRUSS_MII_RT_TX_IPG_IPG_MASK,
+			   (TX_MIN_IPG) <<
+			   PRUSS_MII_RT_TX_IPG_IPG_SHIFT);
+
 	/* Configuration of Port 0 Rx */
 	prueth_mii_set(RX, 0, ENABLE, PRUSS_MII_RT_RXCFG_RX_ENABLE);
 	prueth_mii_set(RX, 0, DATA_RDY_MODE_DIS,
