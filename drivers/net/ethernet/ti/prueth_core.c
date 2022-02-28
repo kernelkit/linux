@@ -1079,6 +1079,7 @@ void parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
 	else
 		pkt_info->start_offset = false;
 
+	pkt_info->ll_has_no_hsrTag = (buffer_descriptor & PRUETH_LL_HAS_NO_HSRTAG_MASK);
 	pkt_info->shadow = !!(buffer_descriptor & PRUETH_BD_SHADOW_MASK);
 	pkt_info->port = (buffer_descriptor & PRUETH_BD_PORT_MASK) >>
 			 PRUETH_BD_PORT_SHIFT;
@@ -1178,6 +1179,9 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	u8 offset = 0, *ptr;
 	u64 ts;
 	int ret;
+        char dummy_hsr_tag[] = {0x89, 0x2f, 0x00, 0x00, 0x00, 0x00};
+	int adjust_for_dummy_hsr_tag = 0;
+	u8 *check_vlan_ptr;
 
 	if (PRUETH_IS_HSR(prueth))
 		start_offset = (pkt_info.start_offset ?
@@ -1215,6 +1219,11 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	/* Pkt len w/ HSR tag removed, If applicable */
 	actual_pkt_len = pkt_info.length - start_offset;
 
+	/* Need to add dummy hsr tag for PTP LL packets */
+	if(pkt_info.ll_has_no_hsrTag){
+		actual_pkt_len += ICSS_LRE_TAG_RCT_SIZE;
+	}
+
 	/* Allocate a socket buffer for this packet */
 	skb = netdev_alloc_skb_ip_align(ndev, actual_pkt_len);
 	if (!skb) {
@@ -1236,6 +1245,30 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	}
 	src_addr += start_offset;
 
+	if(pkt_info.ll_has_no_hsrTag){
+	     /* Copy destination and source MAC address first */
+		memcpy(dst_addr, src_addr, PRUETH_ETH_TYPE_OFFSET);
+		src_addr += PRUETH_ETH_TYPE_OFFSET;
+		dst_addr += PRUETH_ETH_TYPE_OFFSET;
+
+		adjust_for_dummy_hsr_tag += PRUETH_ETH_TYPE_OFFSET;
+
+		/* Check for VLAN tag */
+		check_vlan_ptr = src_addr;
+		type = (*check_vlan_ptr++) << PRUETH_ETH_TYPE_UPPER_SHIFT;
+		type |= *check_vlan_ptr++;
+
+		if(type == ETH_P_8021Q){
+			memcpy(dst_addr, src_addr, VLAN_HLEN);
+			src_addr += VLAN_HLEN;
+			dst_addr += VLAN_HLEN;
+			adjust_for_dummy_hsr_tag += VLAN_HLEN;
+		}
+		/* Copy dummy HSR tag */
+		memcpy(dst_addr, dummy_hsr_tag, ICSS_LRE_TAG_RCT_SIZE);
+		dst_addr += ICSS_LRE_TAG_RCT_SIZE;
+	}
+
 	/* Copy the data from PRU buffers(OCMC) to socket buffer(DRAM) */
 	if (buffer_wrapped) { /* wrapped around buffer */
 		int bytes = (buffer_desc_count - read_block) * ICSS_BLOCK_SIZE;
@@ -1253,10 +1286,10 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		bytes -= start_offset;
 
 		/* copy non-wrapped part */
-		memcpy(dst_addr, src_addr, bytes);
+		memcpy(dst_addr, src_addr, bytes - adjust_for_dummy_hsr_tag);
 
 		/* copy wrapped part */
-		dst_addr += bytes;
+		dst_addr += (bytes - adjust_for_dummy_hsr_tag);
 		remaining = actual_pkt_len - bytes;
 		if (pkt_info.shadow)
 			src_addr += bytes;
@@ -1265,8 +1298,8 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		memcpy(dst_addr, src_addr, remaining);
 		src_addr += remaining;
 	} else {
-		memcpy(dst_addr, src_addr, actual_pkt_len);
-		src_addr += actual_pkt_len;
+		memcpy(dst_addr, src_addr, actual_pkt_len - adjust_for_dummy_hsr_tag);
+		src_addr += actual_pkt_len - adjust_for_dummy_hsr_tag;
 	}
 
 	if (pkt_info.timestamp) {
