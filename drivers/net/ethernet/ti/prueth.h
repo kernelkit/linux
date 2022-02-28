@@ -107,6 +107,7 @@ struct prueth_queue_info {
  */
 struct prueth_packet_info {
 	bool start_offset;
+	bool ll_has_no_hsrTag;
 	bool shadow;
 	unsigned int port;
 	unsigned int length;
