@@ -331,7 +331,7 @@ static int cpsw_ale_match_addr(struct cpsw_ale *ale, const u8 *addr, u16 vid)
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int type, idx;
 
-	for (idx = 0; idx < ale->params.ale_entries; idx++) {
+	for (idx = 0; idx < ale->params.idx_max; idx++) {
 		u8 entry_addr[6];
 
 		cpsw_ale_read(ale, idx, ale_entry);
@@ -352,7 +352,7 @@ static int cpsw_ale_match_vlan(struct cpsw_ale *ale, u16 vid)
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int type, idx;
 
-	for (idx = 0; idx < ale->params.ale_entries; idx++) {
+	for (idx = 0; idx < ale->params.idx_max; idx++) {
 		cpsw_ale_read(ale, idx, ale_entry);
 		type = cpsw_ale_get_entry_type(ale_entry);
 		if (type != ALE_TYPE_VLAN)
@@ -382,7 +382,7 @@ static int cpsw_ale_find_ageable(struct cpsw_ale *ale)
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int type, idx;
 
-	for (idx = 0; idx < ale->params.ale_entries; idx++) {
+	for (idx = 0; idx < ale->params.idx_max; idx++) {
 		cpsw_ale_read(ale, idx, ale_entry);
 		type = cpsw_ale_get_entry_type(ale_entry);
 		if (type != ALE_TYPE_ADDR && type != ALE_TYPE_VLAN_ADDR)
@@ -421,7 +421,7 @@ int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask, int vid)
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int ret, idx;
 
-	for (idx = 0; idx < ale->params.ale_entries; idx++) {
+	for (idx = 0; idx < ale->params.idx_max; idx++) {
 		cpsw_ale_read(ale, idx, ale_entry);
 		ret = cpsw_ale_get_entry_type(ale_entry);
 		if (ret != ALE_TYPE_ADDR && ret != ALE_TYPE_VLAN_ADDR)
@@ -484,6 +484,9 @@ int cpsw_ale_add_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
 	if (idx < 0)
 		return -ENOMEM;
 
+	if (ale->params.idx_max < idx)
+		ale->params.idx_max = idx;
+
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
 }
@@ -531,6 +534,9 @@ int cpsw_ale_add_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 		idx = cpsw_ale_find_ageable(ale);
 	if (idx < 0)
 		return -ENOMEM;
+
+	if (ale->params.idx_max < idx)
+		ale->params.idx_max = idx;
 
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
@@ -761,6 +767,10 @@ int cpsw_ale_vlan_add_modify(struct cpsw_ale *ale, u16 vid, int port_mask,
 	dev_dbg(ale->params.dev, "port mask 0x%x untag 0x%x\n", vlan_members,
 		untag_mask);
 
+	if (ale->params.idx_max < idx) {
+		ale->params.idx_max = idx;
+	}
+
 	return ret;
 }
 
@@ -771,7 +781,7 @@ void cpsw_ale_set_unreg_mcast(struct cpsw_ale *ale, int unreg_mcast_mask,
 	int unreg_members = 0;
 	int type, idx;
 
-	for (idx = 0; idx < ale->params.ale_entries; idx++) {
+	for (idx = 0; idx < ale->params.idx_max; idx++) {
 		cpsw_ale_read(ale, idx, ale_entry);
 		type = cpsw_ale_get_entry_type(ale_entry);
 		if (type != ALE_TYPE_VLAN)
@@ -832,7 +842,7 @@ void cpsw_ale_set_allmulti(struct cpsw_ale *ale, int allmulti, int port)
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int type, idx;
 
-	for (idx = 0; idx < ale->params.ale_entries; idx++) {
+	for (idx = 0; idx < ale->params.idx_max; idx++) {
 		int vlan_members;
 
 		cpsw_ale_read(ale, idx, ale_entry);
@@ -1401,6 +1411,8 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	}
 	dev_info(ale->params.dev,
 		 "ALE Table size %ld\n", ale->params.ale_entries);
+
+	ale->params.idx_max = 0;
 
 	/* set default bits for existing h/w */
 	ale->port_mask_bits = ale->params.ale_ports;
