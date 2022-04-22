@@ -388,7 +388,9 @@ static int c_can_handle_lost_msg_obj(struct net_device *dev,
 	frame->can_id |= CAN_ERR_CRTL;
 	frame->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 
+	local_bh_disable();
 	netif_receive_skb(skb);
+	local_bh_enable();
 	return 1;
 }
 
@@ -440,7 +442,9 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 	stats->rx_packets++;
 	stats->rx_bytes += frame->can_dlc;
 
+	local_bh_disable();
 	netif_receive_skb(skb);
+	local_bh_enable();
 	return 0;
 }
 
@@ -750,8 +754,11 @@ static void c_can_do_tx(struct net_device *dev)
 	/* Clear the bits in the tx_active mask */
 	atomic_sub(clr, &priv->tx_active);
 
-	if (clr & (1 << (C_CAN_MSG_OBJ_TX_NUM - 1)))
+	if (clr & (1 << (C_CAN_MSG_OBJ_TX_NUM - 1))) {
+		local_bh_disable();
 		netif_wake_queue(dev);
+		local_bh_enable();
+	}
 
 	if (pkts) {
 		stats->tx_bytes += bytes;
@@ -806,11 +813,11 @@ static inline void c_can_rx_finalize(struct net_device *dev,
 }
 
 static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
-			      u32 pend, int quota)
+			      u32 pend)
 {
 	u32 pkts = 0, ctrl, obj;
 
-	while ((obj = ffs(pend)) && quota > 0) {
+	while ((obj = ffs(pend))) {
 		pend &= ~BIT(obj - 1);
 
 		c_can_rx_object_get(dev, priv, obj);
@@ -820,7 +827,6 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 			int n = c_can_handle_lost_msg_obj(dev, IF_RX, obj, ctrl);
 
 			pkts += n;
-			quota -= n;
 			continue;
 		}
 
@@ -838,7 +844,6 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 		c_can_rx_finalize(dev, priv, obj);
 
 		pkts++;
-		quota--;
 	}
 
 	return pkts;
@@ -864,19 +869,19 @@ static inline u32 c_can_get_pending(struct c_can_priv *priv)
  *
  * This can result in packet reordering when the readout is slow.
  */
-static int c_can_do_rx_poll(struct net_device *dev, int quota)
+static int c_can_do_rx_poll(struct net_device *dev)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 	u32 pkts = 0, pend = 0, toread, n;
 
 	/*
-	 * It is faster to read only one 16bit register. This is only possible
-	 * for a maximum number of 16 objects.
-	 */
+	-	 * It is faster to read only one 16bit register. This is only possible
+	-	 * for a maximum number of 16 objects.
+	-	 */
 	BUILD_BUG_ON_MSG(C_CAN_MSG_OBJ_RX_LAST > 16,
-			"Implementation does not support more message objects than 16");
+		"Implementation does not support more message objects than 16");
 
-	while (quota > 0) {
+	while (1) {
 		if (!pend) {
 			pend = c_can_get_pending(priv);
 			if (!pend)
@@ -892,9 +897,8 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 		/* Remove the bits from pend */
 		pend &= ~toread;
 		/* Read the objects */
-		n = c_can_read_objects(dev, priv, toread, quota);
+		n = c_can_read_objects(dev, priv, toread);
 		pkts += n;
-		quota -= n;
 	}
 
 	if (pkts)
@@ -987,7 +991,9 @@ static int c_can_handle_state_change(struct net_device *dev,
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	local_bh_disable();
 	netif_receive_skb(skb);
+	local_bh_enable();
 
 	return 1;
 }
@@ -1057,16 +1063,16 @@ static int c_can_handle_bus_err(struct net_device *dev,
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	local_bh_disable();
 	netif_receive_skb(skb);
+	local_bh_enable();
 	return 1;
 }
 
-static int c_can_poll(struct napi_struct *napi, int quota)
+static int c_can_poll(struct net_device *dev)
 {
-	struct net_device *dev = napi->dev;
 	struct c_can_priv *priv = netdev_priv(dev);
 	u16 curr, last = priv->last_status;
-	int work_done = 0;
 
 	/* Only read the status register if a status interrupt was pending */
 	if (atomic_xchg(&priv->sie_pending, 0)) {
@@ -1082,52 +1088,49 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 	/* handle state changes */
 	if ((curr & STATUS_EWARN) && (!(last & STATUS_EWARN))) {
 		netdev_dbg(dev, "entered error warning state\n");
-		work_done += c_can_handle_state_change(dev, C_CAN_ERROR_WARNING);
+		c_can_handle_state_change(dev, C_CAN_ERROR_WARNING);
 	}
 
 	if ((curr & STATUS_EPASS) && (!(last & STATUS_EPASS))) {
 		netdev_dbg(dev, "entered error passive state\n");
-		work_done += c_can_handle_state_change(dev, C_CAN_ERROR_PASSIVE);
+		c_can_handle_state_change(dev, C_CAN_ERROR_PASSIVE);
 	}
 
 	if ((curr & STATUS_BOFF) && (!(last & STATUS_BOFF))) {
 		netdev_dbg(dev, "entered bus off state\n");
-		work_done += c_can_handle_state_change(dev, C_CAN_BUS_OFF);
+	  c_can_handle_state_change(dev, C_CAN_BUS_OFF);
 		goto end;
 	}
 
 	/* handle bus recovery events */
 	if ((!(curr & STATUS_BOFF)) && (last & STATUS_BOFF)) {
 		netdev_dbg(dev, "left bus off state\n");
-		work_done += c_can_handle_state_change(dev, C_CAN_ERROR_PASSIVE);
+		c_can_handle_state_change(dev, C_CAN_ERROR_PASSIVE);
 	}
 
 	if ((!(curr & STATUS_EPASS)) && (last & STATUS_EPASS)) {
 		netdev_dbg(dev, "left error passive state\n");
-		work_done += c_can_handle_state_change(dev, C_CAN_ERROR_WARNING);
+		c_can_handle_state_change(dev, C_CAN_ERROR_WARNING);
 	}
 
 	if ((!(curr & STATUS_EWARN)) && (last & STATUS_EWARN)) {
 		netdev_dbg(dev, "left error warning state\n");
-		work_done += c_can_handle_state_change(dev, C_CAN_NO_ERROR);
+		c_can_handle_state_change(dev, C_CAN_NO_ERROR);
 	}
 
 	/* handle lec errors on the bus */
-	work_done += c_can_handle_bus_err(dev, curr & LEC_MASK);
+	c_can_handle_bus_err(dev, curr & LEC_MASK);
 
 	/* Handle Tx/Rx events. We do this unconditionally */
-	work_done += c_can_do_rx_poll(dev, (quota - work_done));
+	c_can_do_rx_poll(dev);
 	c_can_do_tx(dev);
 
 end:
-	if (work_done < quota) {
-		napi_complete_done(napi, work_done);
-		/* enable all IRQs if we are not in bus off state */
-		if (priv->can.state != CAN_STATE_BUS_OFF)
-			c_can_irq_control(priv, true);
-	}
+	/* enable all IRQs if we are not in bus off state */
+	if (priv->can.state != CAN_STATE_BUS_OFF)
+		c_can_irq_control(priv, true);
 
-	return work_done;
+	return 0;
 }
 
 static irqreturn_t c_can_isr(int irq, void *dev_id)
@@ -1144,9 +1147,9 @@ static irqreturn_t c_can_isr(int irq, void *dev_id)
 	if (reg_int & INT_STS_PENDING)
 		atomic_set(&priv->sie_pending, 1);
 
-	/* disable all interrupts and schedule the NAPI */
+	/* disable all interrupts */
 	c_can_irq_control(priv, false);
-	napi_schedule(&priv->napi);
+	c_can_poll(dev);
 
 	return IRQ_HANDLED;
 }
@@ -1166,8 +1169,8 @@ static int c_can_open(struct net_device *dev)
 		goto exit_open_fail;
 	}
 
-	/* register interrupt handler */
-	err = request_irq(dev->irq, &c_can_isr, IRQF_SHARED, dev->name,
+	/* register interrupt thread handler */
+	err = request_threaded_irq(dev->irq, NULL, &c_can_isr, IRQF_SHARED|IRQF_ONESHOT, dev->name,
 				dev);
 	if (err < 0) {
 		netdev_err(dev, "failed to request interrupt\n");
@@ -1181,7 +1184,6 @@ static int c_can_open(struct net_device *dev)
 
 	can_led_event(dev, CAN_LED_EVENT_OPEN);
 
-	napi_enable(&priv->napi);
 	/* enable status change, error and module interrupts */
 	c_can_irq_control(priv, true);
 	netif_start_queue(dev);
@@ -1203,7 +1205,6 @@ static int c_can_close(struct net_device *dev)
 	struct c_can_priv *priv = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	napi_disable(&priv->napi);
 	c_can_stop(dev);
 	free_irq(dev->irq, dev);
 	close_candev(dev);
@@ -1226,7 +1227,6 @@ struct net_device *alloc_c_can_dev(void)
 		return NULL;
 
 	priv = netdev_priv(dev);
-	netif_napi_add(dev, &priv->napi, c_can_poll, C_CAN_NAPI_WEIGHT);
 
 	priv->dev = dev;
 	priv->can.bittiming_const = &c_can_bittiming_const;
@@ -1318,9 +1318,6 @@ EXPORT_SYMBOL_GPL(c_can_power_up);
 
 void free_c_can_dev(struct net_device *dev)
 {
-	struct c_can_priv *priv = netdev_priv(dev);
-
-	netif_napi_del(&priv->napi);
 	free_candev(dev);
 }
 EXPORT_SYMBOL_GPL(free_c_can_dev);
