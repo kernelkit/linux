@@ -1,23 +1,25 @@
 /*
- * Copyright 2020-2022 Hitachi Energy.
+ * Copyright 2021-2022 Hitachi Energy.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-/* Hitachi 530CPM01 */
+/* Hitachi 530CPM02 */
 
 /dts-v1/;
 
 #include "am4372.dtsi"
-#include <dt-bindings/pinctrl/am43xx.h>
-#include <dt-bindings/pwm/pwm.h>
-#include <dt-bindings/gpio/gpio.h>
+#include "dt-bindings/pinctrl/am43xx.h"
+#include "dt-bindings/pwm/pwm.h"
+#include "dt-bindings/gpio/gpio.h"
+#include "dt-bindings/net/ti-dp83867.h"
+
 
 / {
-	model = "Hitachi AM437x 530CPM01";
-	compatible = "ti,am437x-gp-evm","ti,am4372","ti,am43", "abb,am437x-530cpm01";
+	model = "Hitachi AM437x 530CPM02";
+	compatible = "ti,am437x-gp-evm","ti,am4372","ti,am43", "abb,am437x-530cpm02";
 
 	chosen {
 		stdout-path = &uart3;
@@ -40,12 +42,12 @@
 	   usb
 	*/
 
-
 	myarm1_pins_default: myarm1_pins_default {
 		pinctrl-single,pins = <
 			0x284 ( PIN_INPUT | MUX_MODE0 ) /* (G25) EXTINTn.nNMI */
 		>;
 	};
+
 
 	jtag_pins_default: jtag_pins_default {
 		pinctrl-single,pins = <
@@ -77,7 +79,6 @@
 		>;
 	};
 
-
 	time_sync1_pins_default: time_sync1_pins_default {
 		pinctrl-single,pins = <
 			0x1d8 ( PIN_OUTPUT | MUX_MODE6 ) /* (AC23) cam1_vd.ehrpwm0B */
@@ -89,7 +90,6 @@
 			0x1e0 ( PIN_OUTPUT | MUX_MODE6 ) /* (AC25) cam1_field.ehrpwm1B */
 		>;
 	};
-
 
 	myehrpwm4_pins_default: myehrpwm4_pins_default {
 		pinctrl-single,pins = <
@@ -109,15 +109,12 @@
 		pinctrl-single,pins = <
 			0x1a8 ( PIN_INPUT | MUX_MODE9 ) /* (M25) mcasp0_axr1.gpio0[2] */
 			0x1ac ( PIN_INPUT | MUX_MODE9 ) /* (L24) mcasp0_ahclkx.gpio0[3] */
-			0x158 ( PIN_INPUT | MUX_MODE7 ) /* (T21) spi0_d1.gpio0[4] */
-			0x15c ( PIN_INPUT | MUX_MODE7 ) /* (T20) spi0_cs0.gpio0[5] */
 			0xd8 ( PIN_INPUT | MUX_MODE7 ) /* (C17) dss_data14.gpio0[10] */
 			0xdc ( PIN_INPUT | MUX_MODE7 ) /* (D17) dss_data15.gpio0[11] */
+			0x178 ( PIN_INPUT | MUX_MODE7 ) /* (K22) uart1_ctsn.gpio0[12] */
 			0x17c ( PIN_INPUT | MUX_MODE7 ) /* (L22) uart1_rtsn.gpio0[13] */
 			0x1a0 ( PIN_INPUT | MUX_MODE9 ) /* (L23) mcasp0_aclkr.gpio0[18] */
 			0x1a4 ( PIN_INPUT | MUX_MODE9 ) /* (K23) mcasp0_fsr.gpio0[19] */
-			0x264 ( PIN_INPUT | MUX_MODE9 ) /* (P22) spi2_d0.gpio0[20] */
-			0x268 ( PIN_INPUT | MUX_MODE9 ) /* (P20) spi2_d1.gpio0[21] */
 			0x260 ( PIN_INPUT | MUX_MODE9 ) /* (N20) spi2_sclk.gpio0[22] */
 			0x26c ( PIN_INPUT | MUX_MODE9 ) /* (T23) spi2_cs0.gpio0[23] */
 			0x278 ( PIN_INPUT | MUX_MODE7 ) /* (H20) clkreq.gpio0[24] */
@@ -129,16 +126,17 @@
 	dig_out_pins_default: dig_out_pins_default {
 		pinctrl-single,pins = <
 			0x1b0 ( PIN_INPUT | MUX_MODE7 ) /* (AE17) cam0_hd.gpio4[0] */
-			0x1b4 ( PIN_INPUT | MUX_MODE7 ) /* (AD18) cam0_vd.gpio4[1] */
 			0x1b8 ( PIN_INPUT | MUX_MODE7 ) /* (AC18) cam0_field.gpio4[2] */
-			0x1bc ( PIN_INPUT | MUX_MODE7 ) /* (AD17) cam0_wen.gpio4[3] */
-			0x1c0 ( PIN_INPUT | MUX_MODE7 ) /* (AC20) cam0_pclk.gpio4[4] */
 			0x1c4 ( PIN_INPUT | MUX_MODE7 ) /* (AB19) cam0_data8.gpio4[5] */
 			0x1c8 ( PIN_INPUT | MUX_MODE7 ) /* (AA19) cam0_data9.gpio4[6] */
 			0x1cc ( PIN_INPUT | MUX_MODE7 ) /* (AC24) cam1_data9.gpio4[7] */
 			0x1d0 ( PIN_INPUT | MUX_MODE7 ) /* (AD24) cam1_data8.gpio4[8] */
+			0x1d4 ( PIN_INPUT | MUX_MODE7 ) /* (AD25) cam1_hd.gpio4[9] */
 			0x1dc ( PIN_INPUT | MUX_MODE7 ) /* (AE21) cam1_pclk.gpio4[11] */
 			0x1f8 ( PIN_INPUT | MUX_MODE7 ) /* (AD22) cam1_data4.gpio4[18] */
+			0x1fc ( PIN_INPUT | MUX_MODE7 ) /* (AE23) cam1_data5.gpio4[19] */
+			0x200 ( PIN_INPUT | MUX_MODE7 ) /* (AD23) cam1_data6.gpio4[20] */
+			0x204 ( PIN_INPUT | MUX_MODE7 ) /* (AE24) cam1_data7.gpio4[21] */
 			0x210 ( PIN_INPUT | MUX_MODE7 ) /* (Y18) cam0_data2.gpio4[24] */
 			0x214 ( PIN_INPUT | MUX_MODE7 ) /* (AA18) cam0_data3.gpio4[25] */
 			0x218 ( PIN_INPUT | MUX_MODE7 ) /* (AE19) cam0_data4.gpio4[26] */
@@ -158,14 +156,16 @@
 
 	hw_id_pins_default: hw_id_pins_default {
 		pinctrl-single,pins = <
-			0x190 ( PIN_INPUT | MUX_MODE7 ) /* (N24) mcasp0_aclkx.gpio3[14] */
-			0x194 ( PIN_INPUT | MUX_MODE7 ) /* (N22) mcasp0_fsx.gpio3[15] */
-			0x198 ( PIN_INPUT | MUX_MODE7 ) /* (H23) mcasp0_axr0.gpio3[16] */
+		0x194 ( PIN_INPUT | MUX_MODE7 ) /* (N22) mcasp0_fsx.gpio3[15] */
+		0x198 ( PIN_INPUT | MUX_MODE7 ) /* (H23) mcasp0_axr0.gpio3[16] */
+		0x19C ( PIN_INPUT | MUX_MODE7 ) /* (H23) mcasp0_ahclkr.gpio3[17] */
 		>;
 	};
 
 	dig_in2_pins_default: dig_in2_pins_default {
 		pinctrl-single,pins = <
+			0x230 ( PIN_INPUT | MUX_MODE7 ) /* (H22) uart3_ctsn.gpio5[0] */
+			0x234 ( PIN_INPUT | MUX_MODE7 ) /* (K24) uart3_rtsn.gpio5[1] */
 			0x250 ( PIN_INPUT | MUX_MODE7 ) /* (P25) spi4_sclk.gpio5[4] */
 			0x254 ( PIN_INPUT | MUX_MODE7 ) /* (R24) spi4_d0.gpio5[5] */
 			0x258 ( PIN_INPUT | MUX_MODE7 ) /* (P24) spi4_d1.gpio5[6] */
@@ -247,43 +247,35 @@
 		>;
 	};
 
-	e1_pins_default: e1_pins_default {
+	cpsw_pins_default: cpsw_pins_default {
 		pinctrl-single,pins = <
-			0x108 ( PIN_INPUT | MUX_MODE0 ) /* (D16) mii1_col.gmii1_col */
-			0x10c ( PIN_INPUT | MUX_MODE0 ) /* (B14) mii1_crs.gmii1_crs */
-			0x110 ( PIN_INPUT | MUX_MODE0 ) /* (B13) mii1_rx_er.gmii1_rxer */
-			0x114 ( PIN_OUTPUT | MUX_MODE0 ) /* (A13) mii1_tx_en.gmii1_txen */
-			0x118 ( PIN_INPUT | MUX_MODE0 ) /* (A15) mii1_rx_dv.gmii1_rxdv */
-			0x12c ( PIN_INPUT | MUX_MODE0 ) /* (D14) mii1_tx_clk.gmii1_txclk */
-			0x130 ( PIN_INPUT | MUX_MODE0 ) /* (D13) mii1_rx_clk.gmii1_rxclk */
-			0x128 ( PIN_OUTPUT | MUX_MODE0 ) /* (B15) mii1_txd0.gmii1_txd0 */
-			0x124 ( PIN_OUTPUT | MUX_MODE0 ) /* (A14) mii1_txd1.gmii1_txd1 */
-			0x120 ( PIN_OUTPUT | MUX_MODE0 ) /* (C13) mii1_txd2.gmii1_txd2 */
-			0x11c ( PIN_OUTPUT | MUX_MODE0 ) /* (C16) mii1_txd3.gmii1_txd3 */
-			0x140 ( PIN_INPUT | MUX_MODE0 ) /* (F17) mii1_rxd0.gmii1_rxd0 */
-			0x13c ( PIN_INPUT | MUX_MODE0 ) /* (B16) mii1_rxd1.gmii1_rxd1 */
-			0x138 ( PIN_INPUT | MUX_MODE0 ) /* (E16) mii1_rxd2.gmii1_rxd2 */
-			0x134 ( PIN_INPUT | MUX_MODE0 ) /* (C14) mii1_rxd3.gmii1_rxd3 */
-		>;
-	};
+			/* E1 interface */
+			0x12c ( PIN_OUTPUT | MUX_MODE2 ) /* (D14) mii1_tx_clk.gmii1_txclk */
+			0x114 ( PIN_OUTPUT | MUX_MODE2 ) /* (A13) mii1_tx_en.gmii1_txen */
+			0x118 ( PIN_INPUT | MUX_MODE2 ) /* (A15) mii1_rx_dv.gmii1_rxdv */
+			0x130 ( PIN_INPUT | MUX_MODE2 ) /* (D13) mii1_rx_clk.gmii1_rxclk */
+			0x128 ( PIN_OUTPUT | MUX_MODE2 ) /* (B15) mii1_txd0.gmii1_txd0 */
+			0x124 ( PIN_OUTPUT | MUX_MODE2 ) /* (A14) mii1_txd1.gmii1_txd1 */
+			0x120 ( PIN_OUTPUT | MUX_MODE2 ) /* (C13) mii1_txd2.gmii1_txd2 */
+			0x11c ( PIN_OUTPUT | MUX_MODE2 ) /* (C16) mii1_txd3.gmii1_txd3 */
+			0x140 ( PIN_INPUT | MUX_MODE2 ) /* (F17) mii1_rxd0.gmii1_rxd0 */
+			0x13c ( PIN_INPUT | MUX_MODE2 ) /* (B16) mii1_rxd1.gmii1_rxd1 */
+			0x138 ( PIN_INPUT | MUX_MODE2 ) /* (E16) mii1_rxd2.gmii1_rxd2 */
+			0x134 ( PIN_INPUT | MUX_MODE2 ) /* (C14) mii1_rxd3.gmii1_rxd3 */
 
-	mymii2_pins_default: mymii2_pins_default {
-		pinctrl-single,pins = <
-			0x78 ( PIN_INPUT | MUX_MODE1 ) /* (A3) gpmc_be1n.gmii2_col */
-			0x70 ( PIN_INPUT | MUX_MODE1 ) /* (A2) gpmc_wait0.gmii2_crs */
-			0x74 ( PIN_INPUT | MUX_MODE1 ) /* (B3) gpmc_wpn.gmii2_rxer */
-			0x40 ( PIN_OUTPUT | MUX_MODE1 ) /* (C3) gpmc_a0.gmii2_txen */
-			0x44 ( PIN_INPUT | MUX_MODE1 ) /* (C5) gpmc_a1.gmii2_rxdv */
-			0x58 ( PIN_INPUT | MUX_MODE1 ) /* (E8) gpmc_a6.gmii2_txclk */
-			0x5c ( PIN_INPUT | MUX_MODE1 ) /* (F6) gpmc_a7.gmii2_rxclk */
-			0x54 ( PIN_OUTPUT | MUX_MODE1 ) /* (E7) gpmc_a5.gmii2_txd0 */
-			0x50 ( PIN_OUTPUT | MUX_MODE1 ) /* (D7) gpmc_a4.gmii2_txd1 */
-			0x4c ( PIN_OUTPUT | MUX_MODE1 ) /* (A4) gpmc_a3.gmii2_txd2 */
-			0x48 ( PIN_OUTPUT | MUX_MODE1 ) /* (C6) gpmc_a2.gmii2_txd3 */
-			0x6c ( PIN_INPUT | MUX_MODE1 ) /* (D8) gpmc_a11.gmii2_rxd0 */
-			0x68 ( PIN_INPUT | MUX_MODE1 ) /* (G8) gpmc_a10.gmii2_rxd1 */
-			0x64 ( PIN_INPUT | MUX_MODE1 ) /* (B4) gpmc_a9.gmii2_rxd2 */
-			0x60 ( PIN_INPUT | MUX_MODE1 ) /* (F7) gpmc_a8.gmii2_rxd3 */
+			/* E2 interface */
+			0x40 ( PIN_OUTPUT | MUX_MODE2 ) /* (C3) gpmc_a0.gmii2_txen */
+			0x44 ( PIN_INPUT | MUX_MODE2 ) /* (C5) gpmc_a1.gmii2_rxdv */
+			0x58 ( PIN_INPUT | MUX_MODE2 ) /* (E8) gpmc_a6.gmii2_txclk */
+			0x5c ( PIN_INPUT | MUX_MODE2 ) /* (F6) gpmc_a7.gmii2_rxclk */
+			0x54 ( PIN_OUTPUT | MUX_MODE2 ) /* (E7) gpmc_a5.gmii2_txd0 */
+			0x50 ( PIN_OUTPUT | MUX_MODE2 ) /* (D7) gpmc_a4.gmii2_txd1 */
+			0x4c ( PIN_OUTPUT | MUX_MODE2 ) /* (A4) gpmc_a3.gmii2_txd2 */
+			0x48 ( PIN_OUTPUT | MUX_MODE2 ) /* (C6) gpmc_a2.gmii2_txd3 */
+			0x6c ( PIN_INPUT | MUX_MODE2 ) /* (D8) gpmc_a11.gmii2_rxd0 */
+			0x68 ( PIN_INPUT | MUX_MODE2 ) /* (G8) gpmc_a10.gmii2_rxd1 */
+			0x64 ( PIN_INPUT | MUX_MODE2 ) /* (B4) gpmc_a9.gmii2_rxd2 */
+			0x60 ( PIN_INPUT | MUX_MODE2 ) /* (F7) gpmc_a8.gmii2_rxd3 */
 		>;
 	};
 
@@ -320,31 +312,30 @@
 		>;
 	};
 
-	konsole_pins_default: konsole_pins_default {
+	spi3_can_fd_pins_default: spi3_can_fd_pins_default {
+		pinctrl-single,pins = <
+			0x1f4 ( PIN_OUTPUT | MUX_MODE2 ) /* (AE22) cam1_data3.spi3_sclk */
+			0x1e8 ( PIN_OUTPUT | MUX_MODE2 ) /* (AB20) cam1_data0.spi3_d0 */
+			0x1ec ( PIN_OUTPUT | MUX_MODE2 ) /* (AC21) cam1_data1.spi3_d1 */
+			0x1f0 ( PIN_OUTPUT | MUX_MODE2 ) /* (AD21) cam1_data2.spi3_cs0 */
+		>;
+	};
+
+
+	spi0_atsam_pins_default: spi0_atsam_pins_default {
+		pinctrl-single,pins = <
+			0x150 ( PIN_OUTPUT | MUX_MODE0 ) /* (P23) spi0_sclk.spi0_sclk */
+			0x154 ( PIN_OUTPUT | MUX_MODE0 ) /* (T22) spi0_d0.spi0_d0 */
+			0x158 ( PIN_OUTPUT | MUX_MODE0 ) /* (T21) spi0_d1.spi0_d1 */
+			0x15c ( PIN_OUTPUT | MUX_MODE0 ) /* (T20) spi0_cs0.spi0_cs0 */
+			0x190 ( PIN_OUTPUT | MUX_MODE2 ) /* (N24) mcasp0_aclkx.spi0_cs3 */
+		>;
+	};
+
+	unused_pins_default: unused_pins_default {
 		pinctrl-single,pins = <
 			0x170 ( PIN_INPUT | MUX_MODE0 ) /* (K25) uart0_rxd.uart0_rxd */
 			0x174 ( PIN_OUTPUT | MUX_MODE0 ) /* (J24) uart0_txd.uart0_txd */
-		>;
-	};
-
-	rs232_pins_default: rs232_pins_default {
-		pinctrl-single,pins = <
-			0x1e8 ( PIN_INPUT | MUX_MODE1 ) /* (AB20) cam1_data0.uart1_rxd */
-			0x1ec ( PIN_OUTPUT | MUX_MODE1 ) /* (AC21) cam1_data1.uart1_txd */
-			0x1f0 ( PIN_INPUT | MUX_MODE1 ) /* (AD21) cam1_data2.uart1_ctsn */
-			0x1f4 ( PIN_OUTPUT | MUX_MODE1 ) /* (AE22) cam1_data3.uart1_rtsn */
-			0x200 ( PIN_INPUT | MUX_MODE1 ) /* (AD23) cam1_data6.uart1_dcdn */
-			0x1fc ( PIN_INPUT | MUX_MODE1 ) /* (AE23) cam1_data5.uart1_dsrn */
-			0x204 ( PIN_OUTPUT | MUX_MODE1 ) /* (AE24) cam1_data7.uart1_dtrn */
-		>;
-	};
-
-	rs485_b_pins_default: rs485_b_pins_default {
-		pinctrl-single,pins = <
-			0x228 ( PIN_INPUT | MUX_MODE0 ) /* (H25) uart3_rxd.uart3_rxd */
-			0x22c ( PIN_OUTPUT | MUX_MODE0 ) /* (H24) uart3_txd.uart3_txd */
-			0x230 ( PIN_INPUT | MUX_MODE0 ) /* (H22) uart3_ctsn.uart3_ctsn */
-			0x234 ( PIN_OUTPUT | MUX_MODE0 ) /* (K24) uart3_rtsn.uart3_rtsn */
 		>;
 	};
 
@@ -355,12 +346,14 @@
 		>;
 	};
 
-	rs485_a_pins_default: rs485_a_pins_default {
+
+	konsole_pins_default: konsole_pins_default {
 		pinctrl-single,pins = <
-			0x150 ( PIN_INPUT | MUX_MODE1 ) /* (P23) spi0_sclk.uart2_rxd */
-			0x154 ( PIN_OUTPUT | MUX_MODE1 ) /* (T22) spi0_d0.uart2_txd */
+			0x228 ( PIN_INPUT | MUX_MODE0 ) /* (H25) uart3_rxd.uart3_rxd */
+			0x22c ( PIN_OUTPUT | MUX_MODE0 ) /* (H24) uart3_txd.uart3_txd */
 		>;
 	};
+
 
 	usb_pins_default: usb_pins_default {
 		pinctrl-single,pins = <
@@ -382,14 +375,6 @@
 	pinctrl-0 = <&usb_pins_default>;
 };
 
-/* Debug Port; defined here AND!! in source code */
-&uart3 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&rs485_b_pins_default>;
-};
-
-
 
 &i2c0 {
 	status = "okay";
@@ -407,7 +392,7 @@
 		dcdc1: regulator-dcdc1 {
 			compatible = "ti,tps65218-dcdc1";
 			regulator-name = "vdd_core";
-			regulator-min-microvolt = <1000000>;
+			regulator-min-microvolt = <912000>;
 			regulator-max-microvolt = <1144000>;
 			regulator-boot-on;
 			regulator-always-on;
@@ -416,7 +401,7 @@
 		dcdc2: regulator-dcdc2 {
 			compatible = "ti,tps65218-dcdc2";
 			regulator-name = "vdd_mpu";
-			regulator-min-microvolt = <1200000>;
+			regulator-min-microvolt = <912000>;
 			regulator-max-microvolt = <1378000>;
 			regulator-boot-on;
 			regulator-always-on;
@@ -508,30 +493,12 @@
 };
 
 
-&uart1 {  
-        pinctrl-names = "default";  
-        pinctrl-0 = <&rs232_pins_default>;  
-        status = "okay";  
-
-	dtr-gpios = <&gpio4 21 GPIO_ACTIVE_LOW>;
-	dsr-gpios = <&gpio4 19 GPIO_ACTIVE_LOW>;
-	dcd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
-	rng-gpios = <&gpio4 18 GPIO_ACTIVE_LOW>;
-	cts-gpios = <&gpio4 16 GPIO_ACTIVE_LOW>;
-	rts-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
-}; 
-
-&uart2 {  
-        pinctrl-names = "default";  
-        pinctrl-0 = <&rs485_a_pins_default>;  
-        status = "okay";  
-}; 
-
-&uart0 {  
-        pinctrl-names = "default";  
-        pinctrl-0 = <&konsole_pins_default>;  
-        status = "okay";  
-}; 
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&konsole_pins_default>;
+	u-boot,dm-spl;
+};
 
 &uart4 {  
         pinctrl-names = "default";  
@@ -541,32 +508,56 @@
 
 &mmc1 {
 	status = "okay";
-	vmmc-supply = <&dcdc4>;
+	vmmc-supply =<&dcdc4>;
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_pins_default>;
 };
 
 &mac {
-	slaves = <1>;
+	dual_emac=<2>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&e1_pins_default>;
+	pinctrl-0 = <&cpsw_pins_default>;
 	status = "okay";
 };
+
 
 &davinci_mdio {
 	pinctrl-names = "default";
+	compatable = "ti, cpsw-mdio","ti,davinci_mdio";
 	pinctrl-0 = <&mdio_pins_default>;
 	status = "okay";
 
-	ethphy0: ethernet-phy@0 {
+	ethphy0: ethernet-phy@0{
+		reg = <0>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_1_75_NS>; 
+		ti,tx-internal-delay = <DP83867_RGMIIDCTL_1_75_NS>; 
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+		ti,min-output-impedence;
+		ti,dp83867-rxctrl-strap-quirk;
+	};
+	ethphy1: ethernet-phy@1{
 		reg = <1>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_1_75_NS>; 
+		ti,tx-internal-delay = <DP83867_RGMIIDCTL_1_75_NS>; 
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+		ti,min-output-impedence;
+		ti,dp83867-rxctrl-strap-quirk;
 	};
 };
 
+
+
 &cpsw_emac0 {
-	phy-handle = <&ethphy0>;
-	phy-mode = "mii";
+	phy_id = <&ethphy0>;
+	phy-mode = "rgmii-txid";
+	dual_emac_res_vlan = <1>;
+};
+
+&cpsw_emac1 {
+	phy_id = <&ethphy1>;
+	phy-mode = "rgmii-txid";
+	dual_emac_res_vlan = <2>;
 };
 
 &gpmc{
