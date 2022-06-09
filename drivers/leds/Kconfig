@@ -341,8 +341,8 @@ config LEDS_LP3952
 	  module will be called leds-lp3952.
 
 config LEDS_LP55XX_COMMON
-	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
-	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
+	tristate "Common Driver for TI/National LP5521/5523/55231/5562/5569/8501"
+	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP5569 || LEDS_LP8501
 	select FW_LOADER
 	select FW_LOADER_USER_HELPER
 	help
@@ -376,6 +376,16 @@ config LEDS_LP5562
 	select LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for TI LP5562 LED driver.
+	  It is 4 channels chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
+
+config LEDS_LP5569
+	tristate "LED Support for TI LP5569 LED driver chip"
+	depends on LEDS_CLASS && I2C
+	select LEDS_LP55XX_COMMON
+	help
+	  If you say yes here you get support for TI LP5569 LED driver.
 	  It is 4 channels chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
