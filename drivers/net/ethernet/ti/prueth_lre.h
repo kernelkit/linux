@@ -80,6 +80,8 @@ struct lre_statistics {
 	u32 lre_cnt_dd_pru1; /* count of DD frames to host on PRU 1 */
 	u32 lre_cnt_sup_pru0; /* count of supervisor frames to host on PRU 0 */
 	u32 lre_cnt_sup_pru1; /* count of supervisor frames to host on PRU 1 */
+	u32 lre_no_prp_tag_rx_a; /* count of frames with no RCT tag to host on PRU 0 */
+        u32 lre_no_prp_tag_rx_b; /* count of frames with no RCT tag to host on PRU 1*/
 } __packed;
 
 /* node table info */
