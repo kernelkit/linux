@@ -982,6 +982,8 @@ static const struct {
 	{"lreDDCountPru1", PRUETH_LRE_STAT_OFS(lre_cnt_dd_pru1)},
 	{"lreCntSupPru0", PRUETH_LRE_STAT_OFS(lre_cnt_sup_pru0)},
 	{"lreCntSupPru1", PRUETH_LRE_STAT_OFS(lre_cnt_sup_pru1)},
+	{"lreNoPRPtagRxA", PRUETH_LRE_STAT_OFS(lre_no_prp_tag_rx_a)},
+        {"lreNoPRPtagRxB", PRUETH_LRE_STAT_OFS(lre_no_prp_tag_rx_b)},
 };
 
 void prueth_lre_set_stats(struct prueth *prueth,
