@@ -599,6 +599,236 @@
 &i2c2 {
 	status = "okay";
 	clock-frequency = <100000>;
+
+	led1_mux:tlc59116@60 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x60>;
+
+		LED1_G@0 {
+			label = "lhmi:led1:green";
+			reg = <0x0>;
+		};
+		LED1_B@1 {
+			label = "lhmi:led1:blue";
+			reg = <0x1>;
+		};
+		LED1_R@2 {
+			label = "lhmi:led1:red";
+			reg = <0x2>;
+		};
+
+		LED2_G@4 {
+			label = "lhmi:led2:green";
+			reg = <0x4>;
+		};
+		LED2_B@5 {
+			label = "lhmi:led2:blue";
+			reg = <0x5>;
+		};
+		LED2_R@6 {
+			label = "lhmi:led2:red";
+			reg = <0x6>;
+		};
+
+		LED3_G@8 {
+			label = "lhmi:led3:green";
+			reg = <0x8>;
+		};
+		LED3_B@9 {
+			label = "lhmi:led3:blue";
+			reg = <0x9>;
+		};
+		LED3_R@A {
+			label = "lhmi:led3:red";
+			reg = <0xA>;
+		};
+
+		LED4_G@C {
+			label = "lhmi:led4:green";
+			reg = <0xC>;
+		};
+		LED4_B@D {
+			label = "lhmi:led4:blue";
+			reg = <0xD>;
+		};
+		LED4_R@E {
+			label = "lhmi:led4:red";
+			reg = <0xE>;
+		};
+	};
+
+	led2_mux:tlc59116@61 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x61>;
+		LED5_G@0 {
+			label = "lhmi:led5:green";
+			reg = <0x0>;
+		};
+		LED5_B@1 {
+			label = "lhmi:led5:blue";
+			reg = <0x1>;
+		};
+		LED5_R@2 {
+			label = "lhmi:led5:red";
+			reg = <0x2>;
+		};
+
+		LED6_G@4 {
+			label = "lhmi:led6:green";
+			reg = <0x4>;
+		};
+		LED6_B@5 {
+			label = "lhmi:led6:blue";
+			reg = <0x5>;
+		};
+		LED6_R@6 {
+			label = "lhmi:led6:red";
+			reg = <0x6>;
+		};
+
+		LED7_G@8 {
+			label = "lhmi:led7:green";
+			reg = <0x8>;
+		};
+		LED7_B@9 {
+			label = "lhmi:led7:blue";
+			reg = <0x9>;
+		};
+		LED7_R@A {
+			label = "lhmi:led7:red";
+			reg = <0xA>;
+		};
+
+		LED8_G@C {
+			label = "lhmi:led8:green";
+			reg = <0xC>;
+		};
+		LED8_B@D {
+			label = "lhmi:led8:blue";
+			reg = <0xD>;
+		};
+		LED8_R@E {
+			label = "lhmi:led8:red";
+			reg = <0xE>;
+		};
+	};
+
+	led3_mux:tlc59116@62 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x62>;
+
+		LED9_G@0 {
+			label = "lhmi:led9:green";
+			reg = <0x0>;
+		};
+		LED9_B@1 {
+			label = "lhmi:led9:blue";
+			reg = <0x1>;
+		};
+		LED9_R@2 {
+			label = "lhmi:led9:red";
+			reg = <0x2>;
+		};
+
+		LED10_G@4 {
+			label = "lhmi:led10:green";
+			reg = <0x4>;
+		};
+		LED10_B@5 {
+			label = "lhmi:led10:blue";
+			reg = <0x5>;
+		};
+		LED10_R@6 {
+			label = "lhmi:led10:red";
+			reg = <0x6>;
+		};
+
+		LED11_G@8 {
+			label = "lhmi:led11:green";
+			reg = <0x8>;
+		};
+		LED11_B@9 {
+			label = "lhmi:led11:blue";
+			reg = <0x9>;
+		};
+		LED11_R@A {
+			label = "lhmi:led11:red";
+			reg = <0xA>;
+		};
+
+		LED12_G@C {
+			label = "lhmi:led12:green";
+			reg = <0xC>;
+		};
+		LED12_B@D {
+			label = "lhmi:led12:blue";
+			reg = <0xD>;
+		};
+		LED12_R@E {
+			label = "lhmi:led12:red";
+			reg = <0xE>;
+		};
+	};
+
+	led4_mux:tlc59116@63 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x63>;
+
+		LED13_G@0 {
+			label = "lhmi:led13:green";
+			reg = <0x0>;
+		};
+		LED13_B@1 {
+			label = "lhmi:led13:blue";
+			reg = <0x1>;
+		};
+		LED13_R@2 {
+			label = "lhmi:led13:red";
+			reg = <0x2>;
+		};
+
+		LED14_G@4 {
+			label = "lhmi:led14:green";
+			reg = <0x4>;
+		};
+		LED14_B@5 {
+			label = "lhmi:led14:blue";
+			reg = <0x5>;
+		};
+		LED14_R@6 {
+			label = "lhmi:led14:red";
+			reg = <0x6>;
+		};
+
+		LED15_G@8 {
+			label = "lhmi:led15:green";
+			reg = <0x8>;
+		};
+		LED15_B@9 {
+			label = "lhmi:led15:blue";
+			reg = <0x9>;
+		};
+		LED15_R@A {
+			label = "lhmi:led15:red";
+			reg = <0xA>;
+		};
+	};
+
+	id_eeprom_lhmi:id_eeprom_lhmi@56 {
+		compatible = "atmel,24c04";
+		label = "ID_EEPROM_LHMI";
+		reg = <0x56>;
+		pagesize = <16>;
+	};
+
 	touchscreen: ili251x@41 {
 		status = "okay";
 		compatible = "ili251x";
@@ -607,10 +837,20 @@
 
 		reset-gpios = <&gpio4 29 GPIO_ACTIVE_LOW>;
 
-		touchscreen-size-x = <800>;
-		touchscreen-size-y = <480>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <1024>;
+		touchscreen-size-y = <600>;
 
 		max-fingers = <6>;
+	};
+
+	/*Temperature sensor*/
+	LM75B_LHMI@48 {
+		compatible = "national,lm75b";
+		label = "TEMP_LHMI";
+		reg = <0x48>;
 	};
 };
 
@@ -940,36 +1180,18 @@
 
 	lcd_bl: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&ehrpwm2 0 50000 0>; /* pwms = <&ehrpwm2 0 50000 1>;*/
-		brightness-levels = <0 51 53 56 62 75 101 152 255>;
+		pwms = <&ehrpwm2 0 100000 0>;
+		/* in %:             0 10 20 30 40  50  60  70  80*/
+		brightness-levels = <0 25 50 76 101 128 153 179 204>;
 		default-brightness-level = <8>;
 	};
 
 	lcd: display {
-		compatible = "osddisplays,osd070t1718-19ts", "panel-dpi";
+		compatible = "osddisplays,osd070t1718-19ts";
 		status = "okay";
 
 		backlight = <&lcd_bl>;
 		label = "lcd";
-
-		panel-timing {
-			clock-frequency = <30000000>;
-			hactive = <800>;
-			vactive = <480>;
-
-			hfront-porch = <40>;
-			hback-porch = <88>;
-			hsync-len = <20>;
-
-			vfront-porch = <13>;
-			vback-porch = <32>;
-			vsync-len = <2>;
-
-			hsync-active = <0>; /*QQQ*/
-			vsync-active = <0>; /*QQQ*/
-			de-active = <1>; /*QQQ*/
-			pixelclk-active = <1>; /*QQQ*/
-		};
 
 		port {
 			lcd_in: endpoint {
@@ -977,35 +1199,6 @@
 			};
 		};
 	};
-
-	/*lvds: lvds {
-		compatible = "lvds-encoder";
-		status = "okay";
-		
-		fsl,data-width = <24>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-		
-			port@0 {
-				reg = <0>;
-
-				lvds_in: endpoint {
-					remote-endpoint = <&dpi_out>;
-					data-lines = <24>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				lvds_out: endpoint {
-					remote-endpoint = <&lcd_in>;
-				};
-			};
-		};
-	};*/
 };
 
 &epwmss2 {
@@ -1033,11 +1226,6 @@
 			};
 		};
 	};
-};
-
-&touchscreen {
-	interrupt-parent = <&gpio4>;
-	interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
 };
 
 &emif1 {
