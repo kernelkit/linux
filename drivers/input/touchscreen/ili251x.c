@@ -167,7 +167,7 @@ static void ili251x_reset(struct ili251x_data *data)
 {
 	if (data->reset_gpio) {
 		gpiod_set_value(data->reset_gpio, 1);
-		usleep_range(50, 100);
+		msleep(10);
 		gpiod_set_value(data->reset_gpio, 0);
 		msleep(100);
 	}
