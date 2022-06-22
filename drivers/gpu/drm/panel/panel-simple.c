@@ -2398,15 +2398,15 @@ static const struct panel_desc ortustech_com43h4m85ulc = {
 };
 
 static const struct drm_display_mode osddisplays_osd070t1718_19ts_mode  = {
-	.clock = 33000,
-	.hdisplay = 800,
-	.hsync_start = 800 + 210,
-	.hsync_end = 800 + 210 + 30,
-	.htotal = 800 + 210 + 30 + 16,
-	.vdisplay = 480,
-	.vsync_start = 480 + 22,
-	.vsync_end = 480 + 22 + 13,
-	.vtotal = 480 + 22 + 13 + 10,
+	.clock = 51000,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 210,
+	.hsync_end = 1024 + 210 + 30,
+	.htotal = 1024 + 210 + 30 + 16,
+	.vdisplay = 600,
+	.vsync_start = 600 + 22,
+	.vsync_end = 600 + 22 + 13,
+	.vtotal = 600 + 22 + 13 + 10,
 	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
