@@ -112,6 +112,7 @@ struct uart_8250_port {
 						 */
 	unsigned char		probe;
 	struct mctrl_gpios	*gpios;
+	struct gpio_desc	*gpio_rx_disable; /* GPIO to disable receive path if required */
 #define UART_PROBE_RSA	(1 << 0)
 
 	/*

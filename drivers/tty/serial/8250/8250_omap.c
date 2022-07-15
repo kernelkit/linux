@@ -31,6 +31,7 @@
 #include <linux/pm_qos.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/dma-mapping.h>
+#include <linux/ktime.h>
 
 #include "8250.h"
 
@@ -127,6 +128,7 @@ struct omap8250_priv {
 	spinlock_t rx_dma_lock;
 	bool rx_dma_broken;
 	bool throttled;
+	ktime_t rx_int_tstamp;
 };
 
 struct omap8250_dma_params {
@@ -597,6 +599,7 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct uart_8250_port *up = up_to_u8250p(port);
+	struct omap8250_priv *priv = port->private_data;
 	unsigned int iir;
 	int ret;
 
@@ -609,6 +612,9 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 
 	serial8250_rpm_get(up);
 	iir = serial_port_in(port, UART_IIR);
+	if (iir & (UART_IIR_RDI | UART_IIR_RX_TIMEOUT)) {
+		priv->rx_int_tstamp = ktime_get_real();
+	}
 	ret = serial8250_handle_irq(port, iir);
 	serial8250_rpm_put(up);
 
@@ -781,6 +787,26 @@ static void omap_8250_unthrottle(struct uart_port *port)
 
 	pm_runtime_mark_last_busy(port->dev);
 	pm_runtime_put_autosuspend(port->dev);
+}
+
+static int omap_8250_ioctl(struct uart_port *port,
+				  unsigned int cmd, unsigned long arg)
+{
+	struct omap8250_priv *priv = port->private_data;
+	void __user *uarg = (void __user *)arg;
+
+	switch (cmd) {
+	case TIOCGTSRXINT: /* Read timestamp from last RX interrupt */
+		if (uarg) {
+			struct timeval tmp = ktime_to_timeval(priv->rx_int_tstamp);
+			if (copy_to_user(uarg, &tmp, sizeof(struct timeval)))
+				return -EFAULT;
+			return 0;
+		}
+		return -EINVAL;
+	}
+
+	return -ENOIOCTLCMD;
 }
 
 #ifdef CONFIG_SERIAL_8250_DMA
@@ -1199,6 +1225,113 @@ static int omap8250_no_handle_irq(struct uart_port *port)
 	return 0;
 }
 
+static int do_get_rxtrig(struct tty_port *port)
+{
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport = state->uart_port;
+	struct uart_8250_port *up = up_to_u8250p(uport);
+	struct omap8250_priv *priv = up->port.private_data;
+
+	return priv->rx_trigger;
+}
+
+static int do_omap8250_get_rxtrig(struct tty_port *port)
+{
+	int rxtrig_bytes;
+
+	mutex_lock(&port->mutex);
+	rxtrig_bytes = do_get_rxtrig(port);
+	mutex_unlock(&port->mutex);
+
+	return rxtrig_bytes;
+}
+
+static ssize_t omap8250_get_attr_rx_trig_bytes(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct tty_port *port = dev_get_drvdata(dev);
+	int rxtrig_bytes;
+
+	rxtrig_bytes = do_omap8250_get_rxtrig(port);
+	if (rxtrig_bytes < 0)
+		return rxtrig_bytes;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", rxtrig_bytes);
+}
+
+static int do_set_rxtrig(struct tty_port *port, unsigned char bytes)
+{
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport = state->uart_port;
+	struct uart_8250_port *up = up_to_u8250p(uport);
+	struct omap8250_priv *priv = up->port.private_data;
+
+	if ((bytes < 1) || (bytes >= up->port.fifosize))
+		return -EINVAL;
+
+	priv->rx_trigger = bytes;
+
+	up->fcr &= ~UART_FCR_TRIGGER_MASK;
+	up->fcr |= TRIGGER_FCR_MASK(priv->rx_trigger) << OMAP_UART_FCR_RX_TRIG;
+	serial_out(up, UART_FCR, up->fcr);
+	serial_out(up, UART_TI752_TLR,
+		   TRIGGER_TLR_MASK(priv->tx_trigger) << UART_TI752_TLR_TX |
+		   TRIGGER_TLR_MASK(priv->rx_trigger) << UART_TI752_TLR_RX);
+
+	return 0;
+}
+
+static int do_omap8250_set_rxtrig(struct tty_port *port, unsigned char bytes)
+{
+	int ret;
+
+	mutex_lock(&port->mutex);
+	ret = do_set_rxtrig(port, bytes);
+	mutex_unlock(&port->mutex);
+
+	return ret;
+}
+
+static ssize_t omap8250_set_attr_rx_trig_bytes(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct tty_port *port = dev_get_drvdata(dev);
+	unsigned char bytes;
+	int ret;
+
+	if (!count)
+		return -EINVAL;
+
+	ret = kstrtou8(buf, 10, &bytes);
+	if (ret < 0)
+		return ret;
+
+	ret = do_omap8250_set_rxtrig(port, bytes);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR(rx_trig_bytes, S_IRUSR | S_IWUSR | S_IRGRP,
+		   omap8250_get_attr_rx_trig_bytes,
+		   omap8250_set_attr_rx_trig_bytes);
+
+static struct attribute *omap8250_dev_attrs[] = {
+	&dev_attr_rx_trig_bytes.attr,
+	NULL,
+	};
+
+static struct attribute_group omap8250_dev_attr_group = {
+	.attrs = omap8250_dev_attrs,
+	};
+
+static void register_dev_spec_attr_grp(struct uart_8250_port *up)
+{
+	if (!up->dma)
+		up->port.attr_group = &omap8250_dev_attr_group;
+}
+
 static struct omap8250_dma_params am654_dma = {
 	.rx_size = SZ_2K,
 	.rx_trigger = 1,
@@ -1279,7 +1412,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.type = PORT_8250;
 	up.port.iotype = UPIO_MEM;
 	up.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE | UPF_SOFT_FLOW |
-		UPF_HARD_FLOW;
+		UPF_HARD_FLOW | UPF_LOW_LATENCY;
 	up.port.private_data = priv;
 
 	up.port.regshift = 2;
@@ -1303,6 +1436,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.throttle = omap_8250_throttle;
 	up.port.unthrottle = omap_8250_unthrottle;
 	up.port.rs485_config = omap_8250_rs485_config;
+	up.port.ioctl = omap_8250_ioctl;
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
@@ -1399,6 +1533,7 @@ static int omap8250_probe(struct platform_device *pdev)
 		}
 	}
 #endif
+	register_dev_spec_attr_grp(&up);
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "unable to register 8250 port\n");
@@ -1413,6 +1548,8 @@ err:
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	pm_qos_remove_request(&priv->pm_qos_request);
+	device_init_wakeup(&pdev->dev, false);
 	return ret;
 }
 

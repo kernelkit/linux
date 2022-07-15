@@ -990,6 +990,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 	uart = serial8250_find_match_or_unused(&up->port);
 	if (uart && uart->port.type != PORT_8250_CIR) {
 		struct mctrl_gpios *gpios;
+		struct gpio_desc *gpio_rx_disable;
 
 		if (uart->port.dev)
 			uart_remove_one_port(&serial8250_reg, &uart->port);
@@ -1014,6 +1015,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.rs485_config	= up->port.rs485_config;
 		uart->port.rs485	= up->port.rs485;
 		uart->dma		= up->dma;
+		uart->port.attr_group	= up->port.attr_group;
 
 		/* Take tx_loadsz from fifosize if it wasn't set separately */
 		if (uart->port.fifosize && !uart->tx_loadsz)
@@ -1036,6 +1038,16 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 				goto err;
 			} else {
 				uart->gpios = gpios;
+			}
+
+			gpio_rx_disable =
+				devm_gpiod_get_index_optional(uart->port.dev,
+					"rx-disable", 0, GPIOD_OUT_LOW);
+			if (IS_ERR(gpio_rx_disable)) {
+				ret = PTR_ERR(gpio_rx_disable);
+				goto err;
+			} else {
+				uart->gpio_rx_disable = gpio_rx_disable;
 			}
 		}
 
@@ -1069,6 +1081,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			uart->port.pm = up->port.pm;
 		if (up->port.handle_break)
 			uart->port.handle_break = up->port.handle_break;
+		if (up->port.ioctl)
+			uart->port.ioctl = up->port.ioctl;
 		if (up->dl_read)
 			uart->dl_read = up->dl_read;
 		if (up->dl_write)
