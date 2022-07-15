@@ -118,6 +118,7 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 {
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
+	bool gpio_found = 0;
 
 	gpios = devm_kzalloc(dev, sizeof(*gpios), GFP_KERNEL);
 	if (!gpios)
@@ -146,6 +147,13 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 
 		if (IS_ERR(gpios->gpio[i]))
 			return ERR_CAST(gpios->gpio[i]);
+
+		gpio_found = 1;
+	}
+
+	if (!gpio_found) {
+		devm_kfree(dev, gpios);
+		return NULL;
 	}
 
 	return gpios;
@@ -195,7 +203,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 	enum mctrl_gpio_idx i;
 
 	gpios = mctrl_gpio_init_noauto(port->dev, idx);
-	if (IS_ERR(gpios))
+	if (IS_ERR_OR_NULL(gpios))
 		return gpios;
 
 	gpios->port = port;
