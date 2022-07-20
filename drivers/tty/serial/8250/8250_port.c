@@ -1405,10 +1405,14 @@ static void __do_stop_tx_rs485(struct uart_8250_port *p)
 	 * Enable previously disabled RX interrupts.
 	 */
 	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX)) {
-		serial8250_clear_and_reinit_fifos(p);
+		if (p->gpio_rx_disable) {
+			gpiod_set_value(p->gpio_rx_disable, 0);
+		} else {
+			serial8250_clear_and_reinit_fifos(p);
 
-		p->ier |= UART_IER_RLSI | UART_IER_RDI;
-		serial8250_set_IER(p, p->ier);
+			p->ier |= UART_IER_RLSI | UART_IER_RDI;
+			serial8250_set_IER(p, p->ier);
+		}
 	}
 }
 static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
@@ -1535,8 +1539,12 @@ static inline void start_tx_rs485(struct uart_port *port)
 	struct uart_8250_em485 *em485 = up->em485;
 	unsigned char mcr;
 
-	if (!(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
-		serial8250_stop_rx(&up->port);
+	if (!(up->port.rs485.flags & SER_RS485_RX_DURING_TX)) {
+		if (up->gpio_rx_disable)
+			gpiod_set_value(up->gpio_rx_disable, 1);
+		else
+			serial8250_stop_rx(&up->port);
+	}
 
 	em485->active_timer = NULL;
 
@@ -1588,7 +1596,6 @@ static void serial8250_start_tx(struct uart_port *port)
 	if (em485 &&
 	    em485->active_timer == &em485->start_tx_timer)
 		return;
-
 	if (em485)
 		start_tx_rs485(port);
 	else
@@ -3044,6 +3051,15 @@ serial8250_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return 0;
 }
 
+static int serial8250_ioctl(struct uart_port *port,
+	unsigned int cmd, unsigned long arg)
+{
+	if (port->ioctl)
+		return port->ioctl(port, cmd, arg);
+
+	return -ENOIOCTLCMD;
+}
+
 static const char *serial8250_type(struct uart_port *port)
 {
 	int type = port->type;
@@ -3074,6 +3090,7 @@ static const struct uart_ops serial8250_pops = {
 	.request_port	= serial8250_request_port,
 	.config_port	= serial8250_config_port,
 	.verify_port	= serial8250_verify_port,
+	.ioctl		= serial8250_ioctl,
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_get_char = serial8250_get_poll_char,
 	.poll_put_char = serial8250_put_poll_char,
