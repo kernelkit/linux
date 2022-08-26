@@ -79,6 +79,31 @@ MODULE_PARM_DESC(debug_level, "PRUETH debug level (NETIF_MSG bits)");
 /* ensure that order of PRUSS mem regions is same as enum prueth_mem */
 static enum pruss_mem pruss_mem_ids[] = { PRUSS_MEM_DRAM0, PRUSS_MEM_DRAM1,
 					  PRUSS_MEM_SHRD_RAM2 };
+/* Below structure was added for HSR/PRP TX optimization
+*  Parvathi@CIT - 19-Aug-2022
+*/
+struct prp_txopt_rct {
+        __be16          sequence_nr;
+        __be16          lan_id_and_LSDU_size;
+        __be16          PRP_suffix;
+} __packed;
+
+/* Below structure was added for HSR/PRP TX optimization
+*  Parvathi@CIT - 19-Aug-2022
+*/
+struct hsr_txopt_tag {
+        __be16          path_and_LSDU_size;
+        __be16          sequence_nr;
+        __be16          encap_proto;
+} __packed;
+
+/* Below structure was added for HSR/PRP TX optimization
+*  Parvathi@CIT - 19-Aug-2022
+*/
+struct hsr_txopt_ethhdr {
+        struct ethhdr   ethhdr;
+        struct hsr_txopt_tag  hsr_tag;
+} __packed;
 
 static struct prueth_fw_offsets fw_offsets_v1_0 = {
 	.hash_mask = ICSS_LRE_V1_0_HASH_MASK,
@@ -306,6 +331,30 @@ const struct prueth_queue_desc queue_descs[][NUM_QUEUES] = {
 		{ .rd_ptr = P2_Q3_BD_OFFSET, .wr_ptr = P2_Q3_BD_OFFSET, },
 		{ .rd_ptr = P2_Q4_BD_OFFSET, .wr_ptr = P2_Q4_BD_OFFSET, },
 	}
+};
+
+/* Below structure was added for HSR/PRP TX optimization
+*  Parvathi@CIT - 19-Aug-2022
+*/
+const struct prueth_queue_desc hsr_prp_txopt_queue_descs[][NUM_QUEUES] = {
+        [PRUETH_PORT_QUEUE_HOST] = {
+                { .rd_ptr = P0_Q1_BD_OFFSET, .wr_ptr = P0_Q1_BD_OFFSET, },
+                { .rd_ptr = P0_Q2_BD_OFFSET, .wr_ptr = P0_Q2_BD_OFFSET, },
+                { .rd_ptr = P0_Q3_BD_OFFSET, .wr_ptr = P0_Q3_BD_OFFSET, },
+                { .rd_ptr = P0_Q4_BD_OFFSET, .wr_ptr = P0_Q4_BD_OFFSET, },
+        },
+        [PRUETH_PORT_QUEUE_MII0] = {
+                { .rd_ptr = P1_Q1_BD_OFFSET, .wr_ptr = P1_Q1_BD_OFFSET, },
+                { .rd_ptr = P1_Q2_BD_OFFSET, .wr_ptr = P1_Q2_BD_OFFSET, },
+                { .rd_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, },
+                { .rd_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, },
+        },
+        [PRUETH_PORT_QUEUE_MII1] = {
+                { .rd_ptr = HSRP2_TXOPT_Q1_BD_OFFSET, .wr_ptr = HSRP2_TXOPT_Q1_BD_OFFSET, },
+                { .rd_ptr = HSRP2_TXOPT_Q2_BD_OFFSET, .wr_ptr = HSRP2_TXOPT_Q2_BD_OFFSET, },
+                { .rd_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, },
+                { .rd_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, },
+        }
 };
 
 static enum hrtimer_restart prueth_timer(struct hrtimer *timer)
@@ -950,6 +999,19 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	u32 wr_buf_desc;
 	int ret;
 	int txport = emac->tx_port_queue; /* which port to tx: MII0 or MII1 */
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	struct prueth_emac *other_emac = emac->prueth->emac[other_port_id(emac->port_id) - 1];
+	u16 bd_rd_ptr_other_port;
+	int read_block_other_port, free_blocks_other_port;
+	struct prueth_queue_desc __iomem *queue_desc_other_port;
+	struct hsr_txopt_ethhdr *hsr_ethhdr;
+	struct vlan_ethhdr *vlan_hdr;
+	struct ethhdr *ethhdr;
+	bool is_vlan = false;
+        __be16 proto;
+        u8 *hdr;
 
 	if (!PRUETH_IS_EMAC(prueth))
 		dram = prueth->mem[PRUETH_MEM_DRAM1].va;
@@ -967,7 +1029,13 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 
 	/* Get the tx queue */
 	queue_desc = emac->tx_queue_descs + queue_id;
-	if (!PRUETH_IS_EMAC(prueth))
+	/* Below code was added for HSR/PRP TX optimization
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	if (PRUETH_IS_LRE(prueth)){
+		txqueue = &lre_queue_infos[txport][queue_id];
+	}
+	else if (PRUETH_IS_SWITCH(prueth))
 		txqueue = &sw_queue_infos[txport][queue_id];
 	else
 		txqueue = &queue_infos[txport][queue_id];
@@ -978,7 +1046,13 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 
 	bd_rd_ptr = readw(&queue_desc->rd_ptr);
 	bd_wr_ptr = readw(&queue_desc->wr_ptr);
-
+	/* Below code was added for HSR/PRP TX optimization
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	if (PRUETH_IS_LRE(prueth) && other_emac->link){
+		queue_desc_other_port = emac->tx_queue_descs_other_port + queue_id;
+		bd_rd_ptr_other_port = readw(&queue_desc_other_port->rd_ptr);
+	}
 	/* the PRU firmware deals mostly in pointers already
 	 * offset into ram, we would like to deal in indexes
 	 * within the queue we are working with for code
@@ -986,6 +1060,11 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	 */
 	write_block = (bd_wr_ptr - txqueue->buffer_desc_offset) / BD_SIZE;
 	read_block = (bd_rd_ptr - txqueue->buffer_desc_offset) / BD_SIZE;
+	/* Below code was added for HSR/PRP TX optimization
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	if (PRUETH_IS_LRE(prueth) && other_emac->link)
+                read_block_other_port = (bd_rd_ptr_other_port - txqueue->buffer_desc_offset) / BD_SIZE;
 	if (write_block > read_block) {
 		free_blocks = buffer_desc_count - write_block;
 		free_blocks += read_block;
@@ -994,6 +1073,22 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	} else { /* they are all free */
 		free_blocks = buffer_desc_count;
 	}
+	/* Below code was added for HSR/PRP TX optimization
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	if (PRUETH_IS_LRE(prueth) && other_emac->link){
+                if (write_block > read_block_other_port) {
+                        free_blocks_other_port = buffer_desc_count - write_block;
+                        free_blocks_other_port += read_block_other_port;
+                } else if (write_block < read_block_other_port) {
+                        free_blocks_other_port = read_block_other_port - write_block;
+                } else { /* they are all free */
+                        free_blocks_other_port = buffer_desc_count;
+                }
+
+                if (free_blocks_other_port < free_blocks)
+                        free_blocks = free_blocks_other_port;
+        }
 	pkt_block_size = DIV_ROUND_UP(pktlen, ICSS_BLOCK_SIZE);
 	if (pkt_block_size > free_blocks) /* out of queue space */
 		return -ENOBUFS;
@@ -1046,6 +1141,78 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	if (PRUETH_IS_HSR(prueth))
 		wr_buf_desc |= BIT(PRUETH_BD_HSR_FRAME_SHIFT);
 
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	if (PRUETH_IS_LRE(prueth)){
+		/* Get the pointer that points to skb mac header */
+		ethhdr = (struct ethhdr *)skb_mac_header(skb);
+
+		/* Extract the protocol info from the header */
+		proto = ethhdr->h_proto;
+
+		/* Check if frame is VLAN tagged */
+		if (proto == htons(ETH_P_8021Q)){
+			/* Get the pointer that points to Vlan tagged skb mac header */
+			vlan_hdr = (struct vlan_ethhdr *)ethhdr;
+			/* Extract the protocol info from VLAN tagged header */
+			proto = vlan_hdr->h_vlan_encapsulated_proto;
+			/* Set is_vlan to true */
+			is_vlan = true;
+		}
+
+		/* Check if frame is HSR Tagged */
+		if (proto == htons(ETH_P_HSR)){
+			/* Get the pointer that points to skb mac header */
+			hdr = skb_mac_header(skb);
+
+			if (is_vlan)
+				/* If VLAN tagged, get the pointer with VLAN tagged HSR header */
+				hsr_ethhdr = (struct hsr_txopt_ethhdr *)(hdr + VLAN_HLEN);
+			else
+				/* If Not VLAN tagged, get the pointer without VLAN tagged HSR header */
+				hsr_ethhdr = (struct hsr_txopt_ethhdr *)hdr;
+
+			/* Check if frame is PTP */
+			if (hsr_ethhdr->hsr_tag.encap_proto != htons(ETH_P_1588)){
+				/*  If Not PTP, SET both 16th and 17th bits to indicate to firmware that this frame should be transmitted from both the ports */
+				wr_buf_desc |= (3 << 16);
+
+				/* We use two more bits from buffer descriptor to indicate that LANE information must be changed by the firmware
+				*  Port 1 - 8th bit
+				*  Port 2 - 9th bit
+				*/
+				wr_buf_desc |= (txport << 8);
+			}
+			else{
+				/* We are using two bits 16th and 17th from buffer descriptor, to indicate firmware that from which port this packet need to be sent out.
+				*  Port 1 - 16th bit
+				*  Port 2 - 17th bit
+				*/
+				/*  If PTP, SET the 16th/17th bit depending on the txport vlaue that informs Firmware not to duplicate these packets */
+				wr_buf_desc |= (txport << 16);
+			}
+		}
+		else {
+			/* Check if frame is PRP Tagged */
+			struct prp_txopt_rct *rct = (struct prp_txopt_rct *)(skb_tail_pointer(skb) - 6);
+
+			if (rct->PRP_suffix == htons(ETH_P_PRP)){
+				/*  If PRP, SET both 16th/17th bits to indicate to firmware that this frame should be transmitted from both the ports */
+				wr_buf_desc |= (3 << 16);
+
+				/* We use two more bits from buffer descriptor to indicate that LANE information must be changed by the firmware
+				*  Port 1 - 8th bit
+				*  Port 2 - 9th bit
+				*/
+				wr_buf_desc |= (txport << 8);
+			}
+			else
+				/* SET the 16th/17th bit depending on the txport vlaue */
+				wr_buf_desc |= (txport << 16);
+		}
+	}
+
 	if (!PRUETH_IS_EMAC(prueth))
 		writel(wr_buf_desc, sram + bd_wr_ptr);
 	else
@@ -1056,6 +1223,12 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	 */
 	update_wr_ptr = txqueue->buffer_desc_offset + (update_block * BD_SIZE);
 	writew(update_wr_ptr, &queue_desc->wr_ptr);
+
+	/* Update queue descriptor for HSR/PRP TX OPT
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	if (PRUETH_IS_LRE(prueth) && other_emac->link)
+                writew(update_wr_ptr, &queue_desc_other_port->wr_ptr);
 
 	return 0;
 }
@@ -2065,6 +2238,10 @@ static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct prueth_emac *emac = netdev_priv(ndev);
 	int ret = 0;
 	u16 qid;
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 23-Sep-2022
+	*/
+	void *lock_queue;
 
 	if (unlikely(!emac->link)) {
 		if (netif_msg_tx_err(emac) && net_ratelimit())
@@ -2073,7 +2250,17 @@ static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	qid = prueth_get_tx_queue_id(emac->prueth, skb);
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 23-Sep-2022
+	*/
+	if (PRUETH_IS_LRE(emac->prueth))
+		lock_queue = &emac->prueth->lre_host_queue_lock[qid - 2];
+	else
+		lock_queue = &emac->host_queue_lock[qid];
+
+	raw_spin_lock(lock_queue);
 	ret = prueth_tx_enqueue(emac, skb, qid);
+	raw_spin_unlock(lock_queue);
 	if (ret) {
 		if (ret != -ENOBUFS && netif_msg_tx_err(emac) &&
 		    net_ratelimit())
@@ -3088,6 +3275,13 @@ static int prueth_netdev_init(struct prueth *prueth,
 	spin_lock_init(&emac->lock);
 	spin_lock_init(&emac->addr_lock);
 	spin_lock_init(&emac->ptp_skb_lock);
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 23-Sep-2022
+	*/
+	raw_spin_lock_init(&emac->host_queue_lock[0]);
+	raw_spin_lock_init(&emac->host_queue_lock[1]);
+	raw_spin_lock_init(&emac->host_queue_lock[2]);
+	raw_spin_lock_init(&emac->host_queue_lock[3]);
 
 	/* get mac address from DT and set private and netdev addr */
 	mac_addr = of_get_mac_address(eth_node);
@@ -3523,6 +3717,11 @@ static int prueth_probe(struct platform_device *pdev)
 			has_lre = false;
 	}
 	prueth->support_lre = has_lre;
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 23-Sep-2022
+	*/
+	raw_spin_lock_init(&prueth->lre_host_queue_lock[0]);
+	raw_spin_lock_init(&prueth->lre_host_queue_lock[1]);
 
 	/* setup netdev interfaces */
 	mutex_init(&prueth->mlock);
