@@ -30,6 +30,10 @@ struct hsr_frame_info {
 	bool is_local_exclusive;
 	bool is_from_san;
 	struct skb_redundant_info *sred;
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	bool is_l2ptp;
 };
 
 static inline struct hsr_ethhdr *hsr_get_ethhdr(struct sk_buff *skb, struct hsr_frame_info *frame)
@@ -376,6 +380,10 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 		sred->lsdu_size = s & 0xfff;
 		sred->pathid = (s >> 12) & 0xf;
 		sred->seqnr = hsr_get_skb_sequence_nr(skb);
+		/* Added for HSR/PRP TX OPT
+		*  Parvathi@CIT - 19-Aug-2022
+		*/
+		frame->is_l2ptp = true;
 	}
 
 	return skb;
@@ -542,6 +550,10 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 	struct hsr_port *port;
 	struct sk_buff *skb = NULL;
 	unsigned int dir_ports = 0;
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	int skip_tx_duplicate = -1;
 
 	hsr_for_each_port(frame->port_rcv->hsr, port) {
 		/* Don't send frame back the way it came */
@@ -555,7 +567,11 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 		/* Deliver frames directly addressed to us to master only */
 		if (port->type != HSR_PT_MASTER && frame->is_local_exclusive)
 			continue;
-
+		/* Added for HSR/PRP TX OPT
+		*  Parvathi@CIT - 19-Aug-2022
+		*/
+		if (port->type == HSR_PT_SLAVE_B && skip_tx_duplicate == 0)
+			continue;
 		/* Don't send frame over port where it has been sent before.
 		 * Also if rx LRE is offloaded, hardware does duplication
 		 * detection and discard and send only one copy to the upper
@@ -614,12 +630,18 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 						    port->hsr);
 			continue;
 		}
+		/* Added for HSR/PRP TX OPT
+		*  Parvathi@CIT - 19-Aug-2022
+		*/
+		if (frame->is_l2ptp)
+			skip_tx_duplicate = -1;
 
 		skb->dev = port->dev;
 		if (port->type == HSR_PT_MASTER)
 			hsr_deliver_master(skb, frame->node_src, port);
-		else
-			hsr_xmit(skb, port, frame);
+		else if(skip_tx_duplicate != 0)
+			/* Added for HSR/PRP TX OPT */
+			skip_tx_duplicate = hsr_xmit(skb, port, frame);
 	}
 }
 

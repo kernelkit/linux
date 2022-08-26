@@ -364,6 +364,10 @@ struct prueth_emac {
 
 	struct prueth_queue_desc __iomem *rx_queue_descs;
 	struct prueth_queue_desc __iomem *tx_queue_descs;
+	/* Required for HSR/PRP TX optimization, because we need to write the packet in to both the port queues
+	*  Parvathi@CIT - 19-Aug-2022
+	*/
+	struct prueth_queue_desc __iomem *tx_queue_descs_other_port;
 
 	struct port_statistics stats; /* stats holder when i/f is down */
 	unsigned char mc_filter_mask[ETH_ALEN];	/* for multicast filtering */
@@ -385,6 +389,10 @@ struct prueth_emac {
 	int hsr_ptp_tx_irq;
 	bool ptp_tx_enable;
 	bool ptp_rx_enable;
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 23-Sep-2022
+	*/
+	raw_spinlock_t host_queue_lock[4];
 };
 
 struct prueth_ndev_priority {
@@ -475,6 +483,11 @@ struct prueth {
 	u8 emac_configured;
 	u8 br_members;
 	u8 base_mac[ETH_ALEN];
+	/* Added for HSR/PRP TX OPT
+	*  Parvathi@CIT - 23-Sep-2022
+	*/
+	raw_spinlock_t lre_host_queue_lock[2];
+
 };
 
 int emac_ndo_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -490,6 +503,10 @@ irqreturn_t prueth_ptp_tx_irq_handle(int irq, void *dev);
 irqreturn_t prueth_ptp_tx_irq_work(int irq, void *dev);
 
 extern const struct prueth_queue_desc queue_descs[][NUM_QUEUES];
+/* Below code was added for HSR/PRP TX optimization
+*  Parvathi@CIT - 19-Aug-2022
+*/
+extern const struct prueth_queue_desc hsr_prp_txopt_queue_descs[][NUM_QUEUES];
 
 void emac_mc_filter_bin_allow(struct prueth_emac *emac, u8 hash);
 void emac_mc_filter_bin_disallow(struct prueth_emac *emac, u8 hash);

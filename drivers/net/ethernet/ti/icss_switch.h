@@ -23,6 +23,11 @@
 #define QUEUE_2_SIZE		97	/* Network Management low */
 #define QUEUE_3_SIZE		97	/* Protocol specific */
 #define QUEUE_4_SIZE		97	/* NRT (IP,ARP, ICMP) */
+/* Below code was added for HSR/PRP TX optimization
+*  Parvathi@CIT - 19-Aug-2022
+*/
+#define QUEUE_3_HSRPRP_TXOPT_SIZE		194	/* Protocol specific */
+#define QUEUE_4_HSRPRP_TXOPT_SIZE		194	/* NRT (IP,ARP, ICMP) */
 
 /* Host queue size (number of BDs). Each BD points to data buffer of 32 bytes.
  * HOST PORT QUEUES can buffer up to 4 full sized frames per queue
@@ -299,6 +304,15 @@
 #define P0_Q4_BD_OFFSET		(P0_Q3_BD_OFFSET + HOST_QUEUE_3_SIZE * BD_SIZE)
 #define P0_Q3_BD_OFFSET		(P0_Q2_BD_OFFSET + HOST_QUEUE_2_SIZE * BD_SIZE)
 #define P0_Q2_BD_OFFSET		(P0_Q1_BD_OFFSET + HOST_QUEUE_1_SIZE * BD_SIZE)
+/* Below code was added for HSR/PRP TX optimization
+*  We have merged the Q3 and Q4 of both the ports to create larger queues commonly for both port1 and port2
+*  | Port1 Q1 | Port1 Q2 | Port1/Port2 Q3 | Port2 Q1 | Port2 Q2 | Port1/Port2 Q4 |
+*  Parvathi@CIT - 19-Aug-2022
+*/
+#define HSRP1_TXOPT_Q3_BD_OFFSET      (P1_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
+#define HSRP2_TXOPT_Q1_BD_OFFSET      (HSRP1_TXOPT_Q3_BD_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * BD_SIZE)
+#define HSRP2_TXOPT_Q2_BD_OFFSET      (HSRP2_TXOPT_Q1_BD_OFFSET + QUEUE_1_SIZE * BD_SIZE)
+#define HSRP1_TXOPT_Q4_BD_OFFSET      (HSRP2_TXOPT_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
 #define P0_Q1_BD_OFFSET		P0_BUFFER_DESC_OFFSET
 #define P0_BUFFER_DESC_OFFSET	SRAM_START_OFFSET
 
@@ -317,6 +331,15 @@
 #define P0_Q4_BUFFER_OFFSET	(P0_Q3_BUFFER_OFFSET + HOST_QUEUE_3_SIZE * ICSS_BLOCK_SIZE)
 #define P0_Q3_BUFFER_OFFSET	(P0_Q2_BUFFER_OFFSET + HOST_QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
 #define P0_Q2_BUFFER_OFFSET	(P0_Q1_BUFFER_OFFSET + HOST_QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
+/* Below code was added for HSR/PRP TX optimization
+*  We have merged the Q3 and Q4 of both the ports to create larger queues for both port1 and port2
+*  | Port1 Q1 | Port1 Q2 | Port1/Port2 Q3 | Port2 Q1 | Port2 Q2 | Port1/Port2 Q4 |
+*  Parvathi@CIT - 19-Aug-2022
+*/
+#define HSRP1_TXOPT_Q3_BUFFER_OFFSET  (P1_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP2_TXOPT_Q1_BUFFER_OFFSET  (HSRP1_TXOPT_Q3_BUFFER_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP2_TXOPT_Q2_BUFFER_OFFSET  (HSRP2_TXOPT_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP1_TXOPT_Q4_BUFFER_OFFSET  (HSRP2_TXOPT_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
 #define P0_COL_BUFFER_OFFSET    0xEE00
 #define P0_Q1_BUFFER_OFFSET	0x0000
 
