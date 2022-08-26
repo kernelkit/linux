@@ -150,6 +150,13 @@ struct node_tbl_lre_cnt_t {
 	u16 lre_cnt;
 } __packed;
 
+/* Added for lreNodeTableFull update in ethtool stats
+*  MohanPrasad@CIT - 26-Aug-2022
+*/
+struct node_tbl_lre_table_full {
+	u16 lre_node_table_full;
+} __packed;
+
 struct node_tbl_info_t {
 	u32 next_free_slot;
 	u8  arm_lock;
@@ -175,6 +182,10 @@ struct node_tbl {
 	struct nt_array_t *nt_array;
 	struct node_tbl_info_t *nt_info;
 	struct node_tbl_lre_cnt_t *nt_lre_cnt;
+	/* Added for lreNodeTableFull update in ethtool stats
+	*  MohanPrasad@CIT - 26-Aug-2022
+	*/
+	struct node_tbl_lre_table_full *nt_lre_table_full;
 	u32 index_array_max_entries;
 	u32 bin_array_max_entries;
 	u32 nt_array_max_entries;

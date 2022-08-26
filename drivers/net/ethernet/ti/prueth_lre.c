@@ -211,6 +211,12 @@ static void _prueth_lre_init_node_table(struct prueth *prueth)
 	nt->nt_lre_cnt =
 		prueth->mem[PRUETH_MEM_SHARED_RAM].va + ICSS_LRE_CNT_NODES;
 	memset_io(nt->nt_lre_cnt, 0, sizeof(struct node_tbl_lre_cnt_t));
+	/* Added for lreNodeTableFull update in ethtool stats
+	*  MohanPrasad@CIT - 26-Aug-2022
+	*/
+	nt->nt_lre_table_full =
+		prueth->mem[PRUETH_MEM_SHARED_RAM].va + ICSS_LRE_NODE_TABLE_FULL;
+	memset_io(nt->nt_lre_table_full, 0, sizeof(struct node_tbl_lre_table_full));
 
 	nt->nt_array_max_entries = fw_offsets->nt_array_max_entries;
 	nt->bin_array_max_entries = fw_offsets->bin_array_max_entries;
@@ -464,6 +470,13 @@ static int node_table_insert_from_queue(struct node_tbl *nt,
 		nt->nt_lre_cnt->lre_cnt++;
 	}
 
+	/* Added for lreNodeTableFull update in ethtool stats
+	*  MohanPrasad@CIT - 26-Aug-2022
+	*/
+	if(nt->nt_lre_cnt->lre_cnt >= nt->nt_array_max_entries)
+	{
+		nt->nt_lre_table_full->lre_node_table_full = 1;
+	}
 	return LRE_OK;
 }
 
@@ -498,6 +511,13 @@ static void node_table_check_and_remove(struct node_tbl *nt, u16 forget_time)
 
 			nt->nt_lre_cnt->lre_cnt--;
 		}
+	}
+	/* Added for lreNodeTableFull update in ethtool stats
+	*  MohanPrasad@CIT - 26-Aug-2022
+	*/
+	if(nt->nt_lre_cnt->lre_cnt < nt->nt_array_max_entries)
+	{
+		nt->nt_lre_table_full->lre_node_table_full = 0;
 	}
 }
 

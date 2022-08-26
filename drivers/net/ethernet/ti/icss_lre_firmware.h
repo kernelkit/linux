@@ -68,6 +68,10 @@
 #define ICSS_LRE_DUPLICATE_DISCARD		(ICSS_LRE_START + 104)
 #define ICSS_LRE_TRANSPARENT_RECEPTION		(ICSS_LRE_START + 108)
 #define ICSS_LRE_CNT_NODES			(ICSS_LRE_START + 52)
+/* Added for lreNodeTableFull update in ethtool stats
+*  MohanPrasad@CIT - 26-Aug-2022
+*/
+#define ICSS_LRE_NODE_TABLE_FULL		(ICSS_LRE_START + 120)
 
 /* SRAM */
 
