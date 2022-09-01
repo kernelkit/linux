@@ -1770,6 +1770,9 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	cpsw_intr_enable(cpsw);
 	cpsw->usage_count++;
 
+	dev_err(priv->dev, "CPSW ALE disabled due to configuration issues.\n");
+	cpsw_ale_control_set(cpsw->ale, 0, ALE_BYPASS, 1);
+
 	return 0;
 
 err_cleanup:
