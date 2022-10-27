@@ -13,6 +13,9 @@ menuconfig UIO
 
 if UIO
 
+config UIO_GPTIMER
+	tristate "Userspace I/O driver for TI GP timers"
+
 config UIO_CIF
 	tristate "generic Hilscher CIF Card driver"
 	depends on PCI

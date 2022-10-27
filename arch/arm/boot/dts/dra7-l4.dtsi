@@ -1847,7 +1847,7 @@
 			};
 		};
 
-		target-module@86000 {			/* 0x48086000, ap 41 5e.0 */
+		timer10_target:target-module@86000 {			/* 0x48086000, ap 41 5e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
 			ti,hwmods = "timer10";
 			reg = <0x86000 0x4>,
@@ -3343,7 +3343,7 @@
 			};
 		};
 
-		target-module@24000 {			/* 0x48824000, ap 9 26.0 */
+		timer7_target: target-module@24000 {		/* 0x48824000, ap 9 26.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
 			ti,hwmods = "timer7";
 			reg = <0x24000 0x4>,
