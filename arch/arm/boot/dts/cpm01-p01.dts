@@ -169,7 +169,18 @@
                interrupts = < GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH >;
                interrupt-parent = <&gic>;
 	};
+
+	gptimer-uio@0 {
+		compatible = "ti,gptimer-uio";
+		ti,timers = <&timer10>;
+	};
 };
+
+
+
+	&timer10_target {
+		ti,no-idle;
+	};
 
 &dra7_pmx_core {
 	dcan1_pins_default: dcan1_pins_default {

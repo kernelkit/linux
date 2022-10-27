@@ -13,6 +13,15 @@
 / {
 	model = "TI AM5728 IDK";
 	compatible = "ti,am5728-idk", "ti,am5728", "ti,dra7";
+
+	gptimer-uio@0 {
+		compatible = "ti,gptimer-uio";
+		ti,timers = <&timer10>;
+	};
+};
+
+&timer10_target {
+	ti,no-idle;
 };
 
 &mmc1 {
