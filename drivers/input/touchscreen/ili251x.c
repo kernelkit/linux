@@ -68,23 +68,27 @@ struct ili251x_data {
 static int ili251x_read_reg(struct i2c_client *client, u8 reg, void *buf,
 			    size_t len)
 {
+	int status;
 	struct i2c_msg msg[2] = {
 		{
-			.addr	= client->addr,
+//			.addr	= client->addr,
+			.addr   = 0x40,
 			.flags	= 0,
 			.len	= 1,
 			.buf	= &reg,
 		},
 		{
-			.addr	= client->addr,
+//			.addr	= client->addr,
+			.addr   = 0x40,
 			.flags	= I2C_M_RD,
 			.len	= len,
 			.buf	= buf,
 		}
 	};
 
-	if (i2c_transfer(client->adapter, msg, 2) != 2) {
-		dev_err(&client->dev, "i2c transfer failed\n");
+	status = i2c_transfer(client->adapter, msg, 2);
+	if (status != 2) {
+		dev_err(&client->dev, "i2c transfer failed, err = %d\n", status);
 		return -EIO;
 	}
 
@@ -129,7 +133,6 @@ static void ili251x_report_events(struct ili251x_data *data,
 			if (data->use_pressure)
 				input_report_abs(input, ABS_MT_PRESSURE,
 						 finger->pressure);
-
 		}
 	}
 
@@ -149,10 +152,15 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 				 sizeof(touchdata) -
 					sizeof(struct finger)*TOUCHDATA2_FINGERS);
 
-	if (!error && touchdata.status == 2 && data->max_fingers > 6)
+	if (!error && touchdata.status == 2)
+		dev_err(&client->dev, "touchdata.status = 2\n");
+
+	if (!error && touchdata.status == 2 && data->max_fingers > 6) {
+		dev_err(&client->dev, "> 6 fingers reported, 2nd read issued, max_fingers = %d\n", data->max_fingers);
 		error = ili251x_read_reg(client, REG_TOUCHDATA2,
 					 &touchdata.fingers[TOUCHDATA_FINGERS],
 					 sizeof(struct finger)*TOUCHDATA2_FINGERS);
+	}
 
 	if (!error)
 		ili251x_report_events(data, &touchdata);
