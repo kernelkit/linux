@@ -21,9 +21,6 @@
 #define REG_PROTO_VERSION	0x42
 #define REG_CALIBRATE		0xcc
 
-#define MAX_I2C_ERRORS 20
-static int number_of_i2c_transfer_errors;
-
 struct finger {
 	u8 x_high:6;
 	u8 dummy:1;
@@ -60,12 +57,14 @@ struct protocol_version {
 	u8 minor;
 } __packed;
 
+#define MAX_I2C_ERRORS 20
 struct ili251x_data {
 	struct i2c_client *client;
 	struct input_dev *input;
 	unsigned int max_fingers;
 	bool use_pressure;
 	struct gpio_desc *reset_gpio;
+	unsigned int number_of_i2c_transfer_errors;
 };
 
 static void ili251x_reset(struct ili251x_data *data)
@@ -103,9 +102,9 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 	if (status != 2) {
 		dev_err(&client->dev, "i2c transfer failed, err = %d\n", status);
 
-		if (++number_of_i2c_transfer_errors >= MAX_I2C_ERRORS) {
+		if (++(data->number_of_i2c_transfer_errors) >= MAX_I2C_ERRORS) {
 			ili251x_reset(data);
-			number_of_i2c_transfer_errors = 0;
+			data->number_of_i2c_transfer_errors = 0;
 			dev_err(&client->dev, "ili251x_reset issued\n");
 		}
 		return -EIO;
@@ -231,7 +230,7 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 	}
 
 	ili251x_reset(data);
-	number_of_i2c_transfer_errors = 0;
+	data->number_of_i2c_transfer_errors = 0;
 
 	error = ili251x_read_reg(data, REG_FIRMWARE_VERSION,
 				 &firmware, sizeof(firmware));
