@@ -68,6 +68,16 @@ struct ili251x_data {
 	struct gpio_desc *reset_gpio;
 };
 
+static void ili251x_reset(struct ili251x_data *data)
+{
+	if (data->reset_gpio) {
+		gpiod_set_value(data->reset_gpio, 1);
+		msleep(10);
+		gpiod_set_value(data->reset_gpio, 0);
+		msleep(100);
+	}
+}
+
 static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 			    size_t len)
 {
@@ -124,7 +134,7 @@ static void ili251x_report_events(struct ili251x_data *data,
 		reported_fingers = 6;
 	else if (touchdata->status == 2)
 		reported_fingers = 10;
-	else dev_err(&client->dev, "touchdata->status <> 1|2>, status = %d\n", touchdata->status);
+	else dev_err(&data->client->dev, "touchdata->status <> 1|2>, status = %d\n", touchdata->status);
 
 	for (i = 0; i < reported_fingers && i < data->max_fingers; i++) {
 		input_mt_slot(input, i);
@@ -180,16 +190,6 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 	return IRQ_HANDLED;
 }
 
-static void ili251x_reset(struct ili251x_data *data)
-{
-	if (data->reset_gpio) {
-		gpiod_set_value(data->reset_gpio, 1);
-		msleep(10);
-		gpiod_set_value(data->reset_gpio, 0);
-		msleep(100);
-	}
-}
-
 static int ili251x_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
@@ -232,7 +232,7 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 	ili251x_reset(data);
 	number_of_i2c_transfer_errors = 0;
 
-	error = ili251x_read_reg(client, REG_FIRMWARE_VERSION,
+	error = ili251x_read_reg(data, REG_FIRMWARE_VERSION,
 				 &firmware, sizeof(firmware));
 	if (error) {
 		dev_err(dev, "Failed to get firmware version, err: %d\n",
@@ -240,7 +240,7 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = ili251x_read_reg(client, REG_PROTO_VERSION,
+	error = ili251x_read_reg(data, REG_PROTO_VERSION,
 				 &protocol, sizeof(protocol));
 	if (error) {
 		dev_err(dev, "Failed to get protocol version, err: %d\n",
@@ -253,7 +253,7 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	error = ili251x_read_reg(client, REG_PANEL_INFO, &panel, sizeof(panel));
+	error = ili251x_read_reg(data, REG_PANEL_INFO, &panel, sizeof(panel));
 	if (error) {
 		dev_err(dev, "Failed to get panel information, err: %d\n",
 			error);
