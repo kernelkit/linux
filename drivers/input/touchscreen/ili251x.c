@@ -106,6 +106,7 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 		if (++number_of_i2c_transfer_errors >= MAX_I2C_ERRORS) {
 			ili251x_reset(data);
 			number_of_i2c_transfer_errors = 0;
+			dev_err(&client->dev, "ili251x_reset issued\n");
 		}
 		return -EIO;
 	}
