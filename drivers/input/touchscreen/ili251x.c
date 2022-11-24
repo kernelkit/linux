@@ -21,6 +21,9 @@
 #define REG_PROTO_VERSION	0x42
 #define REG_CALIBRATE		0xcc
 
+#define MAX_I2C_ERRORS 20
+static int number_of_i2c_transfer_errors;
+
 struct finger {
 	u8 x_high:6;
 	u8 dummy:1;
@@ -71,36 +74,6 @@ static int ili251x_read_reg(struct i2c_client *client, u8 reg, void *buf,
 	int status;
 	struct i2c_msg msg[2] = {
 		{
-//			.addr	= client->addr,
-			.addr   = 0x40,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= &reg,
-		},
-		{
-//			.addr	= client->addr,
-			.addr   = 0x40,
-			.flags	= I2C_M_RD,
-			.len	= len,
-			.buf	= buf,
-		}
-	};
-
-	status = i2c_transfer(client->adapter, msg, 2);
-	if (status != 2) {
-		dev_err(&client->dev, "i2c transfer failed, err = %d\n", status);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int ili251x_read_reg1(struct i2c_client *client, u8 reg, void *buf,
-			    size_t len)
-{
-	int status;
-	struct i2c_msg msg[2] = {
-		{
 			.addr	= client->addr,
 			.flags	= 0,
 			.len	= 1,
@@ -117,6 +90,11 @@ static int ili251x_read_reg1(struct i2c_client *client, u8 reg, void *buf,
 	status = i2c_transfer(client->adapter, msg, 2);
 	if (status != 2) {
 		dev_err(&client->dev, "i2c transfer failed, err = %d\n", status);
+		
+		if (++number_of_i2c_transfer_errors >= MAX_I2C_ERRORS) {
+			ili251x_reset();
+			number_of_i2c_transfer_errors = 0;
+		}
 		return -EIO;
 	}
 
@@ -144,6 +122,7 @@ static void ili251x_report_events(struct ili251x_data *data,
 		reported_fingers = 6;
 	else if (touchdata->status == 2)
 		reported_fingers = 10;
+	else dev_err(&client->dev, "touchdata->status <> 1|2>, status = %d\n", touchdata->status);
 
 	for (i = 0; i < reported_fingers && i < data->max_fingers; i++) {
 		input_mt_slot(input, i);
@@ -249,8 +228,9 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 	}
 
 	ili251x_reset(data);
+	number_of_i2c_transfer_errors = 0;
 
-	error = ili251x_read_reg1(client, REG_FIRMWARE_VERSION,
+	error = ili251x_read_reg(client, REG_FIRMWARE_VERSION,
 				 &firmware, sizeof(firmware));
 	if (error) {
 		dev_err(dev, "Failed to get firmware version, err: %d\n",
@@ -258,7 +238,7 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = ili251x_read_reg1(client, REG_PROTO_VERSION,
+	error = ili251x_read_reg(client, REG_PROTO_VERSION,
 				 &protocol, sizeof(protocol));
 	if (error) {
 		dev_err(dev, "Failed to get protocol version, err: %d\n",
@@ -271,7 +251,7 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	error = ili251x_read_reg1(client, REG_PANEL_INFO, &panel, sizeof(panel));
+	error = ili251x_read_reg(client, REG_PANEL_INFO, &panel, sizeof(panel));
 	if (error) {
 		dev_err(dev, "Failed to get panel information, err: %d\n",
 			error);
