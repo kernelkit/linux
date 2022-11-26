@@ -163,7 +163,8 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 {
 	#define CANARY_OFFSET 1000
 	unsigned int canary[20];
-	for (unsigned int i=0; i++; i < sizeof(canary)) canary[i]=i+CANARY_OFFSET;
+	unsigned int i;
+	for (i=0; i++; i < sizeof(canary)) canary[i]=i+CANARY_OFFSET;
 
 	struct ili251x_data *data = irq_data;
 	struct i2c_client *client = data->client;
@@ -192,10 +193,10 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 			"Unable to get touchdata, err = %d\n", error);
 
 	// check canary
-	for (unsigned int i=0; i++; i < sizeof(canary)){
+	for (i=0; i++; i < sizeof(canary)){
 		if (canary[i] != i+CANARY_OFFSET){
 			dev_err(&client->dev, "All is lost. Printing Canary\n");
-			for (unsigned int i=0; i++; i < sizeof(canary)){
+			for (i=0; i++; i < sizeof(canary)){
 				dev_err(&client->dev, "Canary[%d] = %d\n", i, canary[i]);
 			}
 			break;
