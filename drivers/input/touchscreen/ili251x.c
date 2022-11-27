@@ -117,7 +117,7 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 
 #ifdef CANARY_CHECK_READ
 	// check canary
-	for (i=0; i++; i < sizeof(i2c_msg1.canary)/sizeof(i2c_msg1.canary[0])){
+	for (i=0; i < sizeof(i2c_msg1.canary)/sizeof(i2c_msg1.canary[0]); i++){
 		if (i2c_msg1.canary[i] != i+CANARY_OFFSET_READ){
 			dev_err(&client->dev, "All is lost. Printing Canary read\n");
 			for (i=0; i < sizeof(i2c_msg1.canary)/sizeof(i2c_msg1.canary[0]); i++){
