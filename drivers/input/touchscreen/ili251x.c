@@ -256,10 +256,10 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 	dev_dbg(dev, "Probing for ili251x I2C Touschreen driver");
 
 #ifdef CANARY_CHECK_IRQ
-	dev_dbg(dev, "CANARY_CHECK_IRQ active");
+	dev_info(dev, "CANARY_CHECK_IRQ active");
 #endif 
 #ifdef CANARY_CHECK_READ
-	dev_dbg(dev, "CANARY_CHECK_READ active");
+	dev_info(dev, "CANARY_CHECK_READ active");
 #endif 
 
 	if (client->irq <= 0) {
