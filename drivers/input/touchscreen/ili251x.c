@@ -225,7 +225,7 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 
 #ifdef CANARY_CHECK_IRQ
 	// check canary
-	for (i=0; i++; i < sizeof(canary)){
+	for (i=0; i++; i < sizeof(canary)/sizeof(canary[0])){
 		if (canary[i] != i+CANARY_OFFSET){
 			dev_err(&client->dev, "All is lost. Printing Canary\n");
 			for (i=0; i++; i < sizeof(canary)/sizeof(canary[0])){
