@@ -83,6 +83,7 @@ static void ili251x_reset(struct ili251x_data *data)
 static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 			    size_t len)
 {
+	int i;
 	int status;
 	struct i2c_client *client = data->client;
 
@@ -92,7 +93,7 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 	} t_i2c_msg1;
 
 	#define CANARY_OFFSET_READ 500
-	t_i2c_msg1 i2c_msg = {
+	t_i2c_msg1 i2c_msg1 = {
 		{{
 			.addr	= client->addr,
 			.flags	= 0,
@@ -112,16 +113,15 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 				   CANARY_OFFSET_READ+4}	
 	};
 
-	status = i2c_transfer(client->adapter, &i2c_msg.msg, 2);
+	status = i2c_transfer(client->adapter, i2c_msg1.msg, 2);
 
 #ifdef CANARY_CHECK_READ
 	// check canary
-	int i;
-	for (i=0; i++; i < sizeof(i2c_msg.canary)/sizeof(i2c_msg.canary[0])){
-		if (i2c_msg.canary[i] != i+CANARY_OFFSET_READ){
+	for (i=0; i++; i < sizeof(i2c_msg1.canary)/sizeof(i2c_msg1.canary[0])){
+		if (i2c_msg1.canary[i] != i+CANARY_OFFSET_READ){
 			dev_err(&client->dev, "All is lost. Printing Canary read\n");
-			for (i=0; i++; i < sizeof(i2c_msg.canary)/sizeof(i2c_msg.canary[0])){
-				dev_err(&client->dev, "Canary read[%d] = %d\n", i, i2c_msg.canary[i]);
+			for (i=0; i < sizeof(i2c_msg1.canary)/sizeof(i2c_msg1.canary[0]); i++){
+				dev_err(&client->dev, "Canary read[%d] = %d\n", i, i2c_msg1.canary[i]);
 			}
 			break;
 		}
@@ -195,12 +195,14 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 	#define CANARY_OFFSET 1000
 	unsigned int canary[20];
 	unsigned int i;
-	for (i=0; i++; i < sizeof(canary)/sizeof(canary[0])) canary[i]=i+CANARY_OFFSET;
 #endif
 	struct ili251x_data *data = irq_data;
 	struct i2c_client *client = data->client;
 	struct touchdata touchdata;
 	int error;
+#ifdef CANARY_CHECK_IRQ
+	for (i=0; i < sizeof(canary)/sizeof(canary[0]); i++) canary[i]=i+CANARY_OFFSET;
+#endif
 
 	error = ili251x_read_reg(data, REG_TOUCHDATA,
 				 &touchdata,
@@ -225,10 +227,10 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 
 #ifdef CANARY_CHECK_IRQ
 	// check canary
-	for (i=0; i++; i < sizeof(canary)/sizeof(canary[0])){
+	for (i=0; i < sizeof(canary)/sizeof(canary[0]); i++){
 		if (canary[i] != i+CANARY_OFFSET){
 			dev_err(&client->dev, "All is lost. Printing Canary\n");
-			for (i=0; i++; i < sizeof(canary)/sizeof(canary[0])){
+			for (i=0; i < sizeof(canary)/sizeof(canary[0]); i++){
 				dev_err(&client->dev, "Canary[%d] = %d\n", i, canary[i]);
 			}
 			break;
