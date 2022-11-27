@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018, emlix GmbH. All rights reserved. */
+#define CANARY_CHECK_IRQ
+#define CANARY_CHECK_READ
+
 
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -83,8 +86,14 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 	int status;
 	struct i2c_client *client = data->client;
 
-	struct i2c_msg msg[2] = {
-		{
+	typedef struct  {
+			i2c_msg msg[2];
+			int canary[5];
+	} t_buf;
+
+	#define CANARY_OFFSET_READ 500
+	t_buf buf = {
+		{{
 			.addr	= client->addr,
 			.flags	= 0,
 			.len	= 1,
@@ -95,10 +104,31 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 			.flags	= I2C_M_RD,
 			.len	= len,
 			.buf	= buf,
-		}
+		}},
+		.canary = {CANARY_OFFSET_READ,
+				   CANARY_OFFSET_READ+1,
+				   CANARY_OFFSET_READ+2,
+				   CANARY_OFFSET_READ+3,
+				   CANARY_OFFSET_READ+4}	
 	};
 
-	status = i2c_transfer(client->adapter, msg, 2);
+	status = i2c_transfer(client->adapter, &buf.msg, 2);
+
+#ifdef CANARY_CHECK_READ
+	// check canary
+	int i;
+	for (i=0; i++; i < sizeof(buf.canary)/sizeof(buf.canary[0])){
+		if (buf.canary[i] != i+CANARY_OFFSET_READ){
+			dev_err(&client->dev, "All is lost. Printing Canary read\n");
+			for (i=0; i++; i < sizeof(buf.canary)/sizeof(buf.canary[0])){
+				dev_err(&client->dev, "Canary read[%d] = %d\n", i, buf.canary[i]);
+			}
+			break;
+		}
+	}
+#endif
+
+
 	if (status != 2) {
 		dev_err(&client->dev, "i2c transfer failed, err = %d\n", status);
 
@@ -161,11 +191,12 @@ static void ili251x_report_events(struct ili251x_data *data,
 
 static irqreturn_t ili251x_irq(int irq, void *irq_data)
 {
+#ifdef CANARY_CHECK_IRQ
 	#define CANARY_OFFSET 1000
 	unsigned int canary[20];
 	unsigned int i;
-	for (i=0; i++; i < sizeof(canary)) canary[i]=i+CANARY_OFFSET;
-
+	for (i=0; i++; i < sizeof(canary)/sizeof(canary[0])) canary[i]=i+CANARY_OFFSET;
+#endif
 	struct ili251x_data *data = irq_data;
 	struct i2c_client *client = data->client;
 	struct touchdata touchdata;
@@ -192,16 +223,18 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 		dev_err(&client->dev,
 			"Unable to get touchdata, err = %d\n", error);
 
+#ifdef CANARY_CHECK_IRQ
 	// check canary
 	for (i=0; i++; i < sizeof(canary)){
 		if (canary[i] != i+CANARY_OFFSET){
 			dev_err(&client->dev, "All is lost. Printing Canary\n");
-			for (i=0; i++; i < sizeof(canary)){
+			for (i=0; i++; i < sizeof(canary)/sizeof(canary[0])){
 				dev_err(&client->dev, "Canary[%d] = %d\n", i, canary[i]);
 			}
 			break;
 		}
 	}
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -219,6 +252,13 @@ static int ili251x_i2c_probe(struct i2c_client *client,
 	int error;
 
 	dev_dbg(dev, "Probing for ili251x I2C Touschreen driver");
+
+#ifdef CANARY_CHECK_IRQ
+	dev_dbg(dev, "CANARY_CHECK_IRQ active");
+#endif 
+#ifdef CANARY_CHECK_READ
+	dev_dbg(dev, "CANARY_CHECK_READ active");
+#endif 
 
 	if (client->irq <= 0) {
 		dev_err(dev, "No IRQ!\n");
