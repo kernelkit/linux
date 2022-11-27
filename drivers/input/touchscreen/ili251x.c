@@ -87,12 +87,12 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 	struct i2c_client *client = data->client;
 
 	typedef struct  {
-			i2c_msg msg[2];
+			struct i2c_msg msg[2];
 			int canary[5];
-	} t_buf;
+	} t_i2c_msg1;
 
 	#define CANARY_OFFSET_READ 500
-	t_buf buf = {
+	t_i2c_msg1 i2c_msg = {
 		{{
 			.addr	= client->addr,
 			.flags	= 0,
@@ -112,16 +112,16 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 				   CANARY_OFFSET_READ+4}	
 	};
 
-	status = i2c_transfer(client->adapter, &buf.msg, 2);
+	status = i2c_transfer(client->adapter, &i2c_msg.msg, 2);
 
 #ifdef CANARY_CHECK_READ
 	// check canary
 	int i;
-	for (i=0; i++; i < sizeof(buf.canary)/sizeof(buf.canary[0])){
-		if (buf.canary[i] != i+CANARY_OFFSET_READ){
+	for (i=0; i++; i < sizeof(i2c_msg.canary)/sizeof(i2c_msg.canary[0])){
+		if (i2c_msg.canary[i] != i+CANARY_OFFSET_READ){
 			dev_err(&client->dev, "All is lost. Printing Canary read\n");
-			for (i=0; i++; i < sizeof(buf.canary)/sizeof(buf.canary[0])){
-				dev_err(&client->dev, "Canary read[%d] = %d\n", i, buf.canary[i]);
+			for (i=0; i++; i < sizeof(i2c_msg.canary)/sizeof(i2c_msg.canary[0])){
+				dev_err(&client->dev, "Canary read[%d] = %d\n", i, i2c_msg.canary[i]);
 			}
 			break;
 		}
