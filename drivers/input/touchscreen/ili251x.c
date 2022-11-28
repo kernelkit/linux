@@ -114,6 +114,7 @@ static int ili251x_read_reg(struct ili251x_data *data, u8 reg, void *buf,
 	};
 
 	status = i2c_transfer(client->adapter, i2c_msg1.msg, 2);
+i2c_msg1.canary[4]=0;
 
 #ifdef CANARY_CHECK_READ
 	// check canary
@@ -224,7 +225,7 @@ static irqreturn_t ili251x_irq(int irq, void *irq_data)
 	else
 		dev_err(&client->dev,
 			"Unable to get touchdata, err = %d\n", error);
-
+canary[19]=0;
 #ifdef CANARY_CHECK_IRQ
 	// check canary
 	for (i=0; i < sizeof(canary)/sizeof(canary[0]); i++){
