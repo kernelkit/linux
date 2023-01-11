@@ -533,13 +533,19 @@ static void prueth_mii_init(struct prueth *prueth)
 		regmap_update_bits(prueth->mii_rt,
 				   PRUSS_MII_RT_RX_FRMS0,
 				   PRUSS_MII_RT_RX_FRMS_MAX_FRM_MASK,
-				   (PRUSS_MII_RT_RX_FRMS_MAX - 1) <<
+					/* Below code change is for 1528 Frame support in EMAC requested by Hitachi
+					* Roopak@CIT - 14-12-2022
+					*/
+				   (PRUSS_MII_RT_RX_FRMS_MAX_SUPPORT_EMAC - 1) <<
 				   PRUSS_MII_RT_RX_FRMS_MAX_FRM_SHIFT);
 
 		regmap_update_bits(prueth->mii_rt,
 				   PRUSS_MII_RT_RX_FRMS1,
 				   PRUSS_MII_RT_RX_FRMS_MAX_FRM_MASK,
-				   (PRUSS_MII_RT_RX_FRMS_MAX - 1) <<
+					/* Below code change is for 1528 Frame support in EMAC requested by Hitachi
+					* Roopak@CIT - 14-12-2022
+					*/
+				   (PRUSS_MII_RT_RX_FRMS_MAX_SUPPORT_EMAC - 1) <<
 				   PRUSS_MII_RT_RX_FRMS_MAX_FRM_SHIFT);
 	}
 }
@@ -1657,7 +1663,10 @@ retry:
 				 */
 				update_rd_ptr = bd_wr_ptr;
 				ndevstats->rx_length_errors++;
-			} else if (pkt_info.length > EMAC_MAX_PKTLEN) {
+					/* Below code change is for 1528 Frame support in EMAC requested by Hitachi
+					* Roopak@CIT - 14-12-2022
+					*/
+			} else if (pkt_info.length > EMAC_MAX_FRM_SUPPORT) {
 				/* if the packet is too large we skip it but we
 				 * still need to move the read pointer ahead
 				 * and assume something is wrong with the read

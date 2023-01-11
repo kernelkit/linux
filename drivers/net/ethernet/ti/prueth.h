@@ -23,6 +23,10 @@
 
 #define EMAC_POLL_WEIGHT	(64) /* Default NAPI poll weight */
 #define EMAC_MAX_PKTLEN		(ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN)
+/* Below macro is for 1528 Frame support in EMAC requested by Hitachi
+ * Roopak@CIT - 14-12-2022
+ */
+#define EMAC_MAX_FRM_SUPPORT	(ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN + 6)
 
 /* default timer for HSR/PRP */
 #define PRUETH_TIMER_MS		(10)

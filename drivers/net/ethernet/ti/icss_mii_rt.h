@@ -76,6 +76,10 @@
 /* For EMAC and Switch */
 #define PRUSS_MII_RT_RX_FRMS_MAX	(VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 #define PRUSS_MII_RT_RX_FRMS_MIN_FRM	(64)
+/* Below macro is for 1528 Frame support in EMAC requested by Hitachi
+ * Roopak@CIT - 14-12-2022
+ */
+#define PRUSS_MII_RT_RX_FRMS_MAX_SUPPORT_EMAC (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN + 6)
 
 /* for HSR and PRP */
 #define PRUSS_MII_RT_RX_FRMS_MAX_FRM_LRE	(PRUSS_MII_RT_RX_FRMS_MAX + \
