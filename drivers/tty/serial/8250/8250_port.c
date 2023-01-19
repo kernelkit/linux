@@ -1533,30 +1533,41 @@ static inline void __start_tx(struct uart_port *port)
 	}
 }
 
-static inline void start_tx_rs485(struct uart_port *port)
+static inline bool __do_start_tx_rs485(struct uart_8250_port *p)
 {
-	struct uart_8250_port *up = up_to_u8250p(port);
-	struct uart_8250_em485 *em485 = up->em485;
+	struct uart_8250_em485 *em485 = p->em485;
 	unsigned char mcr;
 
-	if (!(up->port.rs485.flags & SER_RS485_RX_DURING_TX)) {
-		if (up->gpio_rx_disable)
-			gpiod_set_value(up->gpio_rx_disable, 1);
+	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX)) {
+		if (p->gpio_rx_disable)
+			gpiod_set_value(p->gpio_rx_disable, 1);
 		else
-			serial8250_stop_rx(&up->port);
+			serial8250_stop_rx(&p->port);
 	}
 
 	em485->active_timer = NULL;
 
-	mcr = serial8250_in_MCR(up);
-	if (!!(up->port.rs485.flags & SER_RS485_RTS_ON_SEND) !=
+	mcr = serial8250_in_MCR(p);
+	if (!!(p->port.rs485.flags & SER_RS485_RTS_ON_SEND) !=
 	    !!(mcr & UART_MCR_RTS)) {
-		if (up->port.rs485.flags & SER_RS485_RTS_ON_SEND)
+		if (p->port.rs485.flags & SER_RS485_RTS_ON_SEND)
 			mcr |= UART_MCR_RTS;
 		else
 			mcr &= ~UART_MCR_RTS;
-		serial8250_out_MCR(up, mcr);
+		serial8250_out_MCR(p, mcr);
 
+		return true;
+	}
+
+	return false;
+}
+
+static inline void start_tx_rs485(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	struct uart_8250_em485 *em485 = up->em485;
+
+	if (__do_start_tx_rs485(up)) {
 		if (up->port.rs485.delay_rts_before_send > 0) {
 			em485->active_timer = &em485->start_tx_timer;
 			start_hrtimer_ms(&em485->start_tx_timer,
@@ -3054,10 +3065,24 @@ serial8250_verify_port(struct uart_port *port, struct serial_struct *ser)
 static int serial8250_ioctl(struct uart_port *port,
 	unsigned int cmd, unsigned long arg)
 {
-	if (port->ioctl)
-		return port->ioctl(port, cmd, arg);
+	struct uart_8250_port *up = up_to_u8250p(port);
+	int ret = -ENOIOCTLCMD;
 
-	return -ENOIOCTLCMD;
+	switch (cmd) {
+	case TIOCSERS485TX:
+		if (arg)
+			__do_start_tx_rs485(up);
+		else
+			__do_stop_tx_rs485(up);
+		ret = 0;
+		break;
+	default:
+		if (port->ioctl)
+			ret = port->ioctl(port, cmd, arg);
+		break;
+	}
+
+	return ret;
 }
 
 static const char *serial8250_type(struct uart_port *port)
