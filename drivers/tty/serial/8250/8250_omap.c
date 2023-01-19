@@ -128,7 +128,7 @@ struct omap8250_priv {
 	spinlock_t rx_dma_lock;
 	bool rx_dma_broken;
 	bool throttled;
-	ktime_t rx_int_tstamp;
+	u64 rx_int_tstamp;
 };
 
 struct omap8250_dma_params {
@@ -613,7 +613,7 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 	serial8250_rpm_get(up);
 	iir = serial_port_in(port, UART_IIR);
 	if (iir & (UART_IIR_RDI | UART_IIR_RX_TIMEOUT)) {
-		priv->rx_int_tstamp = ktime_get_real();
+		priv->rx_int_tstamp = ktime_get_ns();
 	}
 	ret = serial8250_handle_irq(port, iir);
 	serial8250_rpm_put(up);
@@ -798,8 +798,7 @@ static int omap_8250_ioctl(struct uart_port *port,
 	switch (cmd) {
 	case TIOCGTSRXINT: /* Read timestamp from last RX interrupt */
 		if (uarg) {
-			struct timeval tmp = ktime_to_timeval(priv->rx_int_tstamp);
-			if (copy_to_user(uarg, &tmp, sizeof(struct timeval)))
+			if (copy_to_user(uarg, &priv->rx_int_tstamp, sizeof(priv->rx_int_tstamp)))
 				return -EFAULT;
 			return 0;
 		}

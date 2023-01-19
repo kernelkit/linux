@@ -33,6 +33,7 @@ struct gpiochip_info {
 #define GPIOLINE_FLAG_ACTIVE_LOW	(1UL << 2)
 #define GPIOLINE_FLAG_OPEN_DRAIN	(1UL << 3)
 #define GPIOLINE_FLAG_OPEN_SOURCE	(1UL << 4)
+#define GPIOLINE_FLAG_OUT_TIMESTAMP	(1UL << 5)
 
 /**
  * struct gpioline_info - Information about a certain GPIO line
@@ -62,6 +63,7 @@ struct gpioline_info {
 #define GPIOHANDLE_REQUEST_ACTIVE_LOW	(1UL << 2)
 #define GPIOHANDLE_REQUEST_OPEN_DRAIN	(1UL << 3)
 #define GPIOHANDLE_REQUEST_OPEN_SOURCE	(1UL << 4)
+#define GPIOHANDLE_REQUEST_OUT_TIMESTAMP	(1UL << 5)
 
 /**
  * struct gpiohandle_request - Information about a GPIO handle request
@@ -106,6 +108,7 @@ struct gpiohandle_data {
 
 #define GPIOHANDLE_GET_LINE_VALUES_IOCTL _IOWR(0xB4, 0x08, struct gpiohandle_data)
 #define GPIOHANDLE_SET_LINE_VALUES_IOCTL _IOWR(0xB4, 0x09, struct gpiohandle_data)
+#define GPIOHANDLE_GET_LINE_TIMESTAMP_IOCTL _IOR(0xB4, 0x0A, __u64)
 
 /* Eventrequest flags */
 #define GPIOEVENT_REQUEST_RISING_EDGE	(1UL << 0)

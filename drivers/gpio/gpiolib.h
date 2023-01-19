@@ -110,11 +110,14 @@ struct gpio_desc {
 #define FLAG_TRANSITORY 12	/* GPIO may lose value in sleep or reset */
 #define FLAG_PULL_UP    13	/* GPIO has pull up enabled */
 #define FLAG_PULL_DOWN  14	/* GPIO has pull down enabled */
+#define FLAG_OUT_TIMESTAMP  15	/* GPIO output stores set timestamp */
 
 	/* Connection label */
 	const char		*label;
 	/* Name of the GPIO */
 	const char		*name;
+	/* Actual setting timestamp of output */
+	u64			timestamp;
 };
 
 int gpiod_request(struct gpio_desc *desc, const char *label);

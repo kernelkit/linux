@@ -23,6 +23,8 @@
 
 #define DP83822_DEVADDR		0x1f
 
+#define MII_DP83822_BMCR	0x0
+#define MII_DP83822_ANAR	0x04
 #define MII_DP83822_CTRL_2	0x0a
 #define MII_DP83822_PHYSTS	0x10
 #define MII_DP83822_PHYSCR	0x11
@@ -30,12 +32,27 @@
 #define MII_DP83822_MISR2	0x13
 #define MII_DP83822_FCSCR	0x14
 #define MII_DP83822_RCSR	0x17
+#define MII_DP83822_LEDCR	0x18
+#define MII_DP83822_PHYCR	0x19
 #define MII_DP83822_RESET_CTRL	0x1f
+#define MII_DP83822_MLEDCR	0x25
 #define MII_DP83822_GENCFG	0x465
 #define MII_DP83822_SOR1	0x467
+#define MII_DP83822_EEECFG3	0x4d1
 
 /* GENCFG */
 #define DP83822_SIG_DET_LOW	BIT(0)
+
+/* BMCR bits */
+#define DP83822_BMCR_DUPLEX	BIT(8)
+#define DP83822_BMCR_AUTO_NEG	BIT(12)
+#define DP83822_BMCR_SPEED_SEL	BIT(13)
+
+/* ANAR bits */
+#define DP83822_ANAR_10_HALF	BIT(5)
+#define DP83822_ANAR_10_FULL	BIT(6)
+#define DP83822_ANAR_100_HALF	BIT(7)
+#define DP83822_ANAR_100_FULL	BIT(8)
 
 /* Control Register 2 bits */
 #define DP83822_FX_ENABLE	BIT(14)
@@ -95,8 +112,23 @@
 #define DP83822_WOL_CLR_INDICATION BIT(11)
 
 /* RSCR bits */
-#define DP83822_RX_CLK_SHIFT	BIT(12)
+#define DP83822_RGMII_CLCK_SEL	BIT(7)
+#define DP83822_RGMII_ENABLE	BIT(9)
 #define DP83822_TX_CLK_SHIFT	BIT(11)
+#define DP83822_RX_CLK_SHIFT	BIT(12)
+
+/* LEDCR bits */
+#define DP83822_LEDCR_LED0_POL	BIT(7)
+
+/* PHYCR bits */
+#define DP83822_PHYCR_LED_CONF	BIT(5)
+#define DP83822_PHYCR_MDIX_EN	BIT(15)
+
+/* MLEDCR bits */
+#define DP83822_MLEDCR_POLAR	BIT(9)
+
+/* EEECFG3 bits */
+#define DP83822_EEECFG3_EEE_EN	BIT(0)
 
 /* SOR1 mode */
 #define DP83822_STRAP_MODE1	0
@@ -358,6 +390,204 @@ static int dp83822_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static void dp83822_write_port_straps(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int val;
+	u32 prob_val;
+
+	val = phy_read(phydev, MII_DP83822_BMCR);
+	if (val < 0)
+		return;
+
+	if (device_property_read_u32(dev, "ti,strap-duplex-mode", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_BMCR_DUPLEX;
+		else
+			val &= ~DP83822_BMCR_DUPLEX;
+	}
+
+	if (device_property_read_u32(dev, "ti,strap-auto-neg-enable", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_BMCR_AUTO_NEG;
+		else
+			val &= ~DP83822_BMCR_AUTO_NEG;
+	}
+
+	if (device_property_read_u32(dev, "ti,strap-speed-select", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_BMCR_SPEED_SEL;
+		else
+			val &= ~DP83822_BMCR_SPEED_SEL;
+	}
+
+	phy_write(phydev, MII_DP83822_BMCR, val);
+}
+
+static void dp83822_write_auto_neg_straps(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int val;
+	u32 prob_val;
+
+	val = phy_read(phydev, MII_DP83822_ANAR);
+	if (val < 0)
+		return;
+
+	if (device_property_read_u32(dev, "ti,strap-advertise-10te-half", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_ANAR_10_HALF;
+		else
+			val &= ~DP83822_ANAR_10_HALF;
+	}
+
+	if (device_property_read_u32(dev, "ti,strap-advertise-10te-full", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_ANAR_10_FULL;
+		else
+			val &= ~DP83822_ANAR_10_FULL;
+	}
+
+	if (device_property_read_u32(dev, "ti,strap-advertise-100tx-half", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_ANAR_100_HALF;
+		else
+			val &= ~DP83822_ANAR_100_HALF;
+	}
+
+	if (device_property_read_u32(dev, "ti,strap-advertise-100tx-full", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_ANAR_100_FULL;
+		else
+			val &= ~DP83822_ANAR_100_FULL;
+	}
+
+	phy_write(phydev, MII_DP83822_ANAR, val);
+}
+
+static void dp83822_write_fiber_straps(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	int val;
+
+	val = phy_read(phydev, MII_DP83822_CTRL_2);
+	if (val < 0)
+		return;
+
+	if (dp83822->fx_enabled)
+		val |= DP83822_FX_ENABLE;
+	else
+		val &= ~DP83822_FX_ENABLE;
+
+	phy_write(phydev, MII_DP83822_CTRL_2, val);
+}
+
+static void dp83822_write_phy_ctrl_straps(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	int val;
+	u32 prob_val;
+
+	val = phy_read(phydev, MII_DP83822_PHYCR);
+	if (val < 0)
+		return;
+
+	if (dp83822->fx_sd_enable)
+		val |= DP83822_PHYCR_MDIX_EN;
+	else
+		val &= ~DP83822_PHYCR_MDIX_EN;
+
+	if (device_property_read_u32(dev, "ti,strap-led-configuration", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_PHYCR_LED_CONF;
+		else
+			val &= ~DP83822_PHYCR_LED_CONF;
+	}
+
+	phy_write(phydev, MII_DP83822_PHYCR, val);
+}
+
+static void dp83822_write_mii_straps(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int val;
+	u32 prob_val;
+
+	val = phy_read(phydev, MII_DP83822_RCSR);
+	if (val < 0)
+		return;
+
+	if (device_property_read_u32(dev, "ti,strap-rmii-clock-select", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_RGMII_CLCK_SEL;
+		else
+			val &= ~DP83822_RGMII_CLCK_SEL;
+	}
+
+	if (device_property_read_u32(dev, "ti,strap-rgmii-mode-enable", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_RGMII_ENABLE;
+		else
+			val &= ~DP83822_RGMII_ENABLE;
+	}
+
+	phy_write(phydev, MII_DP83822_RCSR, val);
+}
+
+static void dp83822_write_led_straps(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int val;
+	u32 prob_val;
+
+	val = phy_read(phydev, MII_DP83822_LEDCR);
+	if (val < 0)
+		return;
+
+	if (device_property_read_u32(dev, "ti,strap-led0-polarity", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_LEDCR_LED0_POL;
+		else
+			val &= ~DP83822_LEDCR_LED0_POL;
+	}
+
+	phy_write(phydev, MII_DP83822_LEDCR, val);
+
+	val = phy_read_mmd(phydev, DP83822_DEVADDR, MII_DP83822_MLEDCR);
+	if (val < 0)
+		return;
+
+	if (device_property_read_u32(dev, "ti,strap-mled-polarity-swap", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_MLEDCR_POLAR;
+		else
+			val &= ~DP83822_MLEDCR_POLAR;
+	}
+
+	phy_write_mmd(phydev, DP83822_DEVADDR, MII_DP83822_MLEDCR, val);
+}
+
+static void dp83822_write_eee_straps(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int val;
+	u32 prob_val;
+
+	val = phy_read_mmd(phydev, DP83822_DEVADDR, MII_DP83822_EEECFG3);
+	if (val < 0)
+		return;
+
+	if (device_property_read_u32(dev, "ti,strap-eee-capa-enable", &prob_val) == 0) {
+		if (prob_val)
+			val |= DP83822_EEECFG3_EEE_EN;
+		else
+			val &= ~DP83822_EEECFG3_EEE_EN;
+	}
+
+	phy_write_mmd(phydev, DP83822_DEVADDR, MII_DP83822_EEECFG3, val);
+}
+
 static int dp83822_config_init(struct phy_device *phydev)
 {
 	struct dp83822_private *dp83822 = phydev->priv;
@@ -455,6 +685,15 @@ static int dp83822_phy_reset(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
+	/* Write bootstrap bits if set in device tree */
+	dp83822_write_port_straps(phydev);
+	dp83822_write_auto_neg_straps(phydev);
+	dp83822_write_fiber_straps(phydev);
+	dp83822_write_phy_ctrl_straps(phydev);
+	dp83822_write_mii_straps(phydev);
+	dp83822_write_led_straps(phydev);
+	dp83822_write_eee_straps(phydev);
+
 	return phydev->drv->config_init(phydev);
 }
 
@@ -487,22 +726,37 @@ static int dp83822_of_init(struct phy_device *phydev)
 static int dp83822_read_straps(struct phy_device *phydev)
 {
 	struct dp83822_private *dp83822 = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
 	int fx_enabled, fx_sd_enable;
 	int val;
+	int ret;
+	u32 prob_val;
 
 	val = phy_read_mmd(phydev, DP83822_DEVADDR, MII_DP83822_SOR1);
 	if (val < 0)
 		return val;
 
-	fx_enabled = (val & DP83822_COL_STRAP_MASK) >> DP83822_COL_SHIFT;
-	if (fx_enabled == DP83822_STRAP_MODE2 ||
-	    fx_enabled == DP83822_STRAP_MODE3)
-		dp83822->fx_enabled = 1;
+	ret = device_property_read_u32(dev, "ti,strap-100base-fx-enable", &prob_val);
+	if (ret) {
+		fx_enabled = (val & DP83822_COL_STRAP_MASK) >> DP83822_COL_SHIFT;
+		if (fx_enabled == DP83822_STRAP_MODE2 ||
+		    fx_enabled == DP83822_STRAP_MODE3)
+			dp83822->fx_enabled = 1;
+	} else {
+		if (prob_val)
+			dp83822->fx_enabled = 1;
+	}
 
-	if (dp83822->fx_enabled) {
-		fx_sd_enable = (val & DP83822_RX_ER_STR_MASK) >> DP83822_RX_ER_SHIFT;
-		if (fx_sd_enable == DP83822_STRAP_MODE3 ||
-		    fx_sd_enable == DP83822_STRAP_MODE4)
+	ret = device_property_read_u32(dev, "ti,strap-auto-mdix-enable", &prob_val);
+	if (ret) {
+		if (dp83822->fx_enabled) {
+			fx_sd_enable = (val & DP83822_RX_ER_STR_MASK) >> DP83822_RX_ER_SHIFT;
+			if (fx_sd_enable == DP83822_STRAP_MODE3 ||
+			    fx_sd_enable == DP83822_STRAP_MODE4)
+				dp83822->fx_sd_enable = 1;
+		}
+	} else {
+		if ((dp83822->fx_enabled) && (prob_val))
 			dp83822->fx_sd_enable = 1;
 	}
 

@@ -431,7 +431,8 @@ struct linehandle_state {
 	GPIOHANDLE_REQUEST_OUTPUT | \
 	GPIOHANDLE_REQUEST_ACTIVE_LOW | \
 	GPIOHANDLE_REQUEST_OPEN_DRAIN | \
-	GPIOHANDLE_REQUEST_OPEN_SOURCE)
+	GPIOHANDLE_REQUEST_OPEN_SOURCE | \
+	GPIOHANDLE_REQUEST_OUT_TIMESTAMP)
 
 static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 			     unsigned long arg)
@@ -483,6 +484,16 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 					      lh->descs,
 					      NULL,
 					      vals);
+	} else if (cmd == GPIOHANDLE_GET_LINE_TIMESTAMP_IOCTL) {
+		/* This is supported for single output lines only */
+		if ((lh->numdescs != 1) ||
+		    (!test_bit(FLAG_IS_OUT, &lh->descs[0]->flags)))
+			return -EPERM;
+
+		if (copy_to_user(ip, &lh->descs[0]->timestamp, sizeof(lh->descs[0]->timestamp)))
+			return -EFAULT;
+
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -555,8 +566,15 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	    (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE))
 		return -EINVAL;
 
-	/* OPEN_DRAIN and OPEN_SOURCE flags only make sense for output mode. */
+	/* OPEN_DRAIN, OPEN_SOURCE and OUT_TIMESTAMP flags only make sense for output mode. */
 	if (!(lflags & GPIOHANDLE_REQUEST_OUTPUT) &&
+	    ((lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN) ||
+	     (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE) ||
+	     (lflags & GPIOHANDLE_REQUEST_OUT_TIMESTAMP)))
+		return -EINVAL;
+
+	/* OUT_TIMESTAMP flag is not supported for open source or open drain */
+	if ((lflags & GPIOHANDLE_REQUEST_OUT_TIMESTAMP) &&
 	    ((lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN) ||
 	     (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)))
 		return -EINVAL;
@@ -601,6 +619,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
 		if (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)
 			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+		if (lflags & GPIOHANDLE_REQUEST_OUT_TIMESTAMP)
+			set_bit(FLAG_OUT_TIMESTAMP, &desc->flags);
 
 		ret = gpiod_set_transitory(desc, false);
 		if (ret < 0)
@@ -1105,6 +1125,9 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					   GPIOLINE_FLAG_IS_OUT);
 		if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
 			lineinfo.flags |= (GPIOLINE_FLAG_OPEN_SOURCE |
+					   GPIOLINE_FLAG_IS_OUT);
+		if (test_bit(FLAG_OUT_TIMESTAMP, &desc->flags))
+			lineinfo.flags |= (GPIOLINE_FLAG_OUT_TIMESTAMP |
 					   GPIOLINE_FLAG_IS_OUT);
 
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
@@ -2808,6 +2831,8 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 		clear_bit(FLAG_OPEN_DRAIN, &desc->flags);
 		clear_bit(FLAG_OPEN_SOURCE, &desc->flags);
 		clear_bit(FLAG_IS_HOGGED, &desc->flags);
+		clear_bit(FLAG_OUT_TIMESTAMP, &desc->flags);
+		desc->timestamp = 0;
 		ret = true;
 	}
 
@@ -3548,6 +3573,20 @@ static void gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value
 			  __func__, ret);
 }
 
+/*
+ *  gpio_set_value_capture_timestamp() - Set single output on the chip
+ *  and capture the setting timestamp.
+ * @desc: gpio descriptor whose state need to be set.
+ * @value: Non-zero for setting it HIGH otherwise it will set to LOW.
+ */
+static void gpio_set_value_capture_timestamp(struct gpio_desc *desc, bool value)
+{
+	struct gpio_chip *chip = desc->gdev->chip;
+
+	desc->timestamp = ktime_get_real_ns();
+	chip->set(chip, gpio_chip_hwgpio(desc), value);
+}
+
 static void gpiod_set_raw_value_commit(struct gpio_desc *desc, bool value)
 {
 	struct gpio_chip	*chip;
@@ -3659,6 +3698,8 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				gpio_set_open_drain_value_commit(desc, value);
 			} else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags) && !raw) {
 				gpio_set_open_source_value_commit(desc, value);
+			} else if (test_bit(FLAG_OUT_TIMESTAMP, &desc->flags) && !raw) {
+				gpio_set_value_capture_timestamp(desc, value);
 			} else {
 				__set_bit(hwgpio, mask);
 				if (value)
@@ -3721,6 +3762,8 @@ static void gpiod_set_value_nocheck(struct gpio_desc *desc, int value)
 		gpio_set_open_drain_value_commit(desc, value);
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
 		gpio_set_open_source_value_commit(desc, value);
+	else if (test_bit(FLAG_OUT_TIMESTAMP, &desc->flags))
+		gpio_set_value_capture_timestamp(desc, value);
 	else
 		gpiod_set_raw_value_commit(desc, value);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Hitachi Energy.
+ * Copyright 2020-2023 Hitachi Energy.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -628,10 +628,40 @@
 
 	ethphy0: ethernet-phy@0 {
 		reg = <1>;
+		ti,strap-duplex-mode = <1>;
+		ti,strap-auto-neg-enable = <1>;
+		ti,strap-speed-select = <1>;
+		ti,strap-advertise-10te-half = <1>;
+		ti,strap-advertise-10te-full = <1>;
+		ti,strap-advertise-100tx-half = <1>;
+		ti,strap-advertise-100tx-full = <1>;
+		ti,strap-100base-fx-enable = <0>;
+		ti,strap-rmii-clock-select = <0>;
+		ti,strap-rgmii-mode-enable = <0>;
+		ti,strap-led0-polarity = <0>;
+		ti,strap-auto-mdix-enable = <0>;
+		ti,strap-led-configuration = <0>;
+		ti,strap-mled-polarity-swap = <0>;
+		ti,strap-eee-capa-enable = <0>;
 	};
 
 	ethphy1: ethernet-phy@1 {
 		reg = <2>;
+		ti,strap-duplex-mode = <1>;
+		ti,strap-auto-neg-enable = <1>;
+		ti,strap-speed-select = <1>;
+		ti,strap-advertise-10te-half = <1>;
+		ti,strap-advertise-10te-full = <1>;
+		ti,strap-advertise-100tx-half = <1>;
+		ti,strap-advertise-100tx-full = <1>;
+		ti,strap-100base-fx-enable = <0>;
+		ti,strap-rmii-clock-select = <0>;
+		ti,strap-rgmii-mode-enable = <0>;
+		ti,strap-led0-polarity = <0>;
+		ti,strap-auto-mdix-enable = <0>;
+		ti,strap-led-configuration = <0>;
+		ti,strap-mled-polarity-swap = <0>;
+		ti,strap-eee-capa-enable = <0>;
 	};
 };
 
