@@ -62,6 +62,122 @@ properties:
        for the PHY.  The internal delay for the PHY is fixed to 3.5ns relative
        to transmit data.
 
+  ti,strap-duplex-mode:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for the duplex mode
+       is set to full duplex. If present and set to zero, half-duplex is set.
+
+  ti,strap-auto-neg-enable:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for the auto-
+       negotiation is enabled. If present and set to zero, auto-negotiation is
+       disabled.
+
+  ti,strap-speed-select:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for the speed
+       select is set to 100 Mbps. If present and set to zero, 10 Mbps is set.
+
+  ti,strap-advertise-10te-half:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for auto-
+       negotiation advertising 10Base-Te half duplex is set. If present and
+       set to zero, 10Base-Te half duplex is not advertised.
+
+  ti,strap-advertise-10te-full:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for auto-
+       negotiation advertising 10Base-Te full duplex is set. If present and
+       set to zero, 10Base-Te full duplex is not advertised.
+
+  ti,strap-advertise-100tx-half:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for auto-
+       negotiation advertising 100Base-TX half duplex is set. If present and
+       set to zero, 100Base-TX half duplex is not advertised.
+
+  ti,strap-advertise-100tx-full:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for auto-
+       negotiation advertising 100Base-TX full duplex is set. If present and
+       set to zero, 100Base-TX full duplex is not advertised.
+
+  ti,strap-100base-fx-enable:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for enabling
+       100Base-FX (fiber) mode is set. If present and set to zero, fiber mode
+       is disabled.
+
+  ti,strap-rmii-clock-select:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for the RMII
+       reference clock is set to 50-MHz. If present and set to zero, the reference
+       clock is set to 25-MHz.
+
+  ti,strap-rgmii-mode-enable:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for enabling
+       RGMII mode is set. If present and set to zero, RGMII mode is disabled.
+
+  ti,strap-led0-polarity:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for LED0 link
+       polarity is set to active high. If present and set to zero, the polarity
+       is set to active low.
+
+  ti,strap-auto-mdix-enable:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for auto MDIX
+       capability is enabled. If present and set to zero, auto MDIX is disabled.
+       Note: Auto MDIX is enabled only, if 100Base-FX (fiber) mode is set.
+
+  ti,strap-led-configuration:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number the bootstrap bit for LED configuration
+       is set to "ON for LINK and OFF for no LINK". If present and set to zero, the
+       configuration is set to "ON for LINK and BLINK for TX/RX Activity".
+
+  ti,strap-mled-polarity-swap:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for MLED polarity
+       swap is set to active high. If present and set to zero, MLED polarity is set
+       to active low.
+
+  ti,strap-eee-capa-enable:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+       DP83822 PHY only.
+       If present and set to a non-zero number, the bootstrap bit for EEE capabilities
+       support is enabled. If present and set to zero, EEE capabilities are disabled.
+
 required:
   - reg
 
