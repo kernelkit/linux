@@ -1024,9 +1024,31 @@ void prueth_lre_set_stats(struct prueth *prueth,
 void prueth_lre_get_stats(struct prueth *prueth,
 			  struct lre_statistics *pstats)
 {
+	/*
+	 * Below code is fix for common counters issue in shared memory
+	 * Rajendar@CIT    - 01/02/2023
+	 */
+	struct lre_statistics_pru1 *pstats_pru1;
 	void __iomem *sram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
 
 	memcpy_fromio(pstats, sram + ICSS_LRE_CNT_TX_A, sizeof(*pstats));
+	/*
+	 * Below code is fix for common counters issue in shared memory
+	 * Rajendar@CIT    - 01/02/2023
+	 */
+
+	pstats_pru1 = kmalloc(sizeof(*pstats_pru1), GFP_KERNEL);
+
+	if (pstats_pru1) {
+		memcpy_fromio(pstats_pru1, sram + ICSS_LRE_START + ICSS_LRE_STATS_DMEM_SIZE, sizeof(*pstats_pru1));
+		pstats->cnt_tx_c += pstats_pru1->cnt_tx_cb;
+		pstats->cnt_unique_rx_c += pstats_pru1->cnt_unique_rx_cb;
+		pstats->cnt_duplicate_rx_c += pstats_pru1->cnt_duplicate_rx_cb;
+		pstats->lre_multicast_dropped += pstats_pru1->lre_multicast_dropped_b;
+		pstats->lre_vlan_dropped += pstats_pru1->lre_vlan_dropped_b;
+		kfree(pstats_pru1);
+	}
+
 }
 
 int prueth_lre_get_sset_count(struct prueth *prueth)

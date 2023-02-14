@@ -46,7 +46,11 @@
 
 #define ICSS_LRE_DUPLICATE_PORT_TABLE_DMEM_SIZE	0x0C00
 #define ICSS_LRE_DUPLICATE_HOST_TABLE_DMEM_SIZE	0x1800
-#define ICSS_LRE_STATS_DMEM_SIZE		0x0088
+/*
+ * Below code change is fix for common counters issue in shared memory
+ * Rajendar@CIT    - 01/02/2023
+ */
+#define ICSS_LRE_STATS_DMEM_SIZE		0x00B0
 #define ICSS_LRE_DEBUG_COUNTER_DMEM_SIZE	0x0050
 
 #define ICSS_LRE_DUPLICATE_HOST_TABLE_SIZE_INIT	0x800004 /* N = 128, M = 4 */
@@ -60,7 +64,11 @@
 
 /* 8 bytes of VLAN PCP to RX QUEUE MAPPING */
 #define ICSS_LRE_QUEUE_2_PCP_MAP_OFFSET		0x124
-#define ICSS_LRE_START				0x140
+/*
+ * Below code change is fix for common counters issue in shared memory
+ * Rajendar@CIT    - 01/02/2023
+ */
+#define ICSS_LRE_START				0x130
 
 /* Number of frames successfully sent over port A/B that are HSR/PRP tagged */
 
