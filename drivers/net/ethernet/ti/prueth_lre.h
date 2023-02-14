@@ -84,6 +84,18 @@ struct lre_statistics {
         u32 lre_no_prp_tag_rx_b; /* count of frames with no RCT tag to host on PRU 1*/
 } __packed;
 
+/*
+ * Below code is fix for common counters issue in shared memory
+ * Rajendar@CIT    - 01/02/2023
+ */
+struct lre_statistics_pru1 {
+	u32 cnt_tx_cb;
+	u32 cnt_unique_rx_cb;
+	u32 cnt_duplicate_rx_cb;
+	u32 lre_multicast_dropped_b;
+        u32 lre_vlan_dropped_b;
+};
+
 /* node table info */
 struct prueth_lre_node {
 	u8 mac[6];
