@@ -27,7 +27,7 @@
 #define ICSS_EMAC_FW_MULTICAST_FILTER_INIT_VAL                  0xFF
 
 /* Size requirements for Multicast filtering feature */
-#define ICSS_EMAC_FW_MULTICAST_TABLE_SIZE_BYTES                        256
+#define ICSS_EMAC_FW_MULTICAST_TABLE_SIZE_BYTES                        1088 /* 256 - Increased for Enhanced MAC Filter */
 #define ICSS_EMAC_FW_MULTICAST_FILTER_MASK_SIZE_BYTES                    6
 #define ICSS_EMAC_FW_MULTICAST_FILTER_CTRL_SIZE_BYTES                    1
 #define ICSS_EMAC_FW_MULTICAST_FILTER_MASK_OVERRIDE_STATUS_SIZE_BYTES    1
@@ -51,7 +51,7 @@
 /* Multicast drop statistics */
 #define ICSS_EMAC_FW_MULTICAST_FILTER_DROP_CNT_OFFSET    (ICSS_EMAC_FW_MULTICAST_FILTER_OVERRIDE_STATUS + ICSS_EMAC_FW_MULTICAST_FILTER_MASK_OVERRIDE_STATUS_SIZE_BYTES)
 /* Multicast table */
-#define ICSS_EMAC_FW_MULTICAST_FILTER_TABLE              (ICSS_EMAC_FW_MULTICAST_FILTER_DROP_CNT_OFFSET + ICSS_EMAC_FW_MULTICAST_FILTER_DROP_CNT_SIZE_BYTES)
+#define ICSS_EMAC_FW_MULTICAST_FILTER_TABLE              0x400 /* Modified for Enhanced MAC Filter */
 
 /* Multicast filter defines & offsets for LRE
  */
@@ -61,7 +61,7 @@
  * 1 -> multicast filtering enabled
  */
 #define ICSS_LRE_FW_MULTICAST_FILTER_MASK                        0xE4
-#define ICSS_LRE_FW_MULTICAST_FILTER_TABLE                       0x100
+#define ICSS_LRE_FW_MULTICAST_FILTER_TABLE                       0x6000 /* Modified for Enhanced MAC Filter */
 
 /* VLAN table Offsets */
 #define ICSS_EMAC_FW_VLAN_FLTR_TBL_BASE_ADDR             0x200

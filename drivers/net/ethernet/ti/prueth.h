@@ -494,4 +494,8 @@ extern const struct prueth_queue_desc queue_descs[][NUM_QUEUES];
 void emac_mc_filter_bin_allow(struct prueth_emac *emac, u8 hash);
 void emac_mc_filter_bin_disallow(struct prueth_emac *emac, u8 hash);
 u8 emac_get_mc_hash(u8 *mac, u8 *mask);
+/* Added for Enhanced MAC Filter
+*  MohanPrasad@CIT - 26-Aug-2022
+*/
+void emac_mc_filter_enhanced(struct prueth_emac *emac,struct netdev_hw_addr *ha);
 #endif /* __NET_TI_PRUETH_H */

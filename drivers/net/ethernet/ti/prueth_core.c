@@ -2177,7 +2177,7 @@ static void emac_mc_filter_reset(struct prueth_emac *emac)
 	void __iomem *mc_filter_tbl;
 
 	if (PRUETH_IS_LRE(prueth))
-		ram = prueth->mem[PRUETH_MEM_DRAM1].va;
+		ram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
 
 	mc_filter_tbl = ram + mc_filter_tbl_base;
 	memset_io(mc_filter_tbl, 0, ICSS_EMAC_FW_MULTICAST_TABLE_SIZE_BYTES);
@@ -2198,6 +2198,111 @@ static void emac_mc_filter_hashmask(struct prueth_emac *emac,
 	mc_filter_mask = ram + mc_filter_mask_base;
 	memcpy_toio(mc_filter_mask, mask,
 		    ICSS_EMAC_FW_MULTICAST_FILTER_MASK_SIZE_BYTES);
+}
+
+/* Added for Enhanced MAC Filter
+*  MohanPrasad@CIT - 26-Aug-2022
+*/
+/************************************************************************************
+--> Existing multicast filtering algorithm in the PRUs uses the logic of
+XOR of all address bits as index into a single table with only 256 entries.
+--> When both GOOSE and IEC92 traffic present on the link
+XOR of a IEC92 address will be identical to the XOR of a GOOSE address.
+--> Enabling GOOSE multicast addresses can easily lead IEC92 traffic
+to pass through the multicast filter.
+--> To achieve better selectivity below Enhanced MAC filter has been developed.
+--> The Enhanced MAC filter algorithm was provided by HitachiABB.
+**************************************************************************************/
+void emac_mc_filter_enhanced(struct prueth_emac *emac, struct netdev_hw_addr *ha)
+{
+	unsigned char GBLmapIx = 0,GBLvalue = 0;
+	unsigned char GBLbitNo = 0,bitNo = 0;
+	unsigned char mapIx = 0,value = 0;
+	unsigned char xor012 = 0;
+
+	struct prueth *prueth = emac->prueth;
+	void __iomem *mc_filter_tbl;
+        /* MAC filter Base Address */
+	u32 mc_filter_tbl_base = prueth->fw_offsets->mc_filter_tbl;
+	void __iomem *ram = prueth->mem[emac->dram].va;
+
+        /* Incase of HSR/PRP the MAC filter table is located in SRAM*/
+	if (PRUETH_IS_LRE(prueth))
+		ram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
+
+	mc_filter_tbl = ram + mc_filter_tbl_base;
+
+	GBLmapIx = ha->addr[5] & 0x1f;
+	GBLbitNo = ha->addr[5] >> 5;
+
+	GBLvalue = (1 << GBLbitNo);
+
+	/* read the previous Global value in to the mc_filter_tbl + index */
+	GBLvalue |= readb(mc_filter_tbl + GBLmapIx);
+
+	/* writes the Global value in to the mc_filter_tbl + index */
+	writeb(GBLvalue, mc_filter_tbl + GBLmapIx);
+
+        /* Except for IEEE and PTP mapIx calculation for other
+           MAC address is same*/
+	mapIx = ha->addr[5];
+
+	/* IPV6 */
+	if((ha->addr[0] == ha->addr[1]) && ha->addr[0] == 0x33 ){
+		bitNo = ha->addr[2] ^ ha->addr[3] ^ ha->addr[4];
+		bitNo &= 0x7;
+
+		mc_filter_tbl += 576;
+	}
+	else{
+		/* classification reveals the offset*/
+		xor012 = ha->addr[2] ^ (ha->addr[0] ^ ha->addr[1]);
+		xor012 >>= 4;
+
+		switch(xor012)
+		{
+			/*ICSS_EMAC_FW_FILTER_IEEE and PTP*/
+			case 0:
+			case 4:
+			mapIx = ha->addr[5] & 0x1f;
+			bitNo = ha->addr[5] >> 5;
+			mc_filter_tbl += 32;
+
+			break;
+
+			/*ICSS_EMAC_FW_FILTER_IEC*/
+			case 12:
+			bitNo = (ha->addr[3] & 0b100) | (ha->addr[4] & 0b11);
+			bitNo &= 0x7;
+			mc_filter_tbl += 64;
+
+			break;
+
+			/*ICSS_EMAC_FW_FILTER_IPV4*/
+			case 5:
+			bitNo = ha->addr[3] ^ ha->addr[4];
+			bitNo &= 0x7;
+			mc_filter_tbl += 320;
+
+			break;
+
+			default:
+			/* ICSS_EMAC_FW_FILTER_ANY */
+			bitNo = ha->addr[2] ^ ha->addr[3] ^  ha->addr[4];
+			bitNo &= 0x7;
+			mc_filter_tbl += 832;
+
+			break;
+		}
+	}
+
+	value = (1 << bitNo);
+
+	/* read the previous value in to the mc_filter_tbl + index */
+	value |= readb(mc_filter_tbl + mapIx);
+
+	/* writes the specific filter value in to the mc_filter_tbl + index */
+	writeb(value, mc_filter_tbl + mapIx);
 }
 
 static void emac_mc_filter_bin_update(struct prueth_emac *emac, u8 hash, u8 val)
@@ -2305,15 +2410,19 @@ static void emac_ndo_set_rx_mode(struct net_device *ndev)
 		goto unlock;
 
 	netdev_for_each_mc_addr(ha, ndev) {
-		hash = emac_get_mc_hash(ha->addr, emac->mc_filter_mask);
-		emac_mc_filter_bin_allow(emac, hash);
+        /*hash = emac_get_mc_hash(ha->addr, emac->mc_filter_mask);
+		emac_mc_filter_bin_allow(emac, hash);*/
+	/* Enhanced MAC Filter */
+	emac_mc_filter_enhanced(emac,ha);
 	}
 
 	/* Add bridge device's MC addresses as well */
 	if (prueth->hw_bridge_dev) {
 		netdev_for_each_mc_addr(ha, prueth->hw_bridge_dev) {
-			hash = emac_get_mc_hash(ha->addr, emac->mc_filter_mask);
-			emac_mc_filter_bin_allow(emac, hash);
+		/*hash = emac_get_mc_hash(ha->addr, emac->mc_filter_mask);
+			emac_mc_filter_bin_allow(emac, hash);*/
+		/* Enhanced MAC Filter */
+		emac_mc_filter_enhanced(emac,ha);
 		}
 	}
 unlock:
@@ -2797,7 +2906,6 @@ static void emac_get_regs(struct net_device *ndev, struct ethtool_regs *regs,
 
 		reg += len;
 
-		ram = prueth->mem[PRUETH_MEM_DRAM1].va;
 		len = ICSS_LRE_FW_MULTICAST_FILTER_TABLE +
 		      ICSS_EMAC_FW_MULTICAST_TABLE_SIZE_BYTES;
 		memcpy_fromio(reg, ram, len);
@@ -3251,11 +3359,14 @@ static int prueth_probe(struct platform_device *pdev)
 	prueth->dev = dev;
 	prueth->fw_data = match->data;
 	prueth->prueth_np = np;
-
+	/* Added for Enhanced MAC Filter crash bug fix
+	*  Parvathi@CIT - 14-Feb-2023
+	*/
+	prueth->fw_offsets = devm_kzalloc(dev, sizeof(struct prueth_fw_offsets), GFP_KERNEL);
 	if (prueth->fw_data->rev_2_1)
-		prueth->fw_offsets = &fw_offsets_v2_1;
+		memcpy(prueth->fw_offsets, &fw_offsets_v2_1, sizeof(struct prueth_fw_offsets));
 	else
-		prueth->fw_offsets = &fw_offsets_v1_0;
+		memcpy(prueth->fw_offsets, &fw_offsets_v1_0, sizeof(struct prueth_fw_offsets));
 
 	eth0_node = of_get_child_by_name(np, "ethernet-mii0");
 	if (!of_device_is_available(eth0_node)) {
