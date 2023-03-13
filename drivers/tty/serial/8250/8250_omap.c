@@ -89,6 +89,7 @@
 
 #define TX_TRIGGER	1
 #define RX_TRIGGER	48
+#define TX_THRESHOLD	56
 
 #define OMAP_UART_TCR_RESTORE(x)	((x / 4) << 4)
 #define OMAP_UART_TCR_HALT(x)		((x / 4) << 0)
@@ -437,15 +438,16 @@ static void omap_8250_set_termios(struct uart_port *port,
 	/* Up to here it was mostly serial8250_do_set_termios() */
 
 	/*
-	 * We enable TRIG_GRANU for RX and TX and additionally we set
+	 * For none DMA we enable TRIG_GRANU for RX and TX, but do not set the
 	 * SCR_TX_EMPTY bit. The result is the following:
 	 * - RX_TRIGGER amount of bytes in the FIFO will cause an interrupt.
 	 * - less than RX_TRIGGER number of bytes will also cause an interrupt
 	 *   once the UART decides that there no new bytes arriving.
-	 * - Once THRE is enabled, the interrupt will be fired once the FIFO is
-	 *   empty - the trigger level is ignored here.
+	 * - Once THRE is enabled, the interrupt will be fired once there is
+	 *   room for TX_TRESHOLD bytes in the TX FIFO.
 	 *
-	 * Once DMA is enabled:
+	 * For DMA we set the SCR_TX_EMPTY bit additionally. The result is the
+	 * following:
 	 * - UART will assert the TX DMA line once there is room for TX_TRIGGER
 	 *   bytes in the TX FIFO. On each assert the DMA engine will move
 	 *   TX_TRIGGER bytes into the FIFO.
@@ -457,12 +459,13 @@ static void omap_8250_set_termios(struct uart_port *port,
 	up->fcr |= TRIGGER_FCR_MASK(priv->tx_trigger) << OMAP_UART_FCR_TX_TRIG;
 	up->fcr |= TRIGGER_FCR_MASK(priv->rx_trigger) << OMAP_UART_FCR_RX_TRIG;
 
-	priv->scr = OMAP_UART_SCR_RX_TRIG_GRANU1_MASK | OMAP_UART_SCR_TX_EMPTY |
-		OMAP_UART_SCR_TX_TRIG_GRANU1_MASK;
-
 	if (up->dma)
-		priv->scr |= OMAP_UART_SCR_DMAMODE_1 |
+		priv->scr = OMAP_UART_SCR_RX_TRIG_GRANU1_MASK | OMAP_UART_SCR_TX_EMPTY |
+			OMAP_UART_SCR_TX_TRIG_GRANU1_MASK | OMAP_UART_SCR_DMAMODE_1 |
 			OMAP_UART_SCR_DMAMODE_CTL;
+	else
+		priv->scr = OMAP_UART_SCR_RX_TRIG_GRANU1_MASK |
+			OMAP_UART_SCR_TX_TRIG_GRANU1_MASK;
 
 	priv->xon = termios->c_cc[VSTART];
 	priv->xoff = termios->c_cc[VSTOP];
@@ -600,7 +603,11 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = port->private_data;
+	struct tty_struct *tty = port->state->port.tty;
+	unsigned char status;
+	unsigned long flags;
 	unsigned int iir;
+	bool skip_rx = false;
 	int ret;
 
 #ifdef CONFIG_SERIAL_8250_DMA
@@ -612,13 +619,57 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 
 	serial8250_rpm_get(up);
 	iir = serial_port_in(port, UART_IIR);
-	if (iir & (UART_IIR_RDI | UART_IIR_RX_TIMEOUT)) {
+	if (((iir & UART_IIR_ID) == UART_IIR_RDI) ||
+		((iir & UART_IIR_ID) == UART_IIR_RX_TIMEOUT)) {
 		priv->rx_int_tstamp = ktime_get_ns();
 	}
-	ret = serial8250_handle_irq(port, iir);
+
+	if (iir & UART_IIR_NO_INT)
+		return IRQ_NONE;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	status = serial_port_in(port, UART_LSR);
+
+	/*
+	 * If port is throttled and there are no error conditions in the
+	 * FIFO, then don't drain the FIFO, as this may lead to tty buffer
+	 * overflow. Not servicing, RX FIFO would trigger auto HW flow
+	 * control when FIFO occupancy reaches preset threshold, thus
+	 * halting RX.
+	 */
+	if (tty && tty_throttled(tty) && port->throttle &&
+	    (up->capabilities & UART_CAP_AFE) &&
+	    !(status & (UART_LSR_FIFOE | UART_LSR_BRK_ERROR_BITS)))
+		skip_rx = true;
+
+	if (status & (UART_LSR_DR | UART_LSR_BI) && !skip_rx)
+		status = serial8250_rx_chars(up, status);
+
+	serial8250_modem_status(up);
+
+	if ((iir & UART_IIR_ID) == UART_IIR_THRI) {
+		/* TX Threshold IRQ triggered so load up FIFO */
+		serial8250_tx_chars(up);
+
+		if (priv->scr & OMAP_UART_SCR_TX_EMPTY) {
+			/* Disable TX FIFO empty interrupt again for next send */
+			priv->scr &= ~OMAP_UART_SCR_TX_EMPTY;
+			serial_port_out(port, UART_OMAP_SCR, priv->scr);
+		} else {
+			/* Enable TX FIFO empty interrupt if transmit buffer is empty */
+			if (uart_circ_empty(&port->state->xmit)) {
+				priv->scr |= OMAP_UART_SCR_TX_EMPTY;
+				serial_port_out(port, UART_OMAP_SCR, priv->scr);
+			}
+		}
+	}
+
+	uart_unlock_and_check_sysrq(port, flags);
+
 	serial8250_rpm_put(up);
 
-	return IRQ_RETVAL(ret);
+	return IRQ_HANDLED;
 }
 
 static int omap_8250_startup(struct uart_port *port)
@@ -1416,7 +1467,7 @@ static int omap8250_probe(struct platform_device *pdev)
 
 	up.port.regshift = 2;
 	up.port.fifosize = 64;
-	up.tx_loadsz = 64;
+	up.tx_loadsz = TX_THRESHOLD;
 	up.capabilities = UART_CAP_FIFO | UART_CAP_AFE;
 #ifdef CONFIG_PM
 	/*
@@ -1498,7 +1549,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	omap_serial_fill_features_erratas(&up, priv);
 	up.port.handle_irq = omap8250_no_handle_irq;
 	priv->rx_trigger = RX_TRIGGER;
-	priv->tx_trigger = TX_TRIGGER;
+	priv->tx_trigger = TX_THRESHOLD;
 #ifdef CONFIG_SERIAL_8250_DMA
 	/*
 	 * Oh DMA support. If there are no DMA properties in the DT then
@@ -1530,6 +1581,9 @@ static int omap8250_probe(struct platform_device *pdev)
 			up.dma->rxconf.src_maxburst = RX_TRIGGER;
 			up.dma->txconf.dst_maxburst = TX_TRIGGER;
 		}
+
+		up.tx_loadsz = up.port.fifosize;
+		priv->tx_trigger = TX_TRIGGER;
 	}
 #endif
 	register_dev_spec_attr_grp(&up);
