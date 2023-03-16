@@ -466,11 +466,6 @@ void prueth_sw_hostconfig(struct prueth *prueth)
 	else
 		memcpy_toio(dram, sw_queue_infos[PRUETH_PORT_QUEUE_HOST],
 			    sizeof(sw_queue_infos[PRUETH_PORT_QUEUE_HOST]));
-
-	dram = dram1_base + COL_RX_CONTEXT_P0_OFFSET_ADDR;
-	memcpy_toio(dram, &col_rx_context_infos[PRUETH_PORT_QUEUE_HOST],
-		    sizeof(col_rx_context_infos[PRUETH_PORT_QUEUE_HOST]));
-
 	/* buffer descriptor offset table*/
 	dram = dram1_base + QUEUE_DESCRIPTOR_OFFSET_ADDR;
 	writew(P0_Q1_BD_OFFSET, dram);
@@ -520,23 +515,15 @@ static int prueth_sw_port_config(struct prueth *prueth,
 	switch (port_id) {
 	case PRUETH_PORT_MII0:
 		tx_context_ofs_addr     = TX_CONTEXT_P1_Q1_OFFSET_ADDR;
-		col_tx_context_ofs_addr = COL_TX_CONTEXT_P1_Q1_OFFSET_ADDR;
 		rx_context_ofs          = P1_Q1_RX_CONTEXT_OFFSET;
-		col_rx_context_ofs_addr = COL_RX_CONTEXT_P1_OFFSET_ADDR;
 		queue_desc_ofs          = P1_QUEUE_DESC_OFFSET;
-		col_queue_desc_ofs      = P1_COL_QUEUE_DESC_OFFSET;
-
 		/* for switch PORT MII0 mac addr is in DRAM0. */
 		dram_mac = prueth->mem[PRUETH_MEM_DRAM0].va;
 		break;
 	case PRUETH_PORT_MII1:
 		tx_context_ofs_addr     = TX_CONTEXT_P2_Q1_OFFSET_ADDR;
-		col_tx_context_ofs_addr = COL_TX_CONTEXT_P2_Q1_OFFSET_ADDR;
 		rx_context_ofs          = P2_Q1_RX_CONTEXT_OFFSET;
-		col_rx_context_ofs_addr = COL_RX_CONTEXT_P2_OFFSET_ADDR;
 		queue_desc_ofs          = P2_QUEUE_DESC_OFFSET;
-		col_queue_desc_ofs      = P2_COL_QUEUE_DESC_OFFSET;
-
 		/* for switch PORT MII1 mac addr is in DRAM1. */
 		dram_mac = prueth->mem[PRUETH_MEM_DRAM1].va;
 		break;
@@ -555,18 +542,9 @@ static int prueth_sw_port_config(struct prueth *prueth,
 	memcpy_toio(dram_base + tx_context_ofs_addr,
 		    sw_queue_infos[port_id],
 		    sizeof(sw_queue_infos[port_id]));
-
-	memcpy_toio(dram_base + col_tx_context_ofs_addr,
-		    &col_tx_context_infos[port_id],
-		    sizeof(col_tx_context_infos[port_id]));
-
 	memcpy_toio(dram_base + rx_context_ofs,
 		    rx_queue_infos[port_id],
 		    sizeof(rx_queue_infos[port_id]));
-
-	memcpy_toio(dram_base + col_rx_context_ofs_addr,
-		    &col_rx_context_infos[port_id],
-		    sizeof(col_rx_context_infos[port_id]));
 
 	/* buffer descriptor offset table*/
 	dram = dram_base + QUEUE_DESCRIPTOR_OFFSET_ADDR +
@@ -597,11 +575,6 @@ static int prueth_sw_port_config(struct prueth *prueth,
 	writew(QUEUE_2_SIZE, dram + 2);
 	writew(QUEUE_3_SIZE, dram + 4);
 	writew(QUEUE_4_SIZE, dram + 6);
-
-	/* collision queue table */
-	memcpy_toio(dram_base + col_queue_desc_ofs,
-		    &col_queue_descs[port_id],
-		    sizeof(col_queue_descs[port_id]));
 
 	/* queue table */
 	memcpy_toio(dram_base + queue_desc_ofs,
