@@ -39,7 +39,10 @@
 #define PRUETH_MODULE_VERSION "0.2"
 #define PRUETH_MODULE_DESCRIPTION "PRUSS Ethernet driver"
 
-#define OCMC_RAM_SIZE		(SZ_64K - SZ_8K)
+/* RSTP Switch New Queue Design - Increased ocmc ram initialization to 64kb from 56kb
+ * Roopak@CIT - 16-03-2023
+ */
+#define OCMC_RAM_SIZE		(SZ_64K)
 #define PRUETH_ETH_TYPE_OFFSET		12
 #define PRUETH_ETH_TYPE_UPPER_SHIFT	8
 
@@ -1259,7 +1262,6 @@ void parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
 		pkt_info->start_offset = false;
 
 	pkt_info->ll_has_no_hsrTag = (buffer_descriptor & PRUETH_LL_HAS_NO_HSRTAG_MASK);
-	pkt_info->shadow = !!(buffer_descriptor & PRUETH_BD_SHADOW_MASK);
 	pkt_info->port = (buffer_descriptor & PRUETH_BD_PORT_MASK) >>
 			 PRUETH_BD_PORT_SHIFT;
 	pkt_info->length = (buffer_descriptor & PRUETH_BD_LENGTH_MASK) >>
@@ -1430,12 +1432,9 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	/* Get the start address of the first buffer from
 	 * the read buffer description
 	 */
-	if (pkt_info.shadow) {
-		src_addr = ocmc_ram + P0_COL_BUFFER_OFFSET;
-	} else {
-		src_addr = ocmc_ram + rxqueue->buffer_offset +
+	src_addr = ocmc_ram + rxqueue->buffer_offset +
 			   (read_block * ICSS_BLOCK_SIZE);
-	}
+	
 	src_addr += start_offset;
 
 	if(pkt_info.ll_has_no_hsrTag){
@@ -1484,10 +1483,8 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		/* copy wrapped part */
 		dst_addr += (bytes - adjust_for_dummy_hsr_tag);
 		remaining = actual_pkt_len - bytes;
-		if (pkt_info.shadow)
-			src_addr += bytes;
-		else
-			src_addr = ocmc_ram + rxqueue->buffer_offset;
+	
+		src_addr = ocmc_ram + rxqueue->buffer_offset;
 		memcpy(dst_addr, src_addr, remaining);
 		src_addr += remaining;
 	} else {
@@ -1616,16 +1613,11 @@ static irqreturn_t emac_rx_thread(int irq, void *dev_id)
 	struct net_device_stats *ndevstats = &emac->ndev->stats;
 	int i, ret, used = 0;
 	struct prueth_emac *other_emac;
-
-	other_emac = prueth->emac[other_port_id(emac->port_id) - 1];
-
-	if (PRUETH_IS_SWITCH(prueth)) {
-		start_queue = PRUETH_QUEUE1;
-		end_queue = PRUETH_QUEUE4;
-	} else {
-		start_queue = emac->rx_queue_start;
-		end_queue = emac->rx_queue_end;
-	}
+	/* RSTP Switch New Queue Design - start_queue & end_queue code is made Common for all the protocols ( EMAC, SWITCH, HSR-PRP )
+	 * Roopak@CIT - 16-03-2023
+	 */
+	start_queue = emac->rx_queue_start;
+	end_queue = emac->rx_queue_end;
 
 retry:
 	/* search host queues for packets */
@@ -1677,12 +1669,7 @@ retry:
 				ndevstats->rx_length_errors++;
 			} else {
 				update_rd_ptr = bd_rd_ptr;
-				if (PRUETH_IS_SWITCH(emac->prueth)) {
-					if (pkt_info.port ==
-						other_emac->port_id) {
-						emac = other_emac;
-					}
-				}
+	
 
 				ret = emac_rx_packet(emac, &update_rd_ptr,
 						     pkt_info, rxqueue);
@@ -2229,7 +2216,9 @@ static u16 prueth_get_tx_queue_id(struct prueth *prueth, struct sk_buff *skb)
 	 * QUEUE1 are used for port to port traffic. Current version of SWITCH
 	 * firmware uses 4 egress queues.
 	 */
-	if (PRUETH_IS_LRE(prueth))
+	/* RSTP Switch New Queue Design - Below code(pcp >>= 1) is made Common for all the protocols( EMAC, SWITCH, HSR-PRP )
+	 * Roopak@CIT - 16-03-2023
+	 */
 		pcp >>= 1;
 
 	return emac_pcp_tx_priority_queue_map[pcp];
