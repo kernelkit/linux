@@ -119,11 +119,16 @@ struct switchdev_notifier_info {
 	struct netlink_ext_ack *extack;
 };
 
+/* Modified Below structure to have more information about FDB entry.
+ * Basharath@CIT - 19-April-2023
+ */
 struct switchdev_notifier_fdb_info {
 	struct switchdev_notifier_info info; /* must be first */
 	const unsigned char *addr;
 	u16 vid;
 	u8 added_by_user:1,
+	    is_local:1,
+	    is_dyn:1,	
 	   offloaded:1;
 };
 

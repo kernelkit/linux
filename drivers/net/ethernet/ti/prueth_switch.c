@@ -980,11 +980,16 @@ static void prueth_sw_fdb_update_index_tbl(struct prueth *prueth,
 	}
 }
 
+	/* Added new agrument "mac" to prueth_sw_get_empty_mac_tbl_entry function.
+	 *  Basharath@CIT - 19-April-2023
+	 */
+
 static struct fdb_mac_tbl_entry_t *
 prueth_sw_get_empty_mac_tbl_entry(struct prueth *prueth,
 				  struct fdb_index_tbl_entry_t *bucket_info,
 				  u8 suggested_mac_tbl_idx,
-				  bool *update_indexes)
+				  bool *update_indexes,
+				  const u8 *mac)
 {
 	struct fdb_tbl *fdb = prueth->fdb_tbl;
 	struct fdb_mac_tbl_array_t *mt = fdb->mac_tbl_a;
@@ -1016,6 +1021,12 @@ prueth_sw_get_empty_mac_tbl_entry(struct prueth *prueth,
 		/* Claim the entry */
 		FDB_MAC_TBL_ENTRY(mti)->active = 1;
 
+		/* Update mac address so that “bucket_idx” in “fdb_index_tbl_entry_t” 
+		 *  structure is updated appropriately.
+		 *  Basharath@CIT - 19-April-2023
+		 */
+		mac_copy(FDB_MAC_TBL_ENTRY(mti)->mac, mac);
+
 		/* There is a chance we moved something in a
 		 * different bucket, update index table
 		 */
@@ -1045,6 +1056,13 @@ prueth_sw_get_empty_mac_tbl_entry(struct prueth *prueth,
 
 	/* Claim the entry */
 	FDB_MAC_TBL_ENTRY(mti - 1)->active = 1;
+
+	/* Update mac address so that “bucket_idx” in “fdb_index_tbl_entry_t” 
+	 *  structure is updated appropriately.
+	 *  Basharath@CIT - 19-April-2023
+	 */
+	mac_copy(FDB_MAC_TBL_ENTRY(mti - 1)->mac, mac);
+
 
 	/* There is a chance we moved something in a
 	 * different bucket, update index table
@@ -1098,8 +1116,12 @@ static int prueth_sw_insert_fdb_entry(struct prueth_emac *emac,
 
 	prueth_sw_fdb_spin_lock(fdb);
 
+	/* Added new agrument "mac" to prueth_sw_get_empty_mac_tbl_entry function.
+	 *  Basharath@CIT - 19-April-2023
+	 */
+
 	mac_info = prueth_sw_get_empty_mac_tbl_entry(prueth, bucket_info,
-						     mac_tbl_idx, NULL);
+						     mac_tbl_idx, NULL, mac);
 	if (!mac_info) {
 		/* Should not happen */
 		dev_warn(prueth->dev, "OUT of MEM\n");
@@ -1171,10 +1193,17 @@ static int prueth_sw_delete_fdb_entry(struct prueth_emac *emac,
 	return 0;
 }
 
+	/* Modified the functionality of "prueth_sw_do_purge_fdb" to delete 
+	 * all FDB entries expect static entries.
+	 * Basharath@CIT - 19-April-2023
+	 */
+
 static int prueth_sw_do_purge_fdb(struct prueth_emac *emac)
 {
 	struct prueth *prueth = emac->prueth;
 	struct fdb_tbl *fdb = prueth->fdb_tbl;
+	struct fdb_index_tbl_entry_t *bucket_info;
+	u8 hash_val;
 	s16 i;
 
 	if (fdb->total_entries == 0)
@@ -1182,17 +1211,26 @@ static int prueth_sw_do_purge_fdb(struct prueth_emac *emac)
 
 	prueth_sw_fdb_spin_lock(fdb);
 
-	for (i = 0; i < FDB_INDEX_TBL_MAX_ENTRIES; i++)
-		fdb->index_a->index_tbl_entry[i].bucket_entries = 0;
-
 	for (i = 0; i < FDB_MAC_TBL_MAX_ENTRIES; i++)
-		fdb->mac_tbl_a->mac_tbl_entry[i].active = 0;
-
-	fdb->total_entries = 0;
+	{
+		if(fdb->mac_tbl_a->mac_tbl_entry[i].active)
+		{
+			if(!fdb->mac_tbl_a->mac_tbl_entry[i].is_static)
+			{
+				/* Get the bucket that the mac belongs to */
+				hash_val = prueth_sw_fdb_hash(fdb->mac_tbl_a->mac_tbl_entry[i].mac);
+				bucket_info = FDB_IDX_TBL_ENTRY(hash_val);
+				fdb->mac_tbl_a->mac_tbl_entry[i].active = 0;
+				bucket_info->bucket_entries--;
+				fdb->total_entries--;
+			}
+		}
+	}
 
 	prueth_sw_fdb_spin_unlock(fdb);
 	return 0;
 }
+
 
 static void prueth_sw_fdb_work(struct work_struct *work)
 {
@@ -1488,7 +1526,11 @@ prueth_sw_fdb_offload_notify(struct net_device *ndev,
 static void prueth_sw_fdb_add(struct prueth_emac *emac,
 			      struct switchdev_notifier_fdb_info *fdb)
 {
-	prueth_sw_insert_fdb_entry(emac, fdb->addr, 1);
+	/* Modified below code to support adding dynamic/software learn entries 
+	 * from USER SPACE as non-static entry.
+	 * Basharath@CIT - 19-April-2023
+	 */	
+	prueth_sw_insert_fdb_entry(emac, fdb->addr, (!fdb->is_dyn));
 }
 
 static void prueth_sw_fdb_del(struct prueth_emac *emac,
@@ -1514,7 +1556,20 @@ static void prueth_sw_switchdev_event_work(struct work_struct *work)
 			"prueth fdb add: MACID = %pM vid = %u flags = %u -- port %d\n",
 			fdb->addr, fdb->vid, fdb->added_by_user, port);
 
+		/* Below code is disabled so that driver can inform MAC ID is offloaded.
+		 * Basharath@CIT - 19-April-2023
+		 */
+#if 0	
 		if (!fdb->added_by_user)
+			break;
+#endif			
+
+		/* Added code to avoid populating FDB entry having local flag SET 
+		 * in ICSS FDB tables.
+		 * Basharath@CIT - 19-April-2023
+		 */
+
+		if (fdb->is_local)
 			break;
 
 		prueth_sw_fdb_add(emac, fdb);
@@ -1526,8 +1581,23 @@ static void prueth_sw_switchdev_event_work(struct work_struct *work)
 			"prueth fdb del: MACID = %pM vid = %u flags = %u -- port %d\n",
 			fdb->addr, fdb->vid, fdb->added_by_user, port);
 
+		/* Below code is disabled so that driver can delete entries in 
+		 * ICSS FDB table using "garbage collection timer".
+		 *  Basharath@CIT - 19-April-2023
+		 */
+#if 0	
 		if (!fdb->added_by_user)
 			break;
+#endif			
+
+		/* Added code to avoid deleting FDB entry having local flag SET 
+		 * in ICSS FDB tables.
+		 * Basharath@CIT - 19-April-2023
+		 */
+
+		if (fdb->is_local)
+			break;
+
 
 		prueth_sw_fdb_del(emac, fdb);
 		break;
