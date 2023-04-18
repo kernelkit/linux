@@ -2133,6 +2133,12 @@ static void prueth_change_to_switch_mode(struct prueth *prueth)
 			netdev_err(ndev, "failed to start: %d", ret);
 			return;
 		}
+
+		/* Added below code to configure the multicast filters, 
+		 * promisc and allmulti options.
+	 	 * Basharath@CIT - 19-April-2023
+	 	 */
+		ndev->netdev_ops->ndo_set_rx_mode(ndev);
 	}
 
 	dev_info(prueth->dev, "TI PRU ethernet now in Switch mode\n");
