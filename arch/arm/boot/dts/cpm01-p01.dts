@@ -481,7 +481,7 @@
 		led-green {
 			label = "cpm:led1:green";
 			gpios = <&gpioex 0 GPIO_ACTIVE_LOW>;
-			default-state = "off";
+			linux,default-trigger = "timer";
 		};
 		led-yellow {
 			label = "cpm:led2:yellow";
@@ -1078,6 +1078,7 @@
 					chan-name = "bpm:led1:green";
 					led-cur = /bits/ 8 <0x20>;
 					max-cur = /bits/ 8 <0x60>;
+					linux,default-trigger = "timer";
 				};
 				chan6 {
 					chan-name = "bpm:led2:red";
