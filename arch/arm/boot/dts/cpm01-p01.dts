@@ -611,7 +611,7 @@
 			reg = <0x0>;
 		};
 		LED1_B@1 {
-			label = "lhmi:led1:blue";
+			label = "lhmi:led1:yellow";
 			reg = <0x1>;
 		};
 		LED1_R@2 {
@@ -624,7 +624,7 @@
 			reg = <0x4>;
 		};
 		LED2_B@5 {
-			label = "lhmi:led2:blue";
+			label = "lhmi:led2:yellow";
 			reg = <0x5>;
 		};
 		LED2_R@6 {
@@ -637,7 +637,7 @@
 			reg = <0x8>;
 		};
 		LED3_B@9 {
-			label = "lhmi:led3:blue";
+			label = "lhmi:led3:yellow";
 			reg = <0x9>;
 		};
 		LED3_R@A {
@@ -650,7 +650,7 @@
 			reg = <0xC>;
 		};
 		LED4_B@D {
-			label = "lhmi:led4:blue";
+			label = "lhmi:led4:yellow";
 			reg = <0xD>;
 		};
 		LED4_R@E {
@@ -669,7 +669,7 @@
 			reg = <0x0>;
 		};
 		LED5_B@1 {
-			label = "lhmi:led5:blue";
+			label = "lhmi:led5:yellow";
 			reg = <0x1>;
 		};
 		LED5_R@2 {
@@ -682,7 +682,7 @@
 			reg = <0x4>;
 		};
 		LED6_B@5 {
-			label = "lhmi:led6:blue";
+			label = "lhmi:led6:yellow";
 			reg = <0x5>;
 		};
 		LED6_R@6 {
@@ -695,7 +695,7 @@
 			reg = <0x8>;
 		};
 		LED7_B@9 {
-			label = "lhmi:led7:blue";
+			label = "lhmi:led7:yellow";
 			reg = <0x9>;
 		};
 		LED7_R@A {
@@ -708,7 +708,7 @@
 			reg = <0xC>;
 		};
 		LED8_B@D {
-			label = "lhmi:led8:blue";
+			label = "lhmi:led8:yellow";
 			reg = <0xD>;
 		};
 		LED8_R@E {
@@ -728,7 +728,7 @@
 			reg = <0x0>;
 		};
 		LED9_B@1 {
-			label = "lhmi:led9:blue";
+			label = "lhmi:led9:yellow";
 			reg = <0x1>;
 		};
 		LED9_R@2 {
@@ -741,7 +741,7 @@
 			reg = <0x4>;
 		};
 		LED10_B@5 {
-			label = "lhmi:led10:blue";
+			label = "lhmi:led10:yellow";
 			reg = <0x5>;
 		};
 		LED10_R@6 {
@@ -754,7 +754,7 @@
 			reg = <0x8>;
 		};
 		LED11_B@9 {
-			label = "lhmi:led11:blue";
+			label = "lhmi:led11:yellow";
 			reg = <0x9>;
 		};
 		LED11_R@A {
@@ -767,7 +767,7 @@
 			reg = <0xC>;
 		};
 		LED12_B@D {
-			label = "lhmi:led12:blue";
+			label = "lhmi:led12:yellow";
 			reg = <0xD>;
 		};
 		LED12_R@E {
@@ -787,7 +787,7 @@
 			reg = <0x0>;
 		};
 		LED13_B@1 {
-			label = "lhmi:led13:blue";
+			label = "lhmi:led13:yellow";
 			reg = <0x1>;
 		};
 		LED13_R@2 {
@@ -800,7 +800,7 @@
 			reg = <0x4>;
 		};
 		LED14_B@5 {
-			label = "lhmi:led14:blue";
+			label = "lhmi:led14:yellow";
 			reg = <0x5>;
 		};
 		LED14_R@6 {
@@ -813,7 +813,7 @@
 			reg = <0x8>;
 		};
 		LED15_B@9 {
-			label = "lhmi:led15:blue";
+			label = "lhmi:led15:yellow";
 			reg = <0x9>;
 		};
 		LED15_R@A {
