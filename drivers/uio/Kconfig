@@ -172,4 +172,10 @@ config UIO_IVSHMEM
 	help
 	  Userspace I/O driver for the inter-VM shared memory PCI device
 	  as provided by QEMU and the Jailhouse hypervisor.
+
+config UIO_PG_SRAM
++	tristate "Userspace I/O driver for Hitachi SRAM"
+	help
+	  UIO (Userspace I/O) driver for Hitachi SRAM on CPM and RTU530CPM0X.
+	  Sysfs access to Hitachi bootcounter
 endif

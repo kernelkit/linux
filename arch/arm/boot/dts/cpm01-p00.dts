@@ -1,4 +1,12 @@
-#include "cpm01-p01.dts"
+/*
+ * Copyright 2020-2023 Hitachi Energy.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+ 
+ #include "cpm01-p01.dts"
 
 &omap_dwc3_1 {
 	/delete-property/ extcon;
