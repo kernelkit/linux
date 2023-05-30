@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright 2020-2023 Hitachi Energy.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -592,6 +592,13 @@
 		gpmc,access-ns = <48>; /* T_AA*/
 		gpmc,rd-cycle-ns = <71>; /* T_RC*/
 		gpmc,wr-cycle-ns = <45>; /* T_WC*/
+	};
+};
+
+/ {
+	uio_pg_sram@0 {
+			compatible = "hitachi,uio-pg-sram";
+			reg = <0 0x01000000 0 0x200000>; /* 2MB */
 	};
 };
 

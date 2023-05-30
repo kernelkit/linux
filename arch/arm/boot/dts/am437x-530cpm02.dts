@@ -52,6 +52,11 @@
 			gpios = <&gpio4 9 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	uio_pg_sram@0 {
+		compatible = "hitachi,uio-pg-sram";
+		reg = <0x01000000 0x40000>; /* 256kB */
+	};
 };
 
 &am43xx_pinmux {
@@ -655,13 +660,13 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sram_128x16_pins_default>;
-	ranges = <0x0 0x0 0x1000000 0x1000000>;
+	ranges = <0x0 0x0 0x1000000 0x40000>;
 
 	#address-cells = <2>;
 	#size-cells = <1>;
 
 	sram@0,0 {
-		reg = <0x0 0x0 0x1000000>;
+		reg = <0x0 0x0 0x40000>; /* 256kB */
 		bank-width = <0x2>;
 		gpmc,cs-on-ns = <0x0>;
 		gpmc,cs-rd-off-ns = <0x2e>;
