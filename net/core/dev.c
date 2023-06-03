@@ -3190,8 +3190,13 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	unsigned int len;
 	int rc;
 
+/* Following code is disabled as a part of
+ * Increased cost of sendTo by roughly 5% when running PTP on the same interface
+ * Basharath@CIT - 23-May-2023 */
+#if 0
 	if (dev_nit_active(dev))
 		dev_queue_xmit_nit(skb, dev);
+#endif
 
 	len = skb->len;
 	trace_net_dev_start_xmit(skb, dev);
