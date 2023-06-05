@@ -813,8 +813,7 @@ static void mv88e6393x_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 			__set_bit(PHY_INTERFACE_MODE_2500BASEX, supported);
 			__set_bit(PHY_INTERFACE_MODE_5GBASER, supported);
 			__set_bit(PHY_INTERFACE_MODE_10GBASER, supported);
-			/* FIXME: USXGMII is not supported yet */
-			/* __set_bit(PHY_INTERFACE_MODE_USXGMII, supported); */
+			__set_bit(PHY_INTERFACE_MODE_USXGMII, supported);
 
 			config->mac_capabilities |= MAC_2500FD | MAC_5000FD |
 				MAC_10000FD;
