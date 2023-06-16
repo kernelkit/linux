@@ -7286,6 +7286,21 @@ static void sched_change_group(struct task_struct *tsk, int type)
 }
 
 /*
+ * task_is_pi_boosted - Check if task has been PI boosted.
+ * @p:	Task to check.
+ *
+ * Return true if task is subject to priority inheritance.
+ */
+bool task_is_pi_boosted(const struct task_struct *p)
+{
+	int prio = p->prio;
+
+	if (!rt_prio(prio))
+		return false;
+	return prio != p->normal_prio;
+}
+
+/*
  * Change task's runqueue when it moves between groups.
  *
  * The caller of this function should have put the task in its new group by
