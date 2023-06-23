@@ -1961,7 +1961,10 @@ static int emac_ndo_open(struct net_device *ndev)
 		}
 	}
 
-	if (PRUETH_IS_EMAC(prueth) || PRUETH_IS_SWITCH(prueth))
+	/* Added code to raise interrupts based on high/low priority queues for SWITCH
+	 * Basharath@CIT - 14-June-2023
+	 */
+	if (PRUETH_IS_EMAC(prueth))
 		ret = emac_request_irqs(emac);
 	else
 		ret = prueth_lre_request_irqs(emac);
@@ -2074,14 +2077,22 @@ static int emac_ndo_stop(struct net_device *ndev)
 	/* For EMAC and Switch, interrupt is per port.
 	 * So free interrupts same way
 	 */
+
+	/* Added code to raise interrupts based on high/low priority queues for SWITCH
+	 * Basharath@CIT - 14-June-2023
+	 */
 	if (PRUETH_IS_EMAC(emac->prueth) || PRUETH_IS_SWITCH(prueth)) {
-		free_irq(emac->rx_irq, ndev);
 		if (emac->emac_ptp_tx_irq)
 			free_irq(emac->emac_ptp_tx_irq, ndev);
 	} else {
 		if (emac->hsr_ptp_tx_irq)
 			free_irq(emac->hsr_ptp_tx_irq, emac->ndev);
+	}
 
+
+	if (PRUETH_IS_EMAC(emac->prueth)) {
+		free_irq(emac->rx_irq, ndev);
+	} else {
 		/* Free interrupts on last port */
 		prueth_lre_free_irqs(emac);
 	}
@@ -3366,8 +3377,11 @@ static int prueth_netdev_init(struct prueth *prueth,
 		ndev->lredev_ops = &prueth_lredev_ops;
 #endif
 
+	/* Added code to raise interrupts based on high/low priority queues for SWITCH
+	 * Basharath@CIT - 14-June-2023
+	 */
 	/* for HSR/PRP */
-	if (prueth->support_lre && emac->port_id == PRUETH_PORT_MII0) {
+	if ((prueth->support_lre || fw_data->support_switch) && emac->port_id == PRUETH_PORT_MII0) {
 		prueth->hp->ndev = ndev;
 		prueth->hp->priority = 0;
 		prueth->lp->ndev = ndev;
@@ -3691,7 +3705,11 @@ static int prueth_probe(struct platform_device *pdev)
 	if (has_lre && (!eth0_node || !eth1_node))
 		has_lre = false;
 
-	if (has_lre) {
+	/* Added code to raise interrupts based on high/low priority queues for SWITCH
+	 * Basharath@CIT - 14-June-2023
+	 */
+
+	if(prueth->fw_data->support_switch || has_lre){
 		/* need to configure interrupts per queue common for
 		 * both ports
 		 */
@@ -3705,23 +3723,33 @@ static int prueth_probe(struct platform_device *pdev)
 		prueth->lp = devm_kzalloc(dev,
 					  sizeof(struct prueth_ndev_priority),
 					  GFP_KERNEL);
-		if (!prueth->hp) {
+		if (!prueth->lp) {
 			ret = -ENOMEM;
 			goto free_pool;
 		}
 
-		prueth->lre_stats = devm_kzalloc(dev,
-						 sizeof(*prueth->lre_stats),
-						 GFP_KERNEL);
-		if (!prueth->lre_stats) {
-			ret = -ENOMEM;
-			goto free_pool;
+		if(has_lre){
+			prueth->lre_stats = devm_kzalloc(dev,
+							sizeof(*prueth->lre_stats),
+							GFP_KERNEL);
+			if (!prueth->lre_stats) {
+				ret = -ENOMEM;
+				goto free_pool;
+			}
 		}
 
 		prueth->rx_lpq_irq = of_irq_get_byname(np, "rx_lre_lp");
 		prueth->rx_hpq_irq = of_irq_get_byname(np, "rx_lre_hp");
 		if (prueth->rx_lpq_irq < 0 || prueth->rx_hpq_irq < 0)
-			has_lre = false;
+		{
+			if(has_lre){
+				has_lre = false;
+			}else{
+				ret = -ENOMEM;
+				goto free_pool;
+			}
+		}
+
 	}
 	prueth->support_lre = has_lre;
 	/* Added for HSR/PRP TX OPT
