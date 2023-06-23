@@ -873,20 +873,40 @@ irqreturn_t prueth_lre_emac_rx_hardirq_hp(int irq, void *dev_id)
 
 int prueth_lre_request_irqs(struct prueth_emac *emac)
 {
+	struct net_device *ndev = emac->ndev;
 	struct prueth *prueth = emac->prueth;
 	int ret;
 
-	if (emac->hsr_ptp_tx_irq) {
-		ret = request_threaded_irq(emac->hsr_ptp_tx_irq,
-					   prueth_ptp_tx_irq_handle,
-					   prueth_ptp_tx_irq_work,
-					   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-					   emac->ndev->name, emac->ndev);
-		if (ret) {
-			netdev_err(emac->ndev, "unable to request PTP TX IRQ\n");
-			return ret;
-		}
+	/* Added code to raise interrupts based on high/low priority queues for SWITCH
+	 * Basharath@CIT - 14-June-2023
+	 */
 
+	if(PRUETH_IS_SWITCH(prueth)){
+		if (emac->emac_ptp_tx_irq) {
+			ret = request_threaded_irq(emac->emac_ptp_tx_irq,
+						prueth_ptp_tx_irq_handle,
+						prueth_ptp_tx_irq_work,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+						ndev->name, ndev);
+			if (ret) {
+				netdev_err(ndev, "unable to request PTP TX IRQ\n");
+				return ret;
+			}
+
+		}
+	}
+	else{
+		if (emac->hsr_ptp_tx_irq) {
+			ret = request_threaded_irq(emac->hsr_ptp_tx_irq,
+						prueth_ptp_tx_irq_handle,
+						prueth_ptp_tx_irq_work,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+						emac->ndev->name, emac->ndev);
+			if (ret) {
+				netdev_err(emac->ndev, "unable to request PTP TX IRQ\n");
+				return ret;
+			}
+		}
 	}
 
 	/* HSR/PRP. Request irq when first port is initialized */
@@ -911,9 +931,16 @@ int prueth_lre_request_irqs(struct prueth_emac *emac)
 
 free_rx_hpq_irq:
 	free_irq(prueth->rx_hpq_irq, prueth->hp);
-free_ptp_irq:
-	if (emac->hsr_ptp_tx_irq)
-		free_irq(emac->hsr_ptp_tx_irq, emac->ndev);
+free_ptp_irq:	
+	if(PRUETH_IS_SWITCH(prueth)){
+		if (emac->emac_ptp_tx_irq)
+			free_irq(emac->emac_ptp_tx_irq, emac->ndev);
+	}else{
+		if (emac->hsr_ptp_tx_irq)
+			free_irq(emac->hsr_ptp_tx_irq, emac->ndev);
+	}
+
+
 
 	return ret;
 }

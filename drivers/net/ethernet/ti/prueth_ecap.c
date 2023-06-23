@@ -82,7 +82,12 @@ static int prueth_ecap_config_pacing(struct prueth_emac *emac,
 		/* disable pacing */
 		writeb_relaxed(val, sram + pacing_ctrl);
 		/* Timeout separate */
-		if (PRUETH_IS_LRE(prueth)) {
+
+		/* Added Rx pacing support for SWITCH
+		 * Basharath@CIT - 14-June-2023
+		 */
+
+		if (PRUETH_IS_LRE(prueth) || PRUETH_IS_SWITCH(prueth)) {
 			ecap->timeout[PRUETH_MAC0] = new_timeout_val;
 			ecap->timeout[PRUETH_MAC1] = new_timeout_val;
 		} else {
@@ -102,8 +107,11 @@ static int prueth_ecap_config_pacing(struct prueth_emac *emac,
 		/* For EMAC set timeout for specific port and for
 		 * LRE for both ports
 		 */
-		if (PRUETH_IS_LRE(prueth) ||
-		    (PRUETH_IS_EMAC(prueth) && !port)) {
+
+		/* Added Rx pacing support for SWITCH
+		 * Basharath@CIT - 14-June-2023
+		 */
+		if (PRUETH_IS_LRE(prueth) || PRUETH_IS_SWITCH(prueth)){ 
 			offsets = &ecap->int_pacing_offsets[PRUETH_MAC0];
 			writel_relaxed(new_timeout_val *
 				       NSEC_PER_USEC / ECAP_TICK_NSEC,
@@ -111,35 +119,69 @@ static int prueth_ecap_config_pacing(struct prueth_emac *emac,
 			writel_relaxed(INTR_PAC_PREV_TS_RESET_VAL,
 				       sram + offsets->rx_int_pacing_prev);
 			ecap->timeout[PRUETH_MAC0] = new_timeout_val;
-		}
-		if (PRUETH_IS_LRE(prueth) ||
-		    (PRUETH_IS_EMAC(prueth) && port)) {
+
 			offsets = &ecap->int_pacing_offsets[PRUETH_MAC1];
 			writel_relaxed(new_timeout_val *
-				       NSEC_PER_USEC / ECAP_TICK_NSEC,
-				       sram + offsets->rx_int_pacing_exp);
+					NSEC_PER_USEC / ECAP_TICK_NSEC,
+					sram + offsets->rx_int_pacing_exp);
 			writel_relaxed(INTR_PAC_PREV_TS_RESET_VAL,
-				       sram + offsets->rx_int_pacing_prev);
+					sram + offsets->rx_int_pacing_prev);
 			ecap->timeout[PRUETH_MAC1] = new_timeout_val;
+
+		}else if(PRUETH_IS_EMAC(prueth)){
+			if(!port){
+				offsets = &ecap->int_pacing_offsets[PRUETH_MAC0];
+				writel_relaxed(new_timeout_val *
+						NSEC_PER_USEC / ECAP_TICK_NSEC,
+						sram + offsets->rx_int_pacing_exp);
+				writel_relaxed(INTR_PAC_PREV_TS_RESET_VAL,
+						sram + offsets->rx_int_pacing_prev);
+				ecap->timeout[PRUETH_MAC0] = new_timeout_val;
+			}else{
+				offsets = &ecap->int_pacing_offsets[PRUETH_MAC1];
+				writel_relaxed(new_timeout_val *
+						NSEC_PER_USEC / ECAP_TICK_NSEC,
+						sram + offsets->rx_int_pacing_exp);
+				writel_relaxed(INTR_PAC_PREV_TS_RESET_VAL,
+						sram + offsets->rx_int_pacing_prev);
+				ecap->timeout[PRUETH_MAC1] = new_timeout_val;
+			}
 		}
 
 	} else {
-		/* update */
-		if (PRUETH_IS_LRE(prueth) ||
-		    (PRUETH_IS_EMAC(prueth) && !port)) {
+
+		/* update */		
+		/* Added Rx pacing support for SWITCH
+		 * Basharath@CIT - 14-June-2023
+		 */
+		if (PRUETH_IS_LRE(prueth) || PRUETH_IS_SWITCH(prueth)){
 			offsets = &ecap->int_pacing_offsets[PRUETH_MAC0];
 			writel_relaxed(new_timeout_val *
 				       NSEC_PER_USEC / ECAP_TICK_NSEC,
 				       sram + offsets->rx_int_pacing_exp);
 			ecap->timeout[PRUETH_MAC0] = new_timeout_val;
-		}
-		if (PRUETH_IS_LRE(prueth) ||
-		    (PRUETH_IS_EMAC(prueth) && port)) {
+
 			offsets = &ecap->int_pacing_offsets[PRUETH_MAC1];
 			writel_relaxed(new_timeout_val *
 				       NSEC_PER_USEC / ECAP_TICK_NSEC,
 				       sram + offsets->rx_int_pacing_exp);
 			ecap->timeout[PRUETH_MAC1] = new_timeout_val;
+
+		}else if(PRUETH_IS_EMAC(prueth)){
+			if(!port){
+				offsets = &ecap->int_pacing_offsets[PRUETH_MAC0];
+				writel_relaxed(new_timeout_val *
+						NSEC_PER_USEC / ECAP_TICK_NSEC,
+						sram + offsets->rx_int_pacing_exp);
+				ecap->timeout[PRUETH_MAC0] = new_timeout_val;
+			}
+			else{
+				offsets = &ecap->int_pacing_offsets[PRUETH_MAC1];
+				writel_relaxed(new_timeout_val *
+						NSEC_PER_USEC / ECAP_TICK_NSEC,
+						sram + offsets->rx_int_pacing_exp);
+				ecap->timeout[PRUETH_MAC1] = new_timeout_val;
+			}	
 		}
 	}
 
@@ -153,11 +195,10 @@ static void prueth_ecap_init(struct prueth_emac *emac)
 	struct prueth *prueth = emac->prueth;
 	struct prueth_ecap *ecap = prueth->ecap;
 
-	/* Driver doesn't support Interrupt pacing for SWITCH yet */
-	if (PRUETH_IS_SWITCH(prueth))
-		return;
-
-	if (PRUETH_IS_LRE(prueth)) {
+	/* Added Rx pacing support for SWITCH
+	 * Basharath@CIT - 14-June-2023
+	 */
+	if (PRUETH_IS_LRE(prueth) || PRUETH_IS_SWITCH(prueth)){
 		/* Both ports shares the same location */
 		ecap->int_pacing_offsets[PRUETH_MAC0].rx_int_pacing_ctrl =
 			INTR_PAC_STATUS_OFFSET;
