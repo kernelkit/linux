@@ -348,9 +348,15 @@ static void move_up(u16 start, u16 end, struct node_tbl *nt,
 		       sizeof(struct bin_tbl_t));
 
 	BIN_NODEOFS(start) = nt->nt_array_max_entries;
-
+	/* Task(22099) - PRP Paging issue during network storm 
+	 * Below code change is the fix for nt_updater crash 
+	 * In case of node table move up condition ,end value was passed as start+1 to update_indexes function 
+	 * As it's an invalid value it was corrupting the index & bin table, which was leading to crash  
+	 * Example - if start value is 255 then start+1 will be 256 which is invalid entry
+	 * Roopak@cit - 14-August-2023
+	 */
 	if (update)
-		update_indexes(end, start + 1, nt);
+		update_indexes(end, start, nt);
 
 	pru_spin_unlock(nt);
 }
@@ -447,7 +453,16 @@ static int node_table_insert_from_queue(struct node_tbl *nt,
 		if (empty_slot != nt->nt_array_max_entries) {
 			move_down(index, empty_slot, nt, true);
 		} else {
-			for (empty_slot = index - 1;
+			/* Task(22099) - PRP Paging issue during network storm
+			 * Below code change is the fix for nt_updater crash   
+			 * In the above for loop condition, index value is incremented by 1, in case of move up condition index value will be invalid
+			 * Due to that it was corrupting the index & bin table, which was leading to crash 
+			 * so to get the correct index value we need to subtract index by 1
+			 * Example - if free entry is found at bin 255 then the index value will be 256 which is invalid  
+			 * Roopak@cit - 14-August-2023
+			 */
+			index = index -1;
+			for (empty_slot = index;
 			     (BIN_NODEOFS(empty_slot) !=
 			     nt->nt_array_max_entries) &&
 			     (empty_slot > 0);
@@ -500,7 +515,13 @@ static void node_table_check_and_remove(struct node_tbl *nt, u16 forget_time)
 			end_bin = IND_BINOFS(hash) + IND_BIN_NO(hash) - 1;
 
 			move_up(end_bin, j, nt, false);
-			(IND_BIN_NO(hash))--;
+			/* Task(22099) - PRP Paging issue during network storm
+			 * Below is a safety check, if no:of entries in the bin is zero, We should skip the subtraction of entries
+			 * We should not do subtraction of 0 this will lead to invalid memory access, which will cause crash.
+			 * Roopak@cit - 14-August-2023
+			 */
+			if(IND_BIN_NO(hash))
+				(IND_BIN_NO(hash))--;
 
 			if (!IND_BIN_NO(hash))
 				IND_BINOFS(hash) = nt->bin_array_max_entries;
