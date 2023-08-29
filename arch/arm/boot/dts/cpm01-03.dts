@@ -1189,9 +1189,9 @@
 	lcd_bl: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&ehrpwm2 0 100000 0>;
-		/* in %:             0 10 20 30 40  50  60  70  80*/
-		brightness-levels = <0 25 50 76 101 128 153 179 204>;
-		default-brightness-level = <8>;
+		/* in %:             0 10 20 30 40 50 60 70 80 90 100*/
+		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
+		default-brightness-level = <10>;
 	};
 
 	lcd: display {
