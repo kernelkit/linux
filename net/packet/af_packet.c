@@ -2742,16 +2742,15 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 						    vnet_hdr->hdr_len);
 		}
 		copylen = max_t(int, copylen, dev->hard_header_len);
-		alloclen = hlen + tlen + sizeof(struct sockaddr_ll) +
-			  (copylen - dev->hard_header_len);
-
-		if (copylen + tp_len < PAGE_SIZE) {
-			alloclen += tp_len;
-			copylen = tp_len;
-		}
+		copylen = tlen + sizeof(struct sockaddr_ll) +
+				(copylen - dev->hard_header_len);
+		if (copylen + tp_len < PAGE_SIZE)
+			copylen += tp_len;
+		else
+			copylen += hlen;
 
 		skb = sock_alloc_send_skb(&po->sk,
-				alloclen,
+				copylen,
 				!need_wait, &err);
 
 		if (unlikely(skb == NULL)) {
@@ -2761,7 +2760,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 			goto out_status;
 		}
 		tp_len = tpacket_fill_skb(po, skb, ph, dev, data, tp_len, proto,
-					  addr, hlen, copylen, &sockc);
+					  addr, hlen, tp_len, &sockc);
 		if (likely(tp_len >= 0) &&
 		    tp_len > dev->mtu + reserve &&
 		    !po->has_vnet_hdr &&
