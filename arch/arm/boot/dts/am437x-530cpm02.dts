@@ -398,7 +398,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb_pins_default>;
 	dr_mode = "peripheral";
-	maximum-speed = "full-speed";
 };
 
 &i2c0 {
