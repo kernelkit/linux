@@ -33,7 +33,7 @@ struct gpiochip_info {
 #define GPIOLINE_FLAG_ACTIVE_LOW	(1UL << 2)
 #define GPIOLINE_FLAG_OPEN_DRAIN	(1UL << 3)
 #define GPIOLINE_FLAG_OPEN_SOURCE	(1UL << 4)
-#define GPIOLINE_FLAG_OUT_TIMESTAMP	(1UL << 5)
+#define GPIOLINE_FLAG_OUT_TIMESTAMP	(1UL << 8)
 
 /**
  * struct gpioline_info - Information about a certain GPIO line
