@@ -284,6 +284,11 @@
 				reg = <10>;
 				label = "cpu";
 				ethernet = <&cp0_eth0>;
+				phy-mode = "10gbase-r";
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
 			};
 
 		};
