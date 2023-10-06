@@ -39,10 +39,18 @@
 #define PRUETH_MODULE_VERSION "0.2"
 #define PRUETH_MODULE_DESCRIPTION "PRUSS Ethernet driver"
 
-/* RSTP Switch New Queue Design - Increased ocmc ram initialization to 64kb from 56kb
- * Roopak@CIT - 16-03-2023
- */
-#define OCMC_RAM_SIZE		(SZ_64K)
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design  
+  * Macros for SV and GOOSE
+  * Roopak@cit - 23-August-2023
+  */
+#define ETH_P_SV 0x88BA
+#define ETH_P_GOOSE 0x88B8
+
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design  
+  * OCMC RAM initilization to 128kb
+  * Roopak@cit - 23-August-2023
+  */
+#define OCMC_RAM_SIZE		(SZ_128K)
 #define PRUETH_ETH_TYPE_OFFSET		12
 #define PRUETH_ETH_TYPE_UPPER_SHIFT	8
 
@@ -261,56 +269,96 @@ static const struct prueth_queue_info queue_infos[][NUM_QUEUES] = {
 			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
 	},
+	/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+	 * Below code changes are for shifting port queue context and descriptors  
+	 * Roopak@cit - 18-August-2023
+	 */
 	[PRUETH_PORT_QUEUE_MII0] = {
 		[PRUETH_QUEUE1] = {
 			P1_Q1_BUFFER_OFFSET,
 			P1_Q1_BUFFER_OFFSET + ((QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P1_Q1_BD_OFFSET,
-			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+			EMAC_P1_Q1_BD_OFFSET,
+			EMAC_P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
 			P1_Q2_BUFFER_OFFSET,
 			P1_Q2_BUFFER_OFFSET + ((QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P1_Q2_BD_OFFSET,
-			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+			EMAC_P1_Q2_BD_OFFSET,
+			EMAC_P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE3] = {
 			P1_Q3_BUFFER_OFFSET,
 			P1_Q3_BUFFER_OFFSET + ((QUEUE_3_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P1_Q3_BD_OFFSET,
-			P1_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+			EMAC_P1_Q3_BD_OFFSET,
+			EMAC_P1_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE4] = {
 			P1_Q4_BUFFER_OFFSET,
 			P1_Q4_BUFFER_OFFSET + ((QUEUE_4_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P1_Q4_BD_OFFSET,
-			P1_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+			EMAC_P1_Q4_BD_OFFSET,
+			EMAC_P1_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE5] = { // PTP
+			P1_Q5_BUFFER_OFFSET,
+			P1_Q5_BUFFER_OFFSET + ((QUEUE_5_SIZE - 1) * ICSS_BLOCK_SIZE),
+			EMAC_P1_Q5_BD_OFFSET,
+			EMAC_P1_Q5_BD_OFFSET + ((QUEUE_5_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = { // SV
+			P1_Q6_BUFFER_OFFSET,
+			P1_Q6_BUFFER_OFFSET + ((QUEUE_6_SIZE - 1) * ICSS_BLOCK_SIZE),
+			EMAC_P1_Q6_BD_OFFSET,
+			EMAC_P1_Q6_BD_OFFSET + ((QUEUE_6_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = { // GOOSE
+			P1_Q7_BUFFER_OFFSET,
+			P1_Q7_BUFFER_OFFSET + ((QUEUE_7_SIZE - 1) * ICSS_BLOCK_SIZE),
+			EMAC_P1_Q7_BD_OFFSET,
+			EMAC_P1_Q7_BD_OFFSET + ((QUEUE_7_SIZE - 1) * BD_SIZE),
 		},
 	},
 	[PRUETH_PORT_QUEUE_MII1] = {
 		[PRUETH_QUEUE1] = {
 			P2_Q1_BUFFER_OFFSET,
 			P2_Q1_BUFFER_OFFSET + ((QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P2_Q1_BD_OFFSET,
-			P2_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+			EMAC_P2_Q1_BD_OFFSET,
+			EMAC_P2_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
 			P2_Q2_BUFFER_OFFSET,
 			P2_Q2_BUFFER_OFFSET + ((QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P2_Q2_BD_OFFSET,
-			P2_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+			EMAC_P2_Q2_BD_OFFSET,
+			EMAC_P2_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE3] = {
 			P2_Q3_BUFFER_OFFSET,
 			P2_Q3_BUFFER_OFFSET + ((QUEUE_3_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P2_Q3_BD_OFFSET,
-			P2_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+			EMAC_P2_Q3_BD_OFFSET,
+			EMAC_P2_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE4] = {
 			P2_Q4_BUFFER_OFFSET,
 			P2_Q4_BUFFER_OFFSET + ((QUEUE_4_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P2_Q4_BD_OFFSET,
-			P2_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+			EMAC_P2_Q4_BD_OFFSET,
+			EMAC_P2_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE5] = { // PTP
+			P2_Q5_BUFFER_OFFSET,
+			P2_Q5_BUFFER_OFFSET + ((QUEUE_5_SIZE - 1) * ICSS_BLOCK_SIZE),
+			EMAC_P2_Q5_BD_OFFSET,
+			EMAC_P2_Q5_BD_OFFSET + ((QUEUE_5_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = { // SV
+			P2_Q6_BUFFER_OFFSET,
+			P2_Q6_BUFFER_OFFSET + ((QUEUE_6_SIZE - 1) * ICSS_BLOCK_SIZE),
+			EMAC_P2_Q6_BD_OFFSET,
+			EMAC_P2_Q6_BD_OFFSET + ((QUEUE_6_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = { // GOOSE
+			P2_Q7_BUFFER_OFFSET,
+			P2_Q7_BUFFER_OFFSET + ((QUEUE_7_SIZE - 1) * ICSS_BLOCK_SIZE),
+			EMAC_P2_Q7_BD_OFFSET,
+			EMAC_P2_Q7_BD_OFFSET + ((QUEUE_7_SIZE - 1) * BD_SIZE),
 		},
 	},
 };
@@ -322,17 +370,58 @@ const struct prueth_queue_desc queue_descs[][NUM_QUEUES] = {
 		{ .rd_ptr = P0_Q3_BD_OFFSET, .wr_ptr = P0_Q3_BD_OFFSET, },
 		{ .rd_ptr = P0_Q4_BD_OFFSET, .wr_ptr = P0_Q4_BD_OFFSET, },
 	},
+	 	/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+		 * Below code change are for shifting port queue context and descriptors  
+		 * Roopak@cit - 18-August-2023
+		 */
+	[PRUETH_PORT_QUEUE_MII0] = {
+		{ .rd_ptr = EMAC_P1_Q1_BD_OFFSET, .wr_ptr = EMAC_P1_Q1_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P1_Q2_BD_OFFSET, .wr_ptr = EMAC_P1_Q2_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P1_Q3_BD_OFFSET, .wr_ptr = EMAC_P1_Q3_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P1_Q4_BD_OFFSET, .wr_ptr = EMAC_P1_Q4_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P1_Q5_BD_OFFSET, .wr_ptr = EMAC_P1_Q5_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P1_Q6_BD_OFFSET, .wr_ptr = EMAC_P1_Q6_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P1_Q7_BD_OFFSET, .wr_ptr = EMAC_P1_Q7_BD_OFFSET, },
+	},
+	[PRUETH_PORT_QUEUE_MII1] = {
+		{ .rd_ptr = EMAC_P2_Q1_BD_OFFSET, .wr_ptr = EMAC_P2_Q1_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P2_Q2_BD_OFFSET, .wr_ptr = EMAC_P2_Q2_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P2_Q3_BD_OFFSET, .wr_ptr = EMAC_P2_Q3_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P2_Q4_BD_OFFSET, .wr_ptr = EMAC_P2_Q4_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P2_Q5_BD_OFFSET, .wr_ptr = EMAC_P2_Q5_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P2_Q6_BD_OFFSET, .wr_ptr = EMAC_P2_Q6_BD_OFFSET, },
+		{ .rd_ptr = EMAC_P2_Q7_BD_OFFSET, .wr_ptr = EMAC_P2_Q7_BD_OFFSET, },
+	}
+};
+
+/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+* Separate queue descriptor structure for switch as emac queue descriptor structure is modified
+* Roopak@cit - 24-August-2023
+*/
+const struct prueth_queue_desc sw_queue_descs[][NUM_QUEUES] = {
+	[PRUETH_PORT_QUEUE_HOST] = {
+		{ .rd_ptr = P0_Q1_BD_OFFSET, .wr_ptr = P0_Q1_BD_OFFSET, },
+		{ .rd_ptr = P0_Q2_BD_OFFSET, .wr_ptr = P0_Q2_BD_OFFSET, },
+		{ .rd_ptr = P0_Q3_BD_OFFSET, .wr_ptr = P0_Q3_BD_OFFSET, },
+		{ .rd_ptr = P0_Q4_BD_OFFSET, .wr_ptr = P0_Q4_BD_OFFSET, },
+	},
 	[PRUETH_PORT_QUEUE_MII0] = {
 		{ .rd_ptr = P1_Q1_BD_OFFSET, .wr_ptr = P1_Q1_BD_OFFSET, },
 		{ .rd_ptr = P1_Q2_BD_OFFSET, .wr_ptr = P1_Q2_BD_OFFSET, },
 		{ .rd_ptr = P1_Q3_BD_OFFSET, .wr_ptr = P1_Q3_BD_OFFSET, },
 		{ .rd_ptr = P1_Q4_BD_OFFSET, .wr_ptr = P1_Q4_BD_OFFSET, },
+		{ .rd_ptr = P1_Q5_BD_OFFSET, .wr_ptr = P1_Q5_BD_OFFSET, },
+		{ .rd_ptr = P1_Q6_BD_OFFSET, .wr_ptr = P1_Q6_BD_OFFSET, },
+		{ .rd_ptr = P1_Q7_BD_OFFSET, .wr_ptr = P1_Q7_BD_OFFSET, },
 	},
 	[PRUETH_PORT_QUEUE_MII1] = {
 		{ .rd_ptr = P2_Q1_BD_OFFSET, .wr_ptr = P2_Q1_BD_OFFSET, },
 		{ .rd_ptr = P2_Q2_BD_OFFSET, .wr_ptr = P2_Q2_BD_OFFSET, },
 		{ .rd_ptr = P2_Q3_BD_OFFSET, .wr_ptr = P2_Q3_BD_OFFSET, },
 		{ .rd_ptr = P2_Q4_BD_OFFSET, .wr_ptr = P2_Q4_BD_OFFSET, },
+		{ .rd_ptr = P2_Q5_BD_OFFSET, .wr_ptr = P2_Q5_BD_OFFSET, },
+		{ .rd_ptr = P2_Q6_BD_OFFSET, .wr_ptr = P2_Q6_BD_OFFSET, },
+		{ .rd_ptr = P2_Q7_BD_OFFSET, .wr_ptr = P2_Q7_BD_OFFSET, },
 	}
 };
 
@@ -351,12 +440,24 @@ const struct prueth_queue_desc hsr_prp_txopt_queue_descs[][NUM_QUEUES] = {
                 { .rd_ptr = P1_Q2_BD_OFFSET, .wr_ptr = P1_Q2_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, },
+		/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+		 * Roopak@CIT - 02-June-2023
+		 */
+				{ .rd_ptr = HSRP1_TXOPT_Q5_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q5_BD_OFFSET, },
+                { .rd_ptr = HSRP1_TXOPT_Q6_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q6_BD_OFFSET, },
+				{ .rd_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, },
         },
         [PRUETH_PORT_QUEUE_MII1] = {
                 { .rd_ptr = HSRP2_TXOPT_Q1_BD_OFFSET, .wr_ptr = HSRP2_TXOPT_Q1_BD_OFFSET, },
                 { .rd_ptr = HSRP2_TXOPT_Q2_BD_OFFSET, .wr_ptr = HSRP2_TXOPT_Q2_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, },
+		/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+		 * Roopak@CIT - 02-June-2023
+		 */
+				{ .rd_ptr = HSRP1_TXOPT_Q5_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q5_BD_OFFSET, },
+                { .rd_ptr = HSRP1_TXOPT_Q6_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q6_BD_OFFSET, },
+				{ .rd_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, },
         }
 };
 
@@ -621,6 +722,10 @@ static void prueth_emac_config(struct prueth_emac *emac)
 
 	/* PRU needs real global OCMC address for C30*/
 	u32 ocmcaddr = (u32)prueth->mem[PRUETH_MEM_OCMC].pa;
+	/* Task(22173) - EMAC/RSTP Tx Queues re-design  
+  	* Roopak@cit - 23-August-2023
+  	*/
+	u32 ocmcaddr2 = ocmcaddr + SZ_64K; // Second 64kb block of ocmc
 	void __iomem *sram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
 	void __iomem *dram_base;
 	void __iomem *mac_addr;
@@ -634,6 +739,11 @@ static void prueth_emac_config(struct prueth_emac *emac)
 	/* setup mac address */
 	mac_addr = dram_base + PORT_MAC_ADDR;
 	memcpy_toio(mac_addr, emac->mac_addr, 6);
+   
+   /* Task(22173) - EMAC/RSTP Tx Queues re-design  
+  	* Roopak@cit - 23-August-2023
+  	*/
+	writel(ocmcaddr2, (dram_base + SECOND_64KB_BLOCK_OCMC_OFFSET)); // Store second 64kb of ocmc offset in dram
 
 	/* queue information table */
 	dram = dram_base + TX_CONTEXT_Q1_OFFSET_ADDR;
@@ -1003,6 +1113,11 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 
 	/* OCMC RAM is not cached and write order is not important */
 	void *ocmc_ram = (__force void *)emac->prueth->mem[PRUETH_MEM_OCMC].va;
+   /* Task(22173) - EMAC/RSTP Tx Queues re-design  
+    * pointing to second 64kb of OCMC, common for all the protocols
+  	* Roopak@cit - 23-August-2023
+  	*/
+	ocmc_ram = ocmc_ram + SZ_64K ; // second 64kb block
 	void __iomem *sram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
 	void __iomem *dram;
 	u32 wr_buf_desc;
@@ -2241,6 +2356,48 @@ static u16 prueth_get_tx_queue_id(struct prueth *prueth, struct sk_buff *skb)
 	return emac_pcp_tx_priority_queue_map[pcp];
 }
 
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Function for detecting packet type
+  * Roopak@cit - 22-September-2023
+  */
+__be16 eth_packet_type(struct sk_buff *skb)
+{
+	struct hsr_txopt_ethhdr *hsr_ethhdr;
+	struct vlan_ethhdr *vlan_hdr;
+	struct ethhdr *ethhdr;
+	bool is_vlan = false;
+	__be16 proto;
+	u8 *hdr;
+
+	/* Get the pointer that points to skb mac header */
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	/* Extract the protocol info from the header */
+	proto = ethhdr->h_proto;
+	/* Check if frame is VLAN tagged */
+	if (proto == htons(ETH_P_8021Q)){
+		/* Get the pointer that points to Vlan tagged skb mac header */
+		vlan_hdr = (struct vlan_ethhdr *)ethhdr;
+		/* Extract the protocol info from VLAN tagged header */
+		proto = vlan_hdr->h_vlan_encapsulated_proto;
+		/* Set is_vlan to true */
+		is_vlan = true;
+	}
+	/* Check if frame is HSR Tagged */
+	if (proto == htons(ETH_P_HSR)){
+		/* Get the pointer that points to skb mac header */
+		hdr = skb_mac_header(skb);
+		if (is_vlan)
+			/* If VLAN tagged, get the pointer with VLAN tagged HSR header */
+			hsr_ethhdr = (struct hsr_txopt_ethhdr *)(hdr + VLAN_HLEN);
+		else
+			/* If Not VLAN tagged, get the pointer without VLAN tagged HSR header */
+			hsr_ethhdr = (struct hsr_txopt_ethhdr *)hdr;
+			
+		proto = hsr_ethhdr->hsr_tag.encap_proto;
+	}
+	return proto;
+}
+
 /**
  * emac_ndo_start_xmit - EMAC Transmit function
  * @skb: SKB pointer
@@ -2256,6 +2413,7 @@ static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct prueth_emac *emac = netdev_priv(ndev);
 	int ret = 0;
 	u16 qid;
+	__be16 packet_type;
 	/* Added for HSR/PRP TX OPT
 	*  Parvathi@CIT - 23-Sep-2022
 	*/
@@ -2266,19 +2424,42 @@ static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			netdev_err(ndev, "No link to transmit");
 		goto fail_tx;
 	}
+	/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  	* Storing the data in dedicated queues based on packet type
+  	* Roopak@cit - 28-August-2023
+  	*/
+	packet_type = eth_packet_type(skb);
 
-	qid = prueth_get_tx_queue_id(emac->prueth, skb);
-	/* Added for HSR/PRP TX OPT
-	*  Parvathi@CIT - 23-Sep-2022
-	*/
-	if (PRUETH_IS_LRE(emac->prueth))
-		lock_queue = &emac->prueth->lre_host_queue_lock[qid - 2];
+	if(packet_type == htons(ETH_P_1588)) //check for PTP packet 
+	{
+		qid = PRUETH_QUEUE5;
+		ret = prueth_tx_enqueue(emac, skb, qid);
+	}
+	else if(packet_type == htons(ETH_P_SV)) // check for Sampled value packet
+	{
+		qid = PRUETH_QUEUE6;
+		ret = prueth_tx_enqueue(emac, skb, qid);
+	}
+	else if(packet_type == htons(ETH_P_GOOSE)) // check for Goose packet
+	{
+		qid = PRUETH_QUEUE7;
+		ret = prueth_tx_enqueue(emac, skb, qid);
+	}
 	else
-		lock_queue = &emac->host_queue_lock[qid];
+	{
+		qid = prueth_get_tx_queue_id(emac->prueth, skb);
+		/* Added for HSR/PRP TX OPT
+		*  Parvathi@CIT - 23-Sep-2022
+		*/
+		if (PRUETH_IS_LRE(emac->prueth))
+			lock_queue = &emac->prueth->lre_host_queue_lock[qid - 2];
+		else
+			lock_queue = &emac->host_queue_lock[qid];
 
-	raw_spin_lock(lock_queue);
-	ret = prueth_tx_enqueue(emac, skb, qid);
-	raw_spin_unlock(lock_queue);
+		raw_spin_lock(lock_queue);
+		ret = prueth_tx_enqueue(emac, skb, qid);
+		raw_spin_unlock(lock_queue);
+	}
 	if (ret) {
 		if (ret != -ENOBUFS && netif_msg_tx_err(emac) &&
 		    net_ratelimit())

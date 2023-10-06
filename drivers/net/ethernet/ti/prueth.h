@@ -32,6 +32,10 @@
 #define PRUETH_TIMER_MS		(10)
 /* NSP counter refresh every 100 msec */
 #define PRUETH_NSP_TIMER_MS    (100)
+/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+ * Roopak@cit - 15-September-2023
+ */
+#define SECOND_64KB_BLOCK_OCMC_OFFSET	0x0060
 
 /* PRU Ethernet Type - Ethernet functionality (protocol
  * implemented) provided by the PRU firmware being loaded.
@@ -273,12 +277,19 @@ enum prueth_port_queue_id {
 	PRUETH_PORT_QUEUE_MAX,
 };
 
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Adding 3 new queues i.e PTP, SV, GOOSE
+  * Roopak@cit - 24-August-2023
+  */
 /* Each port queue has 4 queues and 1 collision queue */
 enum prueth_queue_id {
 	PRUETH_QUEUE1 = 0,
 	PRUETH_QUEUE2,
 	PRUETH_QUEUE3,
 	PRUETH_QUEUE4,
+	PRUETH_QUEUE5, //PTP
+	PRUETH_QUEUE6, //SV
+	PRUETH_QUEUE7, //GOOSE
 	PRUETH_COLQUEUE,	/* collision queue */
 };
 
@@ -507,6 +518,11 @@ irqreturn_t prueth_ptp_tx_irq_handle(int irq, void *dev);
 irqreturn_t prueth_ptp_tx_irq_work(int irq, void *dev);
 
 extern const struct prueth_queue_desc queue_descs[][NUM_QUEUES];
+/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+* Separate queue descriptor structure for switch as emac queue descriptor structure is modified
+* Roopak@cit - 24-August-2023
+*/
+extern const struct prueth_queue_desc sw_queue_descs[][NUM_QUEUES];
 /* Below code was added for HSR/PRP TX optimization
 *  Parvathi@CIT - 19-Aug-2022
 */

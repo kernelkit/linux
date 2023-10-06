@@ -101,6 +101,31 @@ const struct prueth_queue_info sw_queue_infos[][NUM_QUEUES] = {
 			P1_Q4_BD_OFFSET,
 			P1_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
+		 /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  		  * Adding 3 new queues i.e PTP, SV, GOOSE
+  		  * Roopak@cit - 24-August-2023
+  		  */
+		[PRUETH_QUEUE5] = {
+			P1_Q5_BUFFER_OFFSET,
+			P1_Q5_BUFFER_OFFSET +
+				((QUEUE_5_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P1_Q5_BD_OFFSET,
+			P1_Q5_BD_OFFSET + ((QUEUE_5_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = {
+			P1_Q6_BUFFER_OFFSET,
+			P1_Q6_BUFFER_OFFSET +
+				((QUEUE_6_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P1_Q6_BD_OFFSET,
+			P1_Q6_BD_OFFSET + ((QUEUE_6_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = {
+			P1_Q7_BUFFER_OFFSET,
+			P1_Q7_BUFFER_OFFSET +
+				((QUEUE_7_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P1_Q7_BD_OFFSET,
+			P1_Q7_BD_OFFSET + ((QUEUE_7_SIZE - 1) * BD_SIZE),
+		},
 	},
 	[PRUETH_PORT_QUEUE_MII1] = {
 		[PRUETH_QUEUE1] = {
@@ -130,6 +155,31 @@ const struct prueth_queue_info sw_queue_infos[][NUM_QUEUES] = {
 				((QUEUE_4_SIZE - 1) * ICSS_BLOCK_SIZE),
 			P2_Q4_BD_OFFSET,
 			P2_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+		/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  		 * Adding 3 new queues i.e PTP, SV, GOOSE
+  		 * Roopak@cit - 24-August-2023
+  		 */
+		[PRUETH_QUEUE5] = {
+			P2_Q5_BUFFER_OFFSET,
+			P2_Q5_BUFFER_OFFSET +
+				((QUEUE_5_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P2_Q5_BD_OFFSET,
+			P2_Q5_BD_OFFSET + ((QUEUE_5_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = {
+			P2_Q6_BUFFER_OFFSET,
+			P2_Q6_BUFFER_OFFSET +
+				((QUEUE_6_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P2_Q6_BD_OFFSET,
+			P2_Q6_BD_OFFSET + ((QUEUE_6_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = {
+			P2_Q7_BUFFER_OFFSET,
+			P2_Q7_BUFFER_OFFSET +
+				((QUEUE_7_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P2_Q7_BD_OFFSET,
+			P2_Q7_BD_OFFSET + ((QUEUE_7_SIZE - 1) * BD_SIZE),
 		},
 	},
 };
@@ -186,6 +236,28 @@ static const struct prueth_queue_info rx_queue_infos[][NUM_QUEUES] = {
 			P1_Q4_BD_OFFSET,
 			P1_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
+		/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  		 * Adding 3 new queues i.e PTP, SV, GOOSE
+  		 * Roopak@cit - 24-August-2023
+  		 */
+		[PRUETH_QUEUE5] = {
+			P1_Q5_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 32,
+			P1_Q5_BD_OFFSET,
+			P1_Q5_BD_OFFSET + ((QUEUE_5_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = {
+			P1_Q6_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 40,
+			P1_Q6_BD_OFFSET,
+			P1_Q6_BD_OFFSET + ((QUEUE_6_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = {
+			P1_Q7_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 48,
+			P1_Q7_BD_OFFSET,
+			P1_Q7_BD_OFFSET + ((QUEUE_7_SIZE - 1) * BD_SIZE),
+		},  
 	},
 	[PRUETH_PORT_QUEUE_MII1] = {
 		[PRUETH_QUEUE1] = {
@@ -212,6 +284,28 @@ static const struct prueth_queue_info rx_queue_infos[][NUM_QUEUES] = {
 			P2_Q4_BD_OFFSET,
 			P2_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
+		/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  		 * Adding 3 new queues i.e PTP, SV, GOOSE
+  		 * Roopak@cit - 24-August-2023
+  		 */
+		[PRUETH_QUEUE5] = {
+			P2_Q5_BUFFER_OFFSET,
+			P2_QUEUE_DESC_OFFSET + 32,
+			P2_Q5_BD_OFFSET,
+			P2_Q5_BD_OFFSET + ((QUEUE_5_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = {
+			P2_Q6_BUFFER_OFFSET,
+			P2_QUEUE_DESC_OFFSET + 40,
+			P2_Q6_BD_OFFSET,
+			P2_Q6_BD_OFFSET + ((QUEUE_6_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = {
+			P2_Q7_BUFFER_OFFSET,
+			P2_QUEUE_DESC_OFFSET + 48,
+			P2_Q7_BD_OFFSET,
+			P2_Q7_BD_OFFSET + ((QUEUE_7_SIZE - 1) * BD_SIZE),
+		}, 
 	},
 };
 /* Below structure was added for HSR/PRP TX optimization
@@ -246,15 +340,15 @@ const struct prueth_queue_info lre_queue_infos[][NUM_QUEUES] = {
 	},
 	[PRUETH_PORT_QUEUE_MII0] = {
 		[PRUETH_QUEUE1] = {
-			P1_Q1_BUFFER_OFFSET,
-			P1_Q1_BUFFER_OFFSET +
+			HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET, 
+			HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET + 
 				((QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
 			P1_Q1_BD_OFFSET,
 			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
-			P1_Q2_BUFFER_OFFSET,
-			P1_Q2_BUFFER_OFFSET +
+			HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET, 
+			HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET + 
 				((QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
 			P1_Q2_BD_OFFSET,
 			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
@@ -273,6 +367,30 @@ const struct prueth_queue_info lre_queue_infos[][NUM_QUEUES] = {
 			HSRP1_TXOPT_Q4_BD_OFFSET,
 			HSRP1_TXOPT_Q4_BD_OFFSET + ((QUEUE_4_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
 		},
+		/* Below code is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ 		 * Roopak@CIT - 02-June-2023
+ 		 */
+		[PRUETH_QUEUE5] = {
+			HSRP1_TXOPT_Q5_BUFFER_OFFSET,
+			HSRP1_TXOPT_Q5_BUFFER_OFFSET +
+				((QUEUE_5_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+			HSRP1_TXOPT_Q5_BD_OFFSET,
+			HSRP1_TXOPT_Q5_BD_OFFSET + ((QUEUE_5_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = {
+			HSRP1_TXOPT_Q6_BUFFER_OFFSET,
+			HSRP1_TXOPT_Q6_BUFFER_OFFSET +
+				((QUEUE_6_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+			HSRP1_TXOPT_Q6_BD_OFFSET,
+			HSRP1_TXOPT_Q6_BD_OFFSET + ((QUEUE_6_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = {
+			HSRP1_TXOPT_Q7_BUFFER_OFFSET,
+			HSRP1_TXOPT_Q7_BUFFER_OFFSET +
+				((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+			HSRP1_TXOPT_Q7_BD_OFFSET,
+			HSRP1_TXOPT_Q7_BD_OFFSET + ((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
 	},
 	[PRUETH_PORT_QUEUE_MII1] = {
 		[PRUETH_QUEUE1] = {
@@ -289,20 +407,44 @@ const struct prueth_queue_info lre_queue_infos[][NUM_QUEUES] = {
 			HSRP2_TXOPT_Q2_BD_OFFSET,
 			HSRP2_TXOPT_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
 		},
+		/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ 		 * Roopak@CIT - 02-June-2023
+ 		 */
 		[PRUETH_QUEUE3] = {
-                        HSRP1_TXOPT_Q3_BUFFER_OFFSET,
-                        HSRP1_TXOPT_Q3_BUFFER_OFFSET +
-                                ((QUEUE_3_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
-                        HSRP1_TXOPT_Q3_BD_OFFSET,
-                        HSRP1_TXOPT_Q3_BD_OFFSET + ((QUEUE_3_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
-                },
-                [PRUETH_QUEUE4] = {
-                        HSRP1_TXOPT_Q4_BUFFER_OFFSET,
-                        HSRP1_TXOPT_Q4_BUFFER_OFFSET +
-                                ((QUEUE_4_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
-                        HSRP1_TXOPT_Q4_BD_OFFSET,
-                        HSRP1_TXOPT_Q4_BD_OFFSET + ((QUEUE_4_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
-                },
+            HSRP1_TXOPT_Q3_BUFFER_OFFSET,
+            HSRP1_TXOPT_Q3_BUFFER_OFFSET +
+                ((QUEUE_3_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+            HSRP1_TXOPT_Q3_BD_OFFSET,
+            HSRP1_TXOPT_Q3_BD_OFFSET + ((QUEUE_3_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+        },
+        [PRUETH_QUEUE4] = {
+            HSRP1_TXOPT_Q4_BUFFER_OFFSET,
+            HSRP1_TXOPT_Q4_BUFFER_OFFSET +
+                ((QUEUE_4_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+            HSRP1_TXOPT_Q4_BD_OFFSET,
+            HSRP1_TXOPT_Q4_BD_OFFSET + ((QUEUE_4_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+        },
+		[PRUETH_QUEUE5] = {
+            HSRP1_TXOPT_Q5_BUFFER_OFFSET,
+            HSRP1_TXOPT_Q5_BUFFER_OFFSET +
+                ((QUEUE_5_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+            HSRP1_TXOPT_Q5_BD_OFFSET,
+            HSRP1_TXOPT_Q5_BD_OFFSET + ((QUEUE_5_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+        },
+        [PRUETH_QUEUE6] = {
+            HSRP1_TXOPT_Q6_BUFFER_OFFSET,
+            HSRP1_TXOPT_Q6_BUFFER_OFFSET +
+                ((QUEUE_6_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+            HSRP1_TXOPT_Q6_BD_OFFSET,
+            HSRP1_TXOPT_Q6_BD_OFFSET + ((QUEUE_6_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+        },
+		[PRUETH_QUEUE7] = {
+            HSRP1_TXOPT_Q7_BUFFER_OFFSET,
+            HSRP1_TXOPT_Q7_BUFFER_OFFSET +
+                ((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * ICSS_BLOCK_SIZE),
+            HSRP1_TXOPT_Q7_BD_OFFSET,
+            HSRP1_TXOPT_Q7_BD_OFFSET + ((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+        },
 
 	},
 };
@@ -339,13 +481,13 @@ static const struct prueth_queue_info lre_rx_queue_infos[][NUM_QUEUES] = {
 	},
 	[PRUETH_PORT_QUEUE_MII0] = {
 		[PRUETH_QUEUE1] = {
-			P1_Q1_BUFFER_OFFSET,
+			HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET, //P1_Q1_BUFFER_OFFSET,
 			P1_QUEUE_DESC_OFFSET,
 			P1_Q1_BD_OFFSET,
 			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
-			P1_Q2_BUFFER_OFFSET,
+			HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET, //P1_Q2_BUFFER_OFFSET,
 			P1_QUEUE_DESC_OFFSET + 8,
 			P1_Q2_BD_OFFSET,
 			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
@@ -358,9 +500,30 @@ static const struct prueth_queue_info lre_rx_queue_infos[][NUM_QUEUES] = {
 		},
 		[PRUETH_QUEUE4] = {
 			HSRP1_TXOPT_Q4_BUFFER_OFFSET,
-			P1_QUEUE_DESC_OFFSET + 48,
+			P1_QUEUE_DESC_OFFSET + 24,
 			HSRP1_TXOPT_Q4_BD_OFFSET,
 			HSRP1_TXOPT_Q4_BD_OFFSET + ((QUEUE_4_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
+		/* Below code is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ 		 * Roopak@CIT - 02-June-2023
+ 		 */
+		[PRUETH_QUEUE5] = {
+			HSRP1_TXOPT_Q5_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 32,
+			HSRP1_TXOPT_Q5_BD_OFFSET,
+			HSRP1_TXOPT_Q5_BD_OFFSET + ((QUEUE_5_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = {
+			HSRP1_TXOPT_Q6_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 40, 
+			HSRP1_TXOPT_Q6_BD_OFFSET,
+			HSRP1_TXOPT_Q6_BD_OFFSET + ((QUEUE_6_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = {
+			HSRP1_TXOPT_Q7_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 48, 
+			HSRP1_TXOPT_Q7_BD_OFFSET,
+			HSRP1_TXOPT_Q7_BD_OFFSET + ((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
 		},
 	},
 	[PRUETH_PORT_QUEUE_MII1] = {
@@ -384,35 +547,31 @@ static const struct prueth_queue_info lre_rx_queue_infos[][NUM_QUEUES] = {
 		},
 		[PRUETH_QUEUE4] = {
 			HSRP1_TXOPT_Q4_BUFFER_OFFSET,
-			P1_QUEUE_DESC_OFFSET + 48,
+			P1_QUEUE_DESC_OFFSET + 24,
 			HSRP1_TXOPT_Q4_BD_OFFSET,
 			HSRP1_TXOPT_Q4_BD_OFFSET + ((QUEUE_4_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
 		},
-	},
-};
-
-static const struct prueth_col_rx_context_info col_rx_context_infos[] = {
-	[PRUETH_PORT_QUEUE_HOST] = {
-		P0_COL_BUFFER_OFFSET,
-		P0_COL_BUFFER_OFFSET,
-		P0_COL_QUEUE_DESC_OFFSET,
-		END_OF_BD_POOL,
-		END_OF_BD_POOL + ((COL_QUEUE_SIZE - 1) * BD_SIZE)
-	},
-	[PRUETH_PORT_QUEUE_MII0] = {
-		P0_COL_BUFFER_OFFSET + (COL_QUEUE_SIZE * ICSS_BLOCK_SIZE),
-		P0_COL_BUFFER_OFFSET + (COL_QUEUE_SIZE * ICSS_BLOCK_SIZE),
-		P0_COL_QUEUE_DESC_OFFSET + 8,
-		END_OF_BD_POOL,
-		END_OF_BD_POOL + ((COL_QUEUE_SIZE - 1) * BD_SIZE)
-	},
-
-	[PRUETH_PORT_QUEUE_MII1] = {
-		P0_COL_BUFFER_OFFSET + (COL_QUEUE_SIZE * ICSS_BLOCK_SIZE),
-		P0_COL_BUFFER_OFFSET + (COL_QUEUE_SIZE * ICSS_BLOCK_SIZE),
-		P0_COL_QUEUE_DESC_OFFSET + 16,
-		END_OF_BD_POOL,
-		END_OF_BD_POOL + ((COL_QUEUE_SIZE - 1) * BD_SIZE)
+		/* Below code is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ 		 * Roopak@CIT - 02-June-2023
+ 		 */
+		[PRUETH_QUEUE5] = {
+			HSRP1_TXOPT_Q5_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 32,
+			HSRP1_TXOPT_Q5_BD_OFFSET,
+			HSRP1_TXOPT_Q5_BD_OFFSET + ((QUEUE_5_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE6] = {
+			HSRP1_TXOPT_Q6_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 40,
+			HSRP1_TXOPT_Q6_BD_OFFSET,
+			HSRP1_TXOPT_Q6_BD_OFFSET + ((QUEUE_6_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE7] = {
+			HSRP1_TXOPT_Q7_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 48,
+			HSRP1_TXOPT_Q7_BD_OFFSET,
+			HSRP1_TXOPT_Q7_BD_OFFSET + ((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
+		},
 	},
 };
 
@@ -496,20 +655,26 @@ void prueth_sw_hostconfig(struct prueth *prueth)
 		memcpy_toio(dram, hsr_prp_txopt_queue_descs[PRUETH_PORT_QUEUE_HOST],
 		            sizeof(hsr_prp_txopt_queue_descs[PRUETH_PORT_QUEUE_HOST]));
 	else
-		memcpy_toio(dram, queue_descs[PRUETH_PORT_QUEUE_HOST],
-			    sizeof(queue_descs[PRUETH_PORT_QUEUE_HOST]));
+	 	/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  		* Separate queue descriptor structure for switch as emac queue descriptor structure is modified
+  		* Roopak@cit - 24-August-2023
+  		*/
+		memcpy_toio(dram, sw_queue_descs[PRUETH_PORT_QUEUE_HOST],
+			    sizeof(sw_queue_descs[PRUETH_PORT_QUEUE_HOST]));
 
 }
 
 static int prueth_sw_port_config(struct prueth *prueth,
 				 enum prueth_port port_id)
 {
-	unsigned int tx_context_ofs_addr, col_tx_context_ofs_addr,
-		     rx_context_ofs, col_rx_context_ofs_addr,
-		     queue_desc_ofs, col_queue_desc_ofs;
+	unsigned int tx_context_ofs_addr, rx_context_ofs, queue_desc_ofs;
 	void __iomem *dram, *dram_base, *dram_mac;
 	struct prueth_emac *emac;
 	void __iomem *dram1_base = prueth->mem[PRUETH_MEM_DRAM1].va;
+	/* Task(22173) - EMAC/RSTP Tx Queues re-design  
+  	* Roopak@cit - 23-August-2023
+  	*/
+	u32 ocmcaddr2 = (u32)prueth->mem[PRUETH_MEM_OCMC].pa + SZ_64K; // Second 64kb block of ocmc
 
 	emac = prueth->emac[port_id - 1];
 	switch (port_id) {
@@ -535,6 +700,11 @@ static int prueth_sw_port_config(struct prueth *prueth,
 	/* setup mac address */
 	memcpy_toio(dram_mac + PORT_MAC_ADDR, emac->mac_addr, 6);
 
+	/* Task(22173) - EMAC/RSTP Tx Queues re-design  
+  	* Roopak@cit - 23-August-2023
+  	*/
+	writel(ocmcaddr2, (dram_mac + SECOND_64KB_BLOCK_OCMC_OFFSET)); // Store second 64kb of ocmc offset in dram
+	
 	/* Remaining switch port configs are in DRAM1 */
 	dram_base = prueth->mem[PRUETH_MEM_DRAM1].va;
 
@@ -548,7 +718,7 @@ static int prueth_sw_port_config(struct prueth *prueth,
 
 	/* buffer descriptor offset table*/
 	dram = dram_base + QUEUE_DESCRIPTOR_OFFSET_ADDR +
-	       (port_id * NUM_QUEUES * sizeof(u16));
+	       (port_id * RX_NUM_QUEUES * sizeof(u16));
 	writew(sw_queue_infos[port_id][PRUETH_QUEUE1].buffer_desc_offset, dram);
 	writew(sw_queue_infos[port_id][PRUETH_QUEUE2].buffer_desc_offset,
 	       dram + 2);
@@ -559,7 +729,7 @@ static int prueth_sw_port_config(struct prueth *prueth,
 
 	/* buffer offset table */
 	dram = dram_base + QUEUE_OFFSET_ADDR +
-	       port_id * NUM_QUEUES * sizeof(u16);
+	       port_id * RX_NUM_QUEUES * sizeof(u16);
 	writew(sw_queue_infos[port_id][PRUETH_QUEUE1].buffer_offset, dram);
 	writew(sw_queue_infos[port_id][PRUETH_QUEUE2].buffer_offset,
 	       dram + 2);
@@ -570,16 +740,19 @@ static int prueth_sw_port_config(struct prueth *prueth,
 
 	/* queue size lookup table */
 	dram = dram_base + QUEUE_SIZE_ADDR +
-	       port_id * NUM_QUEUES * sizeof(u16);
+	       port_id * RX_NUM_QUEUES * sizeof(u16);
 	writew(QUEUE_1_SIZE, dram);
 	writew(QUEUE_2_SIZE, dram + 2);
 	writew(QUEUE_3_SIZE, dram + 4);
 	writew(QUEUE_4_SIZE, dram + 6);
-
+	/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+	* Separate queue descriptor structure for switch as emac queue descriptor structure is modified
+	* Roopak@cit - 24-August-2023
+	*/
 	/* queue table */
 	memcpy_toio(dram_base + queue_desc_ofs,
-		    &queue_descs[port_id][0],
-		    4 * sizeof(queue_descs[port_id][0]));
+		    &sw_queue_descs[port_id][0],
+		    NUM_QUEUES * sizeof(sw_queue_descs[port_id][0]));
 
 	emac->rx_queue_descs = dram1_base + P0_QUEUE_DESC_OFFSET;
 	emac->tx_queue_descs = dram1_base +
@@ -594,33 +767,29 @@ static int prueth_sw_port_config(struct prueth *prueth,
 static int prueth_lre_port_config(struct prueth *prueth,
 				 enum prueth_port port_id)
 {
-	unsigned int tx_context_ofs_addr, col_tx_context_ofs_addr,
-		     rx_context_ofs, col_rx_context_ofs_addr,
-		     queue_desc_ofs, col_queue_desc_ofs;
+	unsigned int tx_context_ofs_addr, rx_context_ofs, queue_desc_ofs;
 	void __iomem *dram, *dram_base, *dram_mac;
 	struct prueth_emac *emac;
 	void __iomem *dram1_base = prueth->mem[PRUETH_MEM_DRAM1].va;
+	/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ 	 * Roopak@CIT - 02-June-2023
+ 	 */
+	u32 ocmcaddr2 = (u32)prueth->mem[PRUETH_MEM_OCMC].pa + SZ_64K; // Second 64kb block of ocmc
 
 	emac = prueth->emac[port_id - 1];
 	switch (port_id) {
 	case PRUETH_PORT_MII0:
 		tx_context_ofs_addr     = TX_CONTEXT_P1_Q1_OFFSET_ADDR;
-		col_tx_context_ofs_addr = COL_TX_CONTEXT_P1_Q1_OFFSET_ADDR;
 		rx_context_ofs          = P1_Q1_RX_CONTEXT_OFFSET;
-		col_rx_context_ofs_addr = COL_RX_CONTEXT_P1_OFFSET_ADDR;
 		queue_desc_ofs          = P1_QUEUE_DESC_OFFSET;
-		col_queue_desc_ofs      = P1_COL_QUEUE_DESC_OFFSET;
 
 		/* for switch PORT MII0 mac addr is in DRAM0. */
 		dram_mac = prueth->mem[PRUETH_MEM_DRAM0].va;
 		break;
 	case PRUETH_PORT_MII1:
 		tx_context_ofs_addr     = TX_CONTEXT_P2_Q1_OFFSET_ADDR;
-		col_tx_context_ofs_addr = COL_TX_CONTEXT_P2_Q1_OFFSET_ADDR;
 		rx_context_ofs          = P2_Q1_RX_CONTEXT_OFFSET;
-		col_rx_context_ofs_addr = COL_RX_CONTEXT_P2_OFFSET_ADDR;
 		queue_desc_ofs          = P2_QUEUE_DESC_OFFSET;
-		col_queue_desc_ofs      = P2_COL_QUEUE_DESC_OFFSET;
 
 		/* for switch PORT MII1 mac addr is in DRAM1. */
 		dram_mac = prueth->mem[PRUETH_MEM_DRAM1].va;
@@ -632,6 +801,13 @@ static int prueth_lre_port_config(struct prueth *prueth,
 
 	/* setup mac address */
 	memcpy_toio(dram_mac + PORT_MAC_ADDR, emac->mac_addr, 6);
+	
+	/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ 	 * Roopak@CIT - 02-June-2023
+ 	 */
+	writel(ocmcaddr2, (dram_mac + SECOND_64KB_BLOCK_OCMC_OFFSET)); // Store second 64kb of ocmc offset in dram
+
+
 
 	/* Remaining switch port configs are in DRAM1 */
 	dram_base = prueth->mem[PRUETH_MEM_DRAM1].va;
@@ -641,21 +817,13 @@ static int prueth_lre_port_config(struct prueth *prueth,
 		    lre_queue_infos[port_id],
 		    sizeof(lre_queue_infos[port_id]));
 
-	memcpy_toio(dram_base + col_tx_context_ofs_addr,
-		    &col_tx_context_infos[port_id],
-		    sizeof(col_tx_context_infos[port_id]));
-
 	memcpy_toio(dram_base + rx_context_ofs,
 		    lre_rx_queue_infos[port_id],
 		    sizeof(lre_rx_queue_infos[port_id]));
 
-	memcpy_toio(dram_base + col_rx_context_ofs_addr,
-		    &col_rx_context_infos[port_id],
-		    sizeof(col_rx_context_infos[port_id]));
-
 	/* buffer descriptor offset table*/
 	dram = dram_base + QUEUE_DESCRIPTOR_OFFSET_ADDR +
-	       (port_id * NUM_QUEUES * sizeof(u16));
+	       (port_id * RX_NUM_QUEUES * sizeof(u16));
 	writew(lre_queue_infos[port_id][PRUETH_QUEUE1].buffer_desc_offset, dram);
 	writew(lre_queue_infos[port_id][PRUETH_QUEUE2].buffer_desc_offset,
 	       dram + 2);
@@ -666,7 +834,7 @@ static int prueth_lre_port_config(struct prueth *prueth,
 
 	/* buffer offset table */
 	dram = dram_base + QUEUE_OFFSET_ADDR +
-	       port_id * NUM_QUEUES * sizeof(u16);
+	       port_id * RX_NUM_QUEUES * sizeof(u16);
 	writew(lre_queue_infos[port_id][PRUETH_QUEUE1].buffer_offset, dram);
 	writew(lre_queue_infos[port_id][PRUETH_QUEUE2].buffer_offset,
 	       dram + 2);
@@ -677,21 +845,15 @@ static int prueth_lre_port_config(struct prueth *prueth,
 
 	/* queue size lookup table */
 	dram = dram_base + QUEUE_SIZE_ADDR +
-	       port_id * NUM_QUEUES * sizeof(u16);
+	       port_id * RX_NUM_QUEUES * sizeof(u16);
 	writew(QUEUE_1_SIZE, dram);
 	writew(QUEUE_2_SIZE, dram + 2);
 	writew(QUEUE_3_SIZE, dram + 4);
 	writew(QUEUE_4_SIZE, dram + 6);
-
-	/* collision queue table */
-	memcpy_toio(dram_base + col_queue_desc_ofs,
-		    &col_queue_descs[port_id],
-		    sizeof(col_queue_descs[port_id]));
-
 	/* queue table */
 	memcpy_toio(dram_base + queue_desc_ofs,
 		    &hsr_prp_txopt_queue_descs[port_id][0],
-		    4 * sizeof(hsr_prp_txopt_queue_descs[port_id][0]));
+		    NUM_QUEUES * sizeof(hsr_prp_txopt_queue_descs[port_id][0]));
 
 	emac->rx_queue_descs = dram1_base + P0_QUEUE_DESC_OFFSET;
 	emac->tx_queue_descs = dram1_base +

@@ -13,7 +13,12 @@
 #define SWITCH_BUFFER_SIZE	(64 * 1024)	/* L3 buffer */
 #define ICSS_BLOCK_SIZE		32		/* data bytes per BD */
 #define BD_SIZE			4		/* byte buffer descriptor */
-#define NUM_QUEUES		4		/* Queues on Port 0/1/2 */
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * As we Added 3 new queues i.e PTP, SV, GOOSE, Number of Queue size is 7 
+  * Roopak@cit - 24-August-2023
+  */
+#define NUM_QUEUES		7		/* Queues on Port 0/1/2 */
+#define RX_NUM_QUEUES		4		/* Queues on Port 0/1/2 */
 
 #define PORT_LINK_MASK		0x1
 #define PORT_IS_HD_MASK		0x2
@@ -23,11 +28,25 @@
 #define QUEUE_2_SIZE		97	/* Network Management low */
 #define QUEUE_3_SIZE		97	/* Protocol specific */
 #define QUEUE_4_SIZE		97	/* NRT (IP,ARP, ICMP) */
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Adding 3 new queues i.e PTP, SV, GOOSE
+  * Roopak@cit - 24-August-2023
+  */
+#define QUEUE_5_SIZE		97 // PTP
+#define QUEUE_6_SIZE		97 // SV
+#define QUEUE_7_SIZE		97 // GOOSE
 /* Below code was added for HSR/PRP TX optimization
 *  Parvathi@CIT - 19-Aug-2022
 */
 #define QUEUE_3_HSRPRP_TXOPT_SIZE		194	/* Protocol specific */
 #define QUEUE_4_HSRPRP_TXOPT_SIZE		194	/* NRT (IP,ARP, ICMP) */
+/* Below macros are for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ * Roopak@CIT - 02-June-2023
+ */
+#define QUEUE_5_HSRPRP_TXOPT_SIZE		194
+#define QUEUE_6_HSRPRP_TXOPT_SIZE		194
+#define QUEUE_7_HSRPRP_TXOPT_SIZE		194
+
 
 /* Host queue size (number of BDs). Each BD points to data buffer of 32 bytes.
  * HOST PORT QUEUES can buffer up to 4 full sized frames per queue
@@ -115,7 +134,12 @@
 /* The following offsets indicate which sections of the memory are used
  * for EMAC internal tasks
  */
-#define DRAM_START_OFFSET		0x1e98
+  /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Below code change is for shifting port queue context and descriptors  
+  * Roopak@cit - 23-August-2023
+  */
+
+#define DRAM_START_OFFSET		0x1e68
 #define SRAM_START_OFFSET		0x400
 
 /* General Purpose Statistics
@@ -132,7 +156,11 @@
 #define SWITCH_SPECIFIC_DRAM0_START_OFFSET		0x1F00
 
 #define SWITCH_SPECIFIC_DRAM1_START_SIZE		0x300
-#define SWITCH_SPECIFIC_DRAM1_START_OFFSET		0x1D00
+/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+* Shifted the Queue context offset to accommodate space for 3 new queues
+* Roopak@cit - 24-August-2023
+*/
+#define SWITCH_SPECIFIC_DRAM1_START_OFFSET		0x1C60
 
 /* Offset for storing
  * 1. Storm Prevention Params
@@ -165,40 +193,42 @@
 
 /* DRAM1 Offsets for Switch */
 /* 4 queue descriptors for port 0 (host receive) */
-#define P0_QUEUE_DESC_OFFSET		0x1E7C
-#define P1_QUEUE_DESC_OFFSET		0x1E9C
-#define P2_QUEUE_DESC_OFFSET		0x1EBC
-/* collision descriptor of port 0 */
-#define P0_COL_QUEUE_DESC_OFFSET	0x1E64
-#define P1_COL_QUEUE_DESC_OFFSET	0x1E6C
-#define P2_COL_QUEUE_DESC_OFFSET	0x1E74
-/* Collision Status Register
- *    P0: bit 0 is pending flag, bit 1..2 inidicates which queue,
- *    P1: bit 8 is pending flag, 9..10 is queue number
- *    P2: bit 16 is pending flag, 17..18 is queue number, remaining bits are 0.
- */
-#define COLLISION_STATUS_ADDR		0x1E60
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Shifting the Queue descriptor offset, to accomidate space for new queues
+  * Roopak@cit - 24-August-2023
+  */
+#define SW_LRE_QUEUE_DESC_OFFSET 0x1E20
+#define P0_QUEUE_DESC_OFFSET		SW_LRE_QUEUE_DESC_OFFSET
+#define P1_QUEUE_DESC_OFFSET		P0_QUEUE_DESC_OFFSET + RX_NUM_QUEUES * 8 // as Host Queues are 4 and queue desc size is 8 so 4*8 will be size of p0 queue desc
+#define P2_QUEUE_DESC_OFFSET		P1_QUEUE_DESC_OFFSET + NUM_QUEUES * 8
+#define END_QUEUE_DESC_OFFSET		P2_QUEUE_DESC_OFFSET + NUM_QUEUES * 8
 
-#define INTERFACE_MAC_ADDR		0x1E58
-#define P2_MAC_ADDR			0x1E50
-#define P1_MAC_ADDR			0x1E48
+/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+* Shifting the Table offsets to accomidate space for new queues
+* Roopak@cit - 24-August-2023
+*/
+#define QUEUE_SIZE_ADDR			0x1E00
+#define QUEUE_OFFSET_ADDR		0x1DE8
+#define QUEUE_DESCRIPTOR_OFFSET_ADDR	0x1DD0
 
-#define QUEUE_SIZE_ADDR			0x1E30
-#define QUEUE_OFFSET_ADDR		0x1E18
-#define QUEUE_DESCRIPTOR_OFFSET_ADDR	0x1E00
-
-#define COL_RX_CONTEXT_P2_OFFSET_ADDR	(COL_RX_CONTEXT_P1_OFFSET_ADDR + 12)
-#define COL_RX_CONTEXT_P1_OFFSET_ADDR	(COL_RX_CONTEXT_P0_OFFSET_ADDR + 12)
-#define COL_RX_CONTEXT_P0_OFFSET_ADDR	(P2_Q4_RX_CONTEXT_OFFSET + 8)
-
+/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+* Included Macros for Queue context of new queues
+* Roopak@cit - 24-August-2023
+*/
 /* Port 2 Rx Context */
+#define P2_Q7_RX_CONTEXT_OFFSET		(P2_Q6_RX_CONTEXT_OFFSET + 8)
+#define P2_Q6_RX_CONTEXT_OFFSET		(P2_Q5_RX_CONTEXT_OFFSET + 8)
+#define P2_Q5_RX_CONTEXT_OFFSET		(P2_Q4_RX_CONTEXT_OFFSET + 8)
 #define P2_Q4_RX_CONTEXT_OFFSET		(P2_Q3_RX_CONTEXT_OFFSET + 8)
 #define P2_Q3_RX_CONTEXT_OFFSET		(P2_Q2_RX_CONTEXT_OFFSET + 8)
 #define P2_Q2_RX_CONTEXT_OFFSET		(P2_Q1_RX_CONTEXT_OFFSET + 8)
 #define P2_Q1_RX_CONTEXT_OFFSET		RX_CONTEXT_P2_Q1_OFFSET_ADDR
-#define RX_CONTEXT_P2_Q1_OFFSET_ADDR	(P1_Q4_RX_CONTEXT_OFFSET + 8)
+#define RX_CONTEXT_P2_Q1_OFFSET_ADDR	(P1_Q7_RX_CONTEXT_OFFSET + 8)
 
 /* Port 1 Rx Context */
+#define P1_Q7_RX_CONTEXT_OFFSET		(P1_Q6_RX_CONTEXT_OFFSET + 8)
+#define P1_Q6_RX_CONTEXT_OFFSET		(P1_Q5_RX_CONTEXT_OFFSET + 8)
+#define P1_Q5_RX_CONTEXT_OFFSET		(P1_Q4_RX_CONTEXT_OFFSET + 8)
 #define P1_Q4_RX_CONTEXT_OFFSET		(P1_Q3_RX_CONTEXT_OFFSET + 8)
 #define P1_Q3_RX_CONTEXT_OFFSET		(P1_Q2_RX_CONTEXT_OFFSET + 8)
 #define P1_Q2_RX_CONTEXT_OFFSET		(P1_Q1_RX_CONTEXT_OFFSET + 8)
@@ -210,21 +240,22 @@
 #define P0_Q3_RX_CONTEXT_OFFSET		(P0_Q2_RX_CONTEXT_OFFSET + 8)
 #define P0_Q2_RX_CONTEXT_OFFSET		(P0_Q1_RX_CONTEXT_OFFSET + 8)
 #define P0_Q1_RX_CONTEXT_OFFSET		RX_CONTEXT_P0_Q1_OFFSET_ADDR
-#define RX_CONTEXT_P0_Q1_OFFSET_ADDR	(COL_TX_CONTEXT_P2_Q1_OFFSET_ADDR + 8)
-
-/* Port 2 Tx Collision Context */
-#define COL_TX_CONTEXT_P2_Q1_OFFSET_ADDR (COL_TX_CONTEXT_P1_Q1_OFFSET_ADDR + 8)
-/* Port 1 Tx Collision Context */
-#define COL_TX_CONTEXT_P1_Q1_OFFSET_ADDR (P2_Q4_TX_CONTEXT_OFFSET + 8)
+#define RX_CONTEXT_P0_Q1_OFFSET_ADDR	(P2_Q7_TX_CONTEXT_OFFSET + 8)
 
 /* Port 2 */
+#define P2_Q7_TX_CONTEXT_OFFSET		(P2_Q6_TX_CONTEXT_OFFSET + 8)
+#define P2_Q6_TX_CONTEXT_OFFSET		(P2_Q5_TX_CONTEXT_OFFSET + 8)
+#define P2_Q5_TX_CONTEXT_OFFSET		(P2_Q4_TX_CONTEXT_OFFSET + 8)
 #define P2_Q4_TX_CONTEXT_OFFSET		(P2_Q3_TX_CONTEXT_OFFSET + 8)
 #define P2_Q3_TX_CONTEXT_OFFSET		(P2_Q2_TX_CONTEXT_OFFSET + 8)
 #define P2_Q2_TX_CONTEXT_OFFSET		(P2_Q1_TX_CONTEXT_OFFSET + 8)
 #define P2_Q1_TX_CONTEXT_OFFSET		TX_CONTEXT_P2_Q1_OFFSET_ADDR
-#define TX_CONTEXT_P2_Q1_OFFSET_ADDR	(P1_Q4_TX_CONTEXT_OFFSET + 8)
+#define TX_CONTEXT_P2_Q1_OFFSET_ADDR	(P1_Q7_TX_CONTEXT_OFFSET + 8)
 
 /* Port 1 */
+#define P1_Q7_TX_CONTEXT_OFFSET		(P1_Q6_TX_CONTEXT_OFFSET + 8)
+#define P1_Q6_TX_CONTEXT_OFFSET		(P1_Q5_TX_CONTEXT_OFFSET + 8)
+#define P1_Q5_TX_CONTEXT_OFFSET		(P1_Q4_TX_CONTEXT_OFFSET + 8)
 #define P1_Q4_TX_CONTEXT_OFFSET		(P1_Q3_TX_CONTEXT_OFFSET + 8)
 #define P1_Q3_TX_CONTEXT_OFFSET		(P1_Q2_TX_CONTEXT_OFFSET + 8)
 #define P1_Q2_TX_CONTEXT_OFFSET		(P1_Q1_TX_CONTEXT_OFFSET + 8)
@@ -240,8 +271,13 @@
  * Present on Both DRAM0 and DRAM1
  */
 
-/* 4 queue descriptors for port tx = 32 bytes */
-#define TX_CONTEXT_Q1_OFFSET_ADDR	(PORT_QUEUE_DESC_OFFSET + 32)
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Below code change is for shifting port queue context and descriptors  
+  * Roopak@cit - 23-August-2023
+  */
+
+/* 7 queue descriptors for port tx = 56 bytes */
+#define TX_CONTEXT_Q1_OFFSET_ADDR	(PORT_QUEUE_DESC_OFFSET + 56)
 #define PORT_QUEUE_DESC_OFFSET	(ICSS_EMAC_TTS_CYC_TX_SOF + 8)
 
 /* EMAC Time Triggered Send Offsets */
@@ -291,12 +327,21 @@
 
 #define HOST_BD_SIZE		((HOST_QUEUE_1_SIZE + HOST_QUEUE_2_SIZE + HOST_QUEUE_3_SIZE + HOST_QUEUE_4_SIZE) * BD_SIZE)
 #define PORT_BD_SIZE		((QUEUE_1_SIZE + QUEUE_2_SIZE + QUEUE_3_SIZE + QUEUE_4_SIZE) * 2 * BD_SIZE)
-
-#define END_OF_BD_POOL		(P2_Q4_BD_OFFSET + QUEUE_4_SIZE * BD_SIZE)
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Adding 3 new queues i.e PTP, SV, GOOSE
+  * Roopak@cit - 24-August-2023
+  */
+#define END_OF_BD_POOL		(P2_Q7_BD_OFFSET + QUEUE_7_SIZE * BD_SIZE)
+#define P2_Q7_BD_OFFSET		(P2_Q6_BD_OFFSET + QUEUE_6_SIZE * BD_SIZE)
+#define P2_Q6_BD_OFFSET		(P2_Q5_BD_OFFSET + QUEUE_5_SIZE * BD_SIZE)
+#define P2_Q5_BD_OFFSET		(P2_Q4_BD_OFFSET + QUEUE_4_SIZE * BD_SIZE)
 #define P2_Q4_BD_OFFSET		(P2_Q3_BD_OFFSET + QUEUE_3_SIZE * BD_SIZE)
 #define P2_Q3_BD_OFFSET		(P2_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
 #define P2_Q2_BD_OFFSET		(P2_Q1_BD_OFFSET + QUEUE_1_SIZE * BD_SIZE)
-#define P2_Q1_BD_OFFSET		(P1_Q4_BD_OFFSET + QUEUE_4_SIZE * BD_SIZE)
+#define P2_Q1_BD_OFFSET		(P1_Q7_BD_OFFSET + QUEUE_7_SIZE * BD_SIZE)
+#define P1_Q7_BD_OFFSET		(P1_Q6_BD_OFFSET + QUEUE_6_SIZE * BD_SIZE)
+#define P1_Q6_BD_OFFSET		(P1_Q5_BD_OFFSET + QUEUE_5_SIZE * BD_SIZE)
+#define P1_Q5_BD_OFFSET		(P1_Q4_BD_OFFSET + QUEUE_4_SIZE * BD_SIZE)
 #define P1_Q4_BD_OFFSET		(P1_Q3_BD_OFFSET + QUEUE_3_SIZE * BD_SIZE)
 #define P1_Q3_BD_OFFSET		(P1_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
 #define P1_Q2_BD_OFFSET		(P1_Q1_BD_OFFSET + QUEUE_1_SIZE * BD_SIZE)
@@ -304,30 +349,73 @@
 #define P0_Q4_BD_OFFSET		(P0_Q3_BD_OFFSET + HOST_QUEUE_3_SIZE * BD_SIZE)
 #define P0_Q3_BD_OFFSET		(P0_Q2_BD_OFFSET + HOST_QUEUE_2_SIZE * BD_SIZE)
 #define P0_Q2_BD_OFFSET		(P0_Q1_BD_OFFSET + HOST_QUEUE_1_SIZE * BD_SIZE)
+
+/* Below Macros are for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ * Roopak@CIT - 19-September-2023
+ */
+#define EMAC_END_OF_BD_POOL		(EMAC_P2_Q7_BD_OFFSET + QUEUE_7_SIZE * BD_SIZE)
+#define EMAC_P2_Q7_BD_OFFSET		(EMAC_P2_Q6_BD_OFFSET + QUEUE_6_SIZE * BD_SIZE)
+#define EMAC_P2_Q6_BD_OFFSET		(EMAC_P2_Q5_BD_OFFSET + QUEUE_5_SIZE * BD_SIZE)
+#define EMAC_P2_Q5_BD_OFFSET		(EMAC_P2_Q4_BD_OFFSET + QUEUE_4_SIZE * BD_SIZE)
+#define EMAC_P2_Q4_BD_OFFSET		(EMAC_P2_Q3_BD_OFFSET + QUEUE_3_SIZE * BD_SIZE)
+#define EMAC_P2_Q3_BD_OFFSET		(EMAC_P2_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
+#define EMAC_P2_Q2_BD_OFFSET		(EMAC_P2_Q1_BD_OFFSET + QUEUE_1_SIZE * BD_SIZE)
+#define EMAC_P2_Q1_BD_OFFSET		EMAC_BD_START_OFFSET
+#define EMAC_P1_Q7_BD_OFFSET		(EMAC_P1_Q6_BD_OFFSET + QUEUE_6_SIZE * BD_SIZE)
+#define EMAC_P1_Q6_BD_OFFSET		(EMAC_P1_Q5_BD_OFFSET + QUEUE_5_SIZE * BD_SIZE)
+#define EMAC_P1_Q5_BD_OFFSET		(EMAC_P1_Q4_BD_OFFSET + QUEUE_4_SIZE * BD_SIZE)
+#define EMAC_P1_Q4_BD_OFFSET		(EMAC_P1_Q3_BD_OFFSET + QUEUE_3_SIZE * BD_SIZE)
+#define EMAC_P1_Q3_BD_OFFSET		(EMAC_P1_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
+#define EMAC_P1_Q2_BD_OFFSET		(EMAC_P1_Q1_BD_OFFSET + QUEUE_1_SIZE * BD_SIZE)
+#define EMAC_P1_Q1_BD_OFFSET		EMAC_BD_START_OFFSET
+#define EMAC_BD_START_OFFSET    0x0840
+
 /* Below code was added for HSR/PRP TX optimization
 *  We have merged the Q3 and Q4 of both the ports to create larger queues commonly for both port1 and port2
 *  | Port1 Q1 | Port1 Q2 | Port1/Port2 Q3 | Port2 Q1 | Port2 Q2 | Port1/Port2 Q4 |
 *  Parvathi@CIT - 19-Aug-2022
 */
-#define HSRP1_TXOPT_Q3_BD_OFFSET      (P1_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
-#define HSRP2_TXOPT_Q1_BD_OFFSET      (HSRP1_TXOPT_Q3_BD_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * BD_SIZE)
-#define HSRP2_TXOPT_Q2_BD_OFFSET      (HSRP2_TXOPT_Q1_BD_OFFSET + QUEUE_1_SIZE * BD_SIZE)
-#define HSRP1_TXOPT_Q4_BD_OFFSET      (HSRP2_TXOPT_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)
-#define P0_Q1_BD_OFFSET		P0_BUFFER_DESC_OFFSET
+
+/* Below Macros are for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ * Roopak@CIT - 02-June-2023
+ */
+#define HSRP1_TXOPT_Q3_BD_OFFSET      (P1_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)                        
+#define HSRP2_TXOPT_Q1_BD_OFFSET      (HSRP1_TXOPT_Q3_BD_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * BD_SIZE)  
+#define HSRP2_TXOPT_Q2_BD_OFFSET      (HSRP2_TXOPT_Q1_BD_OFFSET + QUEUE_1_SIZE * BD_SIZE)               
+#define HSRP1_TXOPT_Q4_BD_OFFSET      (HSRP2_TXOPT_Q2_BD_OFFSET + QUEUE_2_SIZE * BD_SIZE)               
+#define HSRP1_TXOPT_Q5_BD_OFFSET      (HSRP1_TXOPT_Q4_BD_OFFSET + QUEUE_4_HSRPRP_TXOPT_SIZE * BD_SIZE)  
+#define HSRP1_TXOPT_Q6_BD_OFFSET      (HSRP1_TXOPT_Q5_BD_OFFSET + QUEUE_5_HSRPRP_TXOPT_SIZE * BD_SIZE)
+#define HSRP1_TXOPT_Q7_BD_OFFSET      (HSRP1_TXOPT_Q6_BD_OFFSET + QUEUE_6_HSRPRP_TXOPT_SIZE * BD_SIZE)
+
+
+#define P0_Q1_BD_OFFSET		P0_BUFFER_DESC_OFFSET                                                            // P0_Q1_BD_OFFSET = 0x0400
 #define P0_BUFFER_DESC_OFFSET	SRAM_START_OFFSET
 
 /* Memory Usage of L3 OCMC RAM */
-
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Adding 3 new queues i.e PTP, SV, GOOSE
+  * Roopak@cit - 24-August-2023
+  */
 /* L3 64KB Memory - mainly buffer Pool */
-#define END_OF_BUFFER_POOL	(P2_Q4_BUFFER_OFFSET + QUEUE_4_SIZE * ICSS_BLOCK_SIZE)
+#define END_OF_BUFFER_POOL	(P2_Q7_BUFFER_OFFSET + QUEUE_7_SIZE * ICSS_BLOCK_SIZE)
+#define P2_Q7_BUFFER_OFFSET	(P2_Q6_BUFFER_OFFSET + QUEUE_6_SIZE * ICSS_BLOCK_SIZE) // GOOSE
+#define P2_Q6_BUFFER_OFFSET	(P2_Q5_BUFFER_OFFSET + QUEUE_5_SIZE * ICSS_BLOCK_SIZE) // SV
+#define P2_Q5_BUFFER_OFFSET	(P2_Q4_BUFFER_OFFSET + QUEUE_4_SIZE * ICSS_BLOCK_SIZE) // PTP
 #define P2_Q4_BUFFER_OFFSET	(P2_Q3_BUFFER_OFFSET + QUEUE_3_SIZE * ICSS_BLOCK_SIZE)
 #define P2_Q3_BUFFER_OFFSET	(P2_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
 #define P2_Q2_BUFFER_OFFSET	(P2_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
-#define P2_Q1_BUFFER_OFFSET	(P1_Q4_BUFFER_OFFSET + QUEUE_4_SIZE * ICSS_BLOCK_SIZE)
+#define P2_Q1_BUFFER_OFFSET	(P1_Q7_BUFFER_OFFSET + QUEUE_7_SIZE * ICSS_BLOCK_SIZE)
+#define P1_Q7_BUFFER_OFFSET	(P1_Q6_BUFFER_OFFSET + QUEUE_6_SIZE * ICSS_BLOCK_SIZE) // GOOSE
+#define P1_Q6_BUFFER_OFFSET	(P1_Q5_BUFFER_OFFSET + QUEUE_5_SIZE * ICSS_BLOCK_SIZE) // SV
+#define P1_Q5_BUFFER_OFFSET	(P1_Q4_BUFFER_OFFSET + QUEUE_4_SIZE * ICSS_BLOCK_SIZE) // PTP
 #define P1_Q4_BUFFER_OFFSET	(P1_Q3_BUFFER_OFFSET + QUEUE_3_SIZE * ICSS_BLOCK_SIZE)
 #define P1_Q3_BUFFER_OFFSET	(P1_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
 #define P1_Q2_BUFFER_OFFSET	(P1_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
-#define P1_Q1_BUFFER_OFFSET	(P0_Q4_BUFFER_OFFSET + HOST_QUEUE_4_SIZE * ICSS_BLOCK_SIZE)
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Shifted the tx queues to starting of second 64kb offset 
+  * Roopak@cit - 23-August-2023
+  */
+#define P1_Q1_BUFFER_OFFSET	0x0000
 #define P0_Q4_BUFFER_OFFSET	(P0_Q3_BUFFER_OFFSET + HOST_QUEUE_3_SIZE * ICSS_BLOCK_SIZE)
 #define P0_Q3_BUFFER_OFFSET	(P0_Q2_BUFFER_OFFSET + HOST_QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
 #define P0_Q2_BUFFER_OFFSET	(P0_Q1_BUFFER_OFFSET + HOST_QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
@@ -336,10 +424,22 @@
 *  | Port1 Q1 | Port1 Q2 | Port1/Port2 Q3 | Port2 Q1 | Port2 Q2 | Port1/Port2 Q4 |
 *  Parvathi@CIT - 19-Aug-2022
 */
-#define HSRP1_TXOPT_Q3_BUFFER_OFFSET  (P1_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
-#define HSRP2_TXOPT_Q1_BUFFER_OFFSET  (HSRP1_TXOPT_Q3_BUFFER_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
-#define HSRP2_TXOPT_Q2_BUFFER_OFFSET  (HSRP2_TXOPT_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
-#define HSRP1_TXOPT_Q4_BUFFER_OFFSET  (HSRP2_TXOPT_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
+/* Below Macros are for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ * Roopak@CIT - 02-June-2023
+ */
+#define HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET 0x0000 
+#define HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET (HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP1_TXOPT_Q3_BUFFER_OFFSET (HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP2_TXOPT_Q1_BUFFER_OFFSET (HSRP1_TXOPT_Q3_BUFFER_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP2_TXOPT_Q2_BUFFER_OFFSET (HSRP2_TXOPT_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP1_TXOPT_Q4_BUFFER_OFFSET (HSRP2_TXOPT_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
+/* Below macros are for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ * Roopak@CIT - 02-June-2023
+ */
+#define HSRP1_TXOPT_Q5_BUFFER_OFFSET (HSRP1_TXOPT_Q4_BUFFER_OFFSET + QUEUE_4_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP1_TXOPT_Q6_BUFFER_OFFSET (HSRP1_TXOPT_Q5_BUFFER_OFFSET + QUEUE_5_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
+#define HSRP1_TXOPT_Q7_BUFFER_OFFSET (HSRP1_TXOPT_Q6_BUFFER_OFFSET + QUEUE_6_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
+
 #define P0_COL_BUFFER_OFFSET    0xEE00
 #define P0_Q1_BUFFER_OFFSET	0x0000
 
@@ -351,16 +451,19 @@
 /* Below Rx Interrupt pacing defines. */
 /* shared RAM */
 /* 1 byte for pace control */
-
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Below code change is for shifting interrupt pacing 
+  * Roopak@cit - 22-August-2023
+  */
 /* EMAC Interrupt Pacing Control. They are per port */
 /* 1 byte | 0 : Interrupt Pacing disabled | 1 : Interrupt Pacing enabled */
-#define INTR_PAC_STATUS_OFFSET_PRU1             0x1FAE
+#define INTR_PAC_STATUS_OFFSET_PRU1             0x2FEA
 /* 1 byte | 0 : Interrupt Pacing disabled | 1 : Interrupt Pacing enabled */
-#define INTR_PAC_STATUS_OFFSET_PRU0             0x1FAF
+#define INTR_PAC_STATUS_OFFSET_PRU0             0x2FEB
 /* HSR/PRP firmware Interrupt Pacing Control. They are common to both
  * ports
  */
-#define INTR_PAC_STATUS_OFFSET                       0x1FAF
+#define INTR_PAC_STATUS_OFFSET                       0x2FEB
 /* Interrupt Pacing disabled, Adaptive logic disabled */
 #define INTR_PAC_DIS_ADP_LGC_DIS                     0x0
 /* Interrupt Pacing enabled, Adaptive logic disabled */
@@ -370,17 +473,21 @@
 
 /* Timeout values are per port for both Dual EMAC and HSR/PRP */
 /* 4 bytes | previous TS from eCAP TSCNT for PRU 0 */
-#define INTR_PAC_PREV_TS_OFFSET_PRU0                 0x1FB0
+#define INTR_PAC_PREV_TS_OFFSET_PRU0                 0x2FEC
 /* 4 bytes | timer expiration value for PRU 0 */
-#define INTR_PAC_TMR_EXP_OFFSET_PRU0                 0x1FB4
+#define INTR_PAC_TMR_EXP_OFFSET_PRU0                 0x2FF0
 /* 4 bytes | previous TS from eCAP TSCNT for PRU 1 */
-#define INTR_PAC_PREV_TS_OFFSET_PRU1                 0x1FB8
+#define INTR_PAC_PREV_TS_OFFSET_PRU1                 0x2FF4
 /* 4 bytes | timer expiration value for PRU 1 */
-#define INTR_PAC_TMR_EXP_OFFSET_PRU1                 0x1FBC
+#define INTR_PAC_TMR_EXP_OFFSET_PRU1                 0x2FF8
 #define INTR_PAC_PREV_TS_RESET_VAL                   0x0
 
 #define V2_1_FDB_TBL_LOC          PRUETH_MEM_SHARED_RAM
-#define V2_1_FDB_TBL_OFFSET       0x2000
+ /* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Below code change is for shifting FDB Table 
+  * Roopak@cit - 22-August-2023
+  */
+#define V2_1_FDB_TBL_OFFSET       0x3000
 
 #define FDB_INDEX_TBL_MAX_ENTRIES     256
 #define FDB_MAC_TBL_MAX_ENTRIES       256

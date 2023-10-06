@@ -88,12 +88,16 @@
 #define ICSS_LRE_IEC62439_CONST_TRANSP_RECEPTION_REMOVE_RCT	0x01
 #define ICSS_LRE_IEC62439_CONST_TRANSP_RECEPTION_PASS_RCT	0x02
 
+/* Task(22173) - EMAC/RSTP Tx Queues re-design 
+  * Below code change is for shifting interrupt pacing 
+  * Roopak@cit - 22-August-2023
+  */
 /* Enable/disable interrupts for high/low priority instead of per port.
  * 0 = disabled (default) 1 = enabled
  */
-#define ICSS_LRE_PRIORITY_INTRS_STATUS_OFFSET	0x1FAA
+#define ICSS_LRE_PRIORITY_INTRS_STATUS_OFFSET	0x2FE6
 /* Enable/disable timestamping of packets. 0 = disabled (default) 1 = enabled */
-#define ICSS_LRE_TIMESTAMP_PKTS_STATUS_OFFSET	0x1FAB
+#define ICSS_LRE_TIMESTAMP_PKTS_STATUS_OFFSET	0x2FE7
 #define ICSS_LRE_TIMESTAMP_ARRAY_OFFSET          0xC200
 
 /* HOST_TIMER_CHECK_FLAGS bits */
