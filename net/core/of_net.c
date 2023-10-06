@@ -57,12 +57,68 @@ static int of_get_mac_addr(struct device_node *np, const char *name, u8 *addr)
 	return -ENODEV;
 }
 
+int of_get_mac_addr_nvmem_from(struct device_node *np, const char *prop, u8 *addr)
+{
+	struct nvmem_cell *cell;
+	const u8 *data;
+	size_t len;
+	int ret;
+
+	cell = of_nvmem_cell_get(np, prop);
+	if (IS_ERR(cell)) {
+		ret = PTR_ERR(cell);
+		goto out;
+	}
+
+	data = nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+	if (IS_ERR(data)) {
+		ret = PTR_ERR(data);
+		goto out;
+	}
+
+	if ((len != ETH_ALEN) || !is_valid_ether_addr(data)) {
+		ret = -EINVAL;
+		goto out_free_data;
+	}
+
+	memcpy(addr, data, ETH_ALEN);
+	ret = 0;
+
+out_free_data:
+	kfree(data);
+out:
+	return ret;
+}
+
+int of_get_mac_addr_nvmem_from_base(struct device_node *np, u8 *addr)
+{
+	u64 scalar_addr;
+	u32 offset;
+	int ret;
+
+	if (of_property_read_u32(np, "base-mac-address-offset", &offset))
+		return -ENODEV;
+
+	ret = of_get_mac_addr_nvmem_from(np, "base-mac-address", addr);
+	if (ret)
+		return ret;
+
+	scalar_addr = ether_addr_to_u64(addr);
+	scalar_addr += offset;
+	u64_to_ether_addr(scalar_addr, addr);
+
+	return is_valid_ether_addr(addr) ? 0 : -EINVAL;
+}
+
+int of_get_mac_addr_nvmem_from_fixed(struct device_node *np, u8 *addr)
+{
+	return of_get_mac_addr_nvmem_from(np, "mac-address", addr);
+}
+
 int of_get_mac_addr_nvmem(struct device_node *np, u8 *addr)
 {
 	struct platform_device *pdev = of_find_device_by_node(np);
-	struct nvmem_cell *cell;
-	const void *mac;
-	size_t len;
 	int ret;
 
 	/* Try lookup by device first, there might be a nvmem_cell_lookup
@@ -74,25 +130,11 @@ int of_get_mac_addr_nvmem(struct device_node *np, u8 *addr)
 		return ret;
 	}
 
-	cell = of_nvmem_cell_get(np, "mac-address");
-	if (IS_ERR(cell))
-		return PTR_ERR(cell);
+	if (!of_get_mac_addr_nvmem_from_fixed(np, addr) ||
+	    !of_get_mac_addr_nvmem_from_base(np, addr))
+		return 0;
 
-	mac = nvmem_cell_read(cell, &len);
-	nvmem_cell_put(cell);
-
-	if (IS_ERR(mac))
-		return PTR_ERR(mac);
-
-	if (len != ETH_ALEN || !is_valid_ether_addr(mac)) {
-		kfree(mac);
-		return -EINVAL;
-	}
-
-	memcpy(addr, mac, ETH_ALEN);
-	kfree(mac);
-
-	return 0;
+	return -ENODEV;
 }
 EXPORT_SYMBOL(of_get_mac_addr_nvmem);
 
