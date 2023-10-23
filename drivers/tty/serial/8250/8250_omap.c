@@ -608,9 +608,9 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 	unsigned long flags;
 	unsigned int iir;
 	bool skip_rx = false;
+#ifdef CONFIG_SERIAL_8250_DMA
 	int ret;
 
-#ifdef CONFIG_SERIAL_8250_DMA
 	if (up->dma) {
 		ret = omap_8250_dma_handle_irq(port);
 		return IRQ_RETVAL(ret);

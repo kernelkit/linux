@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/ratelimit.h>
+#include <uapi/linux/sched/types.h>
 
 
 #define MIN_TTYB_SIZE	256
@@ -71,8 +72,12 @@ void tty_buffer_unlock_exclusive(struct tty_port *port)
 
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
-	if (restart)
-		queue_work(system_unbound_wq, &buf->work);
+	if (restart) {
+		if (port->rt_workqueue)
+			kthread_queue_work(&port->kworker, &buf->kwork);
+		else
+			queue_work(system_unbound_wq, &buf->work);
+	}
 }
 EXPORT_SYMBOL_GPL(tty_buffer_unlock_exclusive);
 
@@ -138,6 +143,11 @@ void tty_buffer_free_all(struct tty_port *port)
 	still_used = atomic_xchg(&buf->mem_used, 0);
 	WARN(still_used != freed, "we still have not freed %d bytes!",
 			still_used - freed);
+
+	if (port->rt_workqueue) {
+		kthread_flush_worker(&port->kworker);
+		kthread_stop(port->kworker_thread);
+	}
 }
 
 /**
@@ -410,7 +420,12 @@ void tty_schedule_flip(struct tty_port *port)
 	 * flush_to_ldisc() sees buffer data.
 	 */
 	smp_store_release(&buf->tail->commit, buf->tail->used);
-	queue_work(system_unbound_wq, &buf->work);
+	if (port->rt_workqueue) {
+		kthread_queue_work(&port->kworker, &buf->kwork);
+	}
+	else {
+		queue_work(system_unbound_wq, &buf->work);
+	}
 }
 EXPORT_SYMBOL(tty_schedule_flip);
 
@@ -485,8 +500,8 @@ receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
 }
 
 /**
- *	flush_to_ldisc
- *	@work: tty structure passed from work queue.
+ *	__flush_to_ldisc
+ *	@port: tty port passed from work queue.
  *
  *	This routine is called out of the software interrupt to flush data
  *	from the buffer chain to the line discipline.
@@ -497,9 +512,8 @@ receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
  *		 'consumer'
  */
 
-static void flush_to_ldisc(struct work_struct *work)
+static void __flush_to_ldisc(struct tty_port *port)
 {
-	struct tty_port *port = container_of(work, struct tty_port, buf.work);
 	struct tty_bufhead *buf = &port->buf;
 
 	mutex_lock(&buf->lock);
@@ -537,7 +551,20 @@ static void flush_to_ldisc(struct work_struct *work)
 	}
 
 	mutex_unlock(&buf->lock);
+}
 
+static void flush_to_ldisc_wq(struct kthread_work *kwork)
+{
+	struct tty_port *port = container_of(kwork, struct tty_port, buf.kwork);
+
+	__flush_to_ldisc(port);
+}
+
+static void flush_to_ldisc(struct work_struct *work)
+{
+	struct tty_port *port = container_of(work, struct tty_port, buf.work);
+
+	__flush_to_ldisc(port);
 }
 
 /**
@@ -559,7 +586,7 @@ EXPORT_SYMBOL(tty_flip_buffer_push);
 
 /**
  *	tty_buffer_init		-	prepare a tty buffer structure
- *	@tty: tty to initialise
+ *	@port: tty port to initialise
  *
  *	Set up the initial state of the buffer management for a tty device.
  *	Must be called before the other tty buffer functions are used.
@@ -578,6 +605,35 @@ void tty_buffer_init(struct tty_port *port)
 	atomic_set(&buf->priority, 0);
 	INIT_WORK(&buf->work, flush_to_ldisc);
 	buf->mem_limit = TTYB_DEFAULT_MEM_LIMIT;
+}
+
+/**
+ *	tty_buffer_open		-	setup a tty buffer kworker thread
+ *	@port: tty port to open
+ *
+ *	Set up the kworker thread for a tty device if required.
+ *	Must be called before the other tty buffer functions are used.
+ */
+
+int tty_buffer_open(struct tty_port *port)
+{
+	if ((port->rt_workqueue) && (!port->kworker_thread)) {
+		int ret;
+		struct tty_bufhead *buf = &port->buf;
+		struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO / 2 };
+
+		kthread_init_worker(&port->kworker);
+		kthread_init_work(&buf->kwork, flush_to_ldisc_wq);
+		port->kworker_thread = kthread_run(kthread_worker_fn, &port->kworker,
+						"tty/workq_%s", port->tty->name);
+		if (IS_ERR(port->kworker_thread))
+			return PTR_ERR(port->kworker_thread);
+		ret = sched_setscheduler(port->kworker_thread, SCHED_FIFO, &param);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -605,15 +661,27 @@ void tty_buffer_set_lock_subclass(struct tty_port *port)
 
 bool tty_buffer_restart_work(struct tty_port *port)
 {
-	return queue_work(system_unbound_wq, &port->buf.work);
+	if (port->rt_workqueue)
+		return kthread_queue_work(&port->kworker, &port->buf.kwork);
+	else
+		return queue_work(system_unbound_wq, &port->buf.work);
 }
 
 bool tty_buffer_cancel_work(struct tty_port *port)
 {
-	return cancel_work_sync(&port->buf.work);
+	if (port->rt_workqueue) {
+		kthread_flush_work(&port->buf.kwork);
+		return 0;
+	}
+	else {
+		return cancel_work_sync(&port->buf.work);
+	}
 }
 
 void tty_buffer_flush_work(struct tty_port *port)
 {
-	flush_work(&port->buf.work);
+	if (port->rt_workqueue)
+		kthread_flush_work(&port->buf.kwork);
+	else
+		flush_work(&port->buf.work);
 }
