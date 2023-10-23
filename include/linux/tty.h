@@ -14,6 +14,7 @@
 #include <uapi/linux/tty.h>
 #include <linux/rwsem.h>
 #include <linux/llist.h>
+#include <linux/kthread.h>
 
 
 /*
@@ -85,6 +86,7 @@ static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
 struct tty_bufhead {
 	struct tty_buffer *head;	/* Queue head */
 	struct work_struct work;
+	struct kthread_work kwork;
 	struct mutex	   lock;
 	atomic_t	   priority;
 	struct tty_buffer sentinel;
@@ -241,7 +243,8 @@ struct tty_port {
 	unsigned long		flags;		/* User TTY flags ASYNC_ */
 	unsigned long		iflags;		/* Internal flags TTY_PORT_ */
 	unsigned char		console:1,	/* port is a console */
-				low_latency:1;	/* optional: tune for latency */
+				low_latency:1,	/* optional: tune for latency */
+				rt_workqueue:1;	/* optional: use RT workqueue */
 	struct mutex		mutex;		/* Locking */
 	struct mutex		buf_mutex;	/* Buffer alloc lock */
 	unsigned char		*xmit_buf;	/* Optional buffer */
@@ -251,6 +254,8 @@ struct tty_port {
 						   based drain is needed else
 						   set to size of fifo */
 	struct kref		kref;		/* Ref counter */
+	struct kthread_worker	kworker;	/* Dedicated kthread worker */
+	struct task_struct	*kworker_thread;	/* Thread of dedicated kworker */
 	void 			*client_data;
 };
 
@@ -514,6 +519,7 @@ extern void no_tty(void);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld);
 extern void tty_buffer_init(struct tty_port *port);
+extern int tty_buffer_open(struct tty_port *port);
 extern void tty_buffer_set_lock_subclass(struct tty_port *port);
 extern bool tty_buffer_restart_work(struct tty_port *port);
 extern bool tty_buffer_cancel_work(struct tty_port *port);
