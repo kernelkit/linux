@@ -2870,6 +2870,10 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		       uport->line);
 	}
 
+	if (device_property_read_bool(uport->dev, "tty-use-dedicated-workqueue")) {
+		port->rt_workqueue = 1;
+	}
+
 	/*
 	 * Ensure UPF_DEAD is not set.
 	 */

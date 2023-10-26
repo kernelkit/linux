@@ -26,6 +26,12 @@ Optional properties:
     "rts-gpios" above, unless support is provided to switch between modes
     dynamically.
 
+  - tty-use-dedicated-workqueue: When this property is set, the TTY port of
+    the UART uses a dedicated workqueue for flip buffer processing. The
+    workqueue thread has RT priority and is required to ensure realtime
+    priority on the receive path. The RT priority is set, as default, to the
+    same value as for the UART IRQ thread.
+
 
 Examples:
 
@@ -53,4 +59,12 @@ Examples:
 		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		uart-has-rtscts;
+	};
+
+	&uart0 {
+		status = "okay";
+		pinctrl-names = "default";
+		rts-gpios = <&gpio3 18 GPIO_ACTIVE_HIGH>;
+		linux,rs485-enabled-at-boot-time;
+		tty-use-dedicated-workqueue;
 	};

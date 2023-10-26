@@ -576,12 +576,14 @@
 	status = "okay";
 	rts-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
 	linux,rs485-enabled-at-boot-time;
+	tty-use-dedicated-workqueue;
 };
 
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart_cp1_pins_default>;
 	status = "okay";
+	tty-use-dedicated-workqueue;
 };
 
 &uart2 {
@@ -590,6 +592,7 @@
 	status = "okay";
 	rts-gpios = <&gpio3 18 GPIO_ACTIVE_HIGH>;
 	linux,rs485-enabled-at-boot-time;
+	tty-use-dedicated-workqueue;
 };
 
 &uart3 {
@@ -605,8 +608,7 @@
 	rts-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 	rx-disable-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
 	linux,rs485-enabled-at-boot-time;
-	dmas = <&edma_xbar 14 2 9>, <&edma_xbar 15 2 10>;
-	dma-names = "tx", "rx";
+	tty-use-dedicated-workqueue;
 };
 
 &mmc1 {
