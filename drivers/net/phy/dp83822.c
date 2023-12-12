@@ -244,11 +244,12 @@ static int dp83822_config_intr(struct phy_device *phydev)
 		if (misr_status < 0)
 			return misr_status;
 
+		/* DP83822_FALSE_CARRIER_HF_INT_EN, 
+				DP83822_ENERGY_DET_INT_EN,
+				DP83822_LINK_QUAL_INT_EN
+				are not enabled */
 		misr_status |= (DP83822_RX_ERR_HF_INT_EN |
-				DP83822_FALSE_CARRIER_HF_INT_EN |
-				DP83822_LINK_STAT_INT_EN |
-				DP83822_ENERGY_DET_INT_EN |
-				DP83822_LINK_QUAL_INT_EN);
+				DP83822_LINK_STAT_INT_EN);
 
 		if (!dp83822->fx_enabled)
 			misr_status |= DP83822_ANEG_COMPLETE_INT_EN |
@@ -290,7 +291,7 @@ static int dp83822_config_intr(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 
-		err = phy_write(phydev, MII_DP83822_MISR1, 0);
+		err = phy_write(phydev, MII_DP83822_MISR2, 0);
 		if (err < 0)
 			return err;
 
