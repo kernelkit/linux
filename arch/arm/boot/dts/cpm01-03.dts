@@ -1152,12 +1152,16 @@
 	status = "okay";
 	pruss1_eth0_phy: ethernet-phy@0 {
 		reg = <1>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
 		ti,link-loss-low;
 		ti,fiber-mode;
 	};
 
 	pruss1_eth1_phy: ethernet-phy@1 {
 		reg = <2>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
 		ti,link-loss-low;
 		ti,fiber-mode;
 	};
@@ -1168,12 +1172,16 @@
 	status = "okay";
 	pruss2_eth0_phy: ethernet-phy@0 {
 		reg = <3>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <30 IRQ_TYPE_EDGE_FALLING>;
 		ti,link-loss-low;
 		ti,fiber-mode;
 	};
 
 	pruss2_eth1_phy: ethernet-phy@1 {
 		reg = <4>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
 		ti,link-loss-low;
 		ti,fiber-mode;
 	};
