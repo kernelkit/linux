@@ -376,8 +376,11 @@ fill_tag:
 		return NULL;
 
 	skb->is_hsr = 1;
-
-	if (REDINFO_T(skb) == DIRECTED_TX)
+	/* PTP Sync fix - Code was returning skb without executing ptp related code
+	* Added ptp check to execute ptp related code for ptp packets.
+	* Parvathi@CIT - 21-Sep-2023
+	*/
+	if ((REDINFO_T(skb) == DIRECTED_TX) && !(is_hsr_l2ptp(skb, frame)))
 		return skb;
 
 	skb_shinfo(skb)->tx_flags |= skb_shinfo(skb_o)->tx_flags & SKBTX_ANY_TSTAMP;
