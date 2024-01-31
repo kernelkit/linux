@@ -1,0 +1,579 @@
+/*
+ * Copyright 2024 Hitachi Energy.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/* Hitachi 560CMR02 */
+
+/dts-v1/;
+
+#include "am33xx.dtsi"
+#include "dt-bindings/input/input.h"
+
+/ {
+	model = "Hitachi AM335x 560CMR02";
+	compatible = "ti,am335x-evm", "ti,am33xx", "hitachi,am335x-560cmr0x";
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&dcdc2_reg>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x8000000>; /* 128 MB */
+	};
+
+	vbat: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+
+	vmmcsd_fixed: fixedregulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsd_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+	};
+
+	status_leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_pins_default>;
+		led-green {
+			label = "GPIO_RUN_LED";
+			gpios = <&gpio1 22 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led-red {
+			label = "GPIO_ERROR_LED";
+			gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	default_switch {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&switch_pins_default>;
+		default-switch {
+			label = "GPIO_DEF_IP";
+			linux,code = <BTN_0>;
+			gpios = <&gpio2 19 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&am33xx_pinmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&clkout_pins_default &clkin_pins_default>;
+
+	leds_pins_default: leds_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A6, PIN_OUTPUT, MUX_MODE7)		/* gpmc_a6.gpio1_22		=> GPIO_RUN_LED (high pull-up) */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A8, PIN_OUTPUT, MUX_MODE7)		/* gpmc_a8.gpio1_24		=> GPIO_ERROR_LEDN (high pull-up) */
+		>;
+	};
+
+	switch_pins_default: switch_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_MII1_RXD2, PIN_INPUT_PULLUP, MUX_MODE7)	/* mii1_rxd2.gpio2_19		=> GPIO_DEF_IP */
+		>;
+	};
+
+	clkout_pins_default: clkout_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_GPMC_BEN0_CLE, PIN_OUTPUT_PULLDOWN, MUX_MODE2)	/* gpmc_ben0_cle.timer5_clkout */
+		>;
+	};
+
+	clkin_pins_default: clkin_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR1, PIN_INPUT_PULLUP, MUX_MODE2)	/* xdma_event_intr1.tclkin */
+		>;
+	};
+
+	i2c0_pins_default: i2c0_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT_PULLUP, MUX_MODE0)	/* i2c0_sda.i2c0_sda */
+			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT_PULLUP, MUX_MODE0)	/* i2c0_scl.i2c0_scl */
+		>;
+	};
+
+	spi0_pins_default: spi0_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_SPI0_SCLK, PIN_INPUT_PULLUP, MUX_MODE0)	/* spi0_sclk.spi0_sclk *
+			AM33XX_PADCONF(AM335X_PIN_SPI0_D0, PIN_INPUT_PULLUP, MUX_MODE0)		/* spi0_d0.spi0_d0 */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_D1, PIN_INPUT_PULLUP, MUX_MODE0)		/* spi0_d1.spi0_d1 */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_CS0, PIN_INPUT_PULLUP, MUX_MODE0)	/* spi0_cs0.spi0_cs0 */
+		>;
+	};
+
+	spi1_pins_default: spi1_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKX, PIN_INPUT_PULLUP, MUX_MODE3)	/* mcasp0_aclkx.spi1_sclk *
+			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_INPUT_PULLUP, MUX_MODE4)	/* uart0_ctsn.spi1_d0 */
+			AM33XX_PADCONF(AM335X_PIN_UART0_RTSN, PIN_INPUT_PULLUP, MUX_MODE4)	/* uart0_rtsn.spi1_d1 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKR, PIN_INPUT_PULLUP, MUX_MODE3)	/* mcasp0_ahclkr.spi1_cs0 */
+			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR0, PIN_INPUT_PULLUP, MUX_MODE4)	/* xdma_event_intr0.spi1_cs1 */
+		>;
+	};
+
+	uart0_pins_default: uart0_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_UART0_RXD, PIN_INPUT_PULLUP, MUX_MODE0)	/* uart0_rxd.uart0_rxd */
+			AM33XX_PADCONF(AM335X_PIN_UART0_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)	/* uart0_txd.uart0_txd */
+		>;
+	};
+
+	uart1_pins_default: uart1_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_UART1_CTSN, PIN_INPUT, MUX_MODE0)		/* uart1_ctsn.uart1_ctsn */
+			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT_PULLDOWN, MUX_MODE0)	/* uart1_rtsn.uart1_rtsn */
+			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT_PULLUP, MUX_MODE0)	/* uart1_rxd.uart1_rxd */
+			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)	/* uart1_txd.uart1_txd */
+			AM33XX_PADCONF(AM335X_PIN_MII1_TX_CLK, PIN_INPUT_PULLUP, MUX_MODE5)	/* mii1_tx_clk.uart1_dcdn */
+			AM33XX_PADCONF(AM335X_PIN_MII1_RXD3, PIN_OUTPUT_PULLDOWN, MUX_MODE5)	/* mii1_rxd3.uart1_dtrn */
+			AM33XX_PADCONF(AM335X_PIN_MII1_RX_CLK, PIN_INPUT_PULLUP, MUX_MODE5)	/* mii1_rx_clk.uart1_dsrn */
+		>;
+	};
+
+	uart3_pins_default: uart3_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA11, PIN_OUTPUT_PULLDOWN, MUX_MODE6)	/* lcd_data11.uart3_rtsn */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_CS1, PIN_INPUT_PULLUP, MUX_MODE1)	/* spi0_cs1.uart3_rxd */
+			AM33XX_PADCONF(AM335X_PIN_ECAP0_IN_PWM0_OUT, PIN_OUTPUT_PULLDOWN, MUX_MODE1)	/* ecap0_in_pwm0_out.uart3_txd */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A7, PIN_OUTPUT, MUX_MODE7)		/* gpmc_a7.gpio1_23		=> GPIO_UART3_DTR */
+		>;
+	};
+
+	uart5_pins_default: uart5_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA14, PIN_INPUT, MUX_MODE6)		/* lcd_data14.uart5_ctsn */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA15, PIN_OUTPUT_PULLDOWN, MUX_MODE6)	/* lcd_data15.uart5_rtsn */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA9, PIN_INPUT_PULLUP, MUX_MODE4)	/* lcd_data9.uart5_rxd */
+			AM33XX_PADCONF(AM335X_PIN_MII1_RX_DV, PIN_OUTPUT_PULLDOWN, MUX_MODE3)	/* mii1_rx_dv.uart5_txd */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA10, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* lcd_data10.gpio2_16		=> GPIO_UART5_DCDN */
+			AM33XX_PADCONF(AM335X_PIN_LCD_VSYNC, PIN_OUTPUT, MUX_MODE7)		/* lcd_vsync.gpio2_22		=> GPIO_UART5_DTR */
+			AM33XX_PADCONF(AM335X_PIN_LCD_PCLK, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* lcd_pclk.gpio2_24		=> GPIO_UART5_DSRN */
+		>;
+	};
+
+	gpio0_pins_default: gpio0_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA12, PIN_OUTPUT, MUX_MODE7)		/* lcd_data12.gpio0_8		=> GPIO_TEST_CR2032_BAT */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA13, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* lcd_data13.gpio0_9		=> GPIO_ATR */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD8, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad8.gpio0_22		=> GPIO_PSF1 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD9, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad9.gpio0_23		=> GPIO_PSF2 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD10, PIN_INPUT, MUX_MODE7)		/* gpmc_ad10.gpio0_26		=> GPIO_EXT_IRQ0 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD11, PIN_INPUT, MUX_MODE7)		/* gpmc_ad11.gpio0_27		=> GPIO_EXT_IRQ1 */
+		>;
+	};
+
+	gpio1_pins_default: gpio1_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad0.gpio1_0		=> GPIO_BOARD_ADDR0 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad1.gpio1_1		=> GPIO_BOARD_ADDR1 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD2, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad2.gpio1_2		=> GPIO_BOARD_ADDR2 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD3, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad3.gpio1_3		=> GPIO_BOARD_ADDR3 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD4, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad4.gpio1_4		=> GPIO_BOARD_ADDR4 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD5, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad5.gpio1_5		=> GPIO_BOARD_ADDR5 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD6, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad6.gpio1_6		=> GPIO_BOARD_ADDR6 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD7, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad7.gpio1_7		=> GPIO_BOARD_ADDR7 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD12, PIN_OUTPUT, MUX_MODE7)		/* gpmc_ad12.gpio1_12		=> GPIO_ENABLE_XBUS */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD13, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* gpmc_ad13.gpio1_13		=> GPIO_E2_SWTICH */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD14, PIN_INPUT, MUX_MODE7)		/* gpmc_ad14.gpio1_14		=> GPIO_E2_INT_PD */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A2, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* gpmc_a2.gpio1_18		=> GPIO_TIMEMASTER */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A3, PIN_OUTPUT, MUX_MODE7)		/* gpmc_a3.gpio1_19		=> GPIO_EXT_FEEDBACK */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_BEN1, PIN_OUTPUT, MUX_MODE7)		/* gpmc_ben1.gpio1_28		=> GPIO_EXT_IO2 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN0, PIN_OUTPUT, MUX_MODE7)		/* gpmc_csn0.gpio1_29		=> GPIO_EN_RS232_CP2 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN1, PIN_OUTPUT, MUX_MODE7)		/* gpmc_csn1.gpio1_30		=> GPIO_TERM_CP1_CPR01 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN2, PIN_OUTPUT, MUX_MODE7)		/* gpmc_csn2.gpio1_31		=> GPIO_TERM_CP2_CPR01 */
+		>;
+	};
+
+	gpio2_pins_default: gpio2_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN3, PIN_OUTPUT, MUX_MODE7)		/* gpmc_csn3.gpio2_0		=> GPIO_TERM_XBUS */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CLK, PIN_OUTPUT, MUX_MODE7)		/* gpmc_clk.gpio2_1		=> GPIO_EN_RS232_CP1 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_ADVN_ALE, PIN_OUTPUT_PULLUP, MUX_MODE7)	/* gpmc_advn_ale.gpio2_2	=> GPIO_TSO */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_OEN_REN, PIN_INPUT_PULLUP, MUX_MODE7)	/* gpmc_oen_ren.gpio2_3		=> GPIO_TSI */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_WEN, PIN_INPUT, MUX_MODE7)		/* gpmc_wen.gpio2_4		=> GPIO_EXT_DETECT */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA0, PIN_OUTPUT, MUX_MODE7)		/* lcd_data0.gpio2_6		=> GPIO_DEBUG_IO0 */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA1, PIN_OUTPUT, MUX_MODE7)		/* lcd_data1.gpio2_7		=> GPIO_DEBUG_IO1 */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA2, PIN_INPUT, MUX_MODE7)		/* lcd_data2.gpio2_8		=> GPIO_ALR */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA3, PIN_INPUT, MUX_MODE7)		/* lcd_data3.gpio2_9		=> GPIO_WRN_INT */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA6, PIN_OUTPUT, MUX_MODE7)		/* lcd_data6.gpio2_12		=> GPIO_DISABLE_CAN */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA7, PIN_OUTPUT, MUX_MODE7)		/* lcd_data7.gpio2_13		=> GPIO_EXT_IO0 */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA8, PIN_OUTPUT, MUX_MODE7)		/* lcd_data8.gpio2_14		=> GPIO_EXT_IO1 */
+			AM33XX_PADCONF(AM335X_PIN_LCD_HSYNC, PIN_INPUT, MUX_MODE7)		/* lcd_hsync.gpio2_23		=> GPIO_EXT_IRQ2 */
+			AM33XX_PADCONF(AM335X_PIN_LCD_AC_BIAS_EN, PIN_INPUT, MUX_MODE7)		/* lcd_ac_bias_en.gpio2_25	=> GPIO_EXT_IRQ3 */
+		>;
+	};
+
+	gpio3_pins_default: gpio3_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_EMU0, PIN_OUTPUT, MUX_MODE7)			/* emu0.gpio3_7			=> GPIO_DEBUG_IO2 */
+			AM33XX_PADCONF(AM335X_PIN_EMU1, PIN_OUTPUT, MUX_MODE7)			/* emu1.gpio3_8			=> GPIO_DEBUG_IO3 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSX, PIN_OUTPUT, MUX_MODE7)		/* mcasp0_fsx.gpio3_15		=> GPIO_EXT_IO3 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_AXR0, PIN_OUTPUT_PULLUP, MUX_MODE7)	/* mcasp0_axr0.gpio3_16		=> GPIO_EXT_RESET */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKX, PIN_INPUT, MUX_MODE7)		/* mcasp0_ahclkx.gpio3_21	=> GPIO_E1_INT_PD */
+		>;
+	};
+
+	eth_cpsw_pins_default: eth_cpsw_default_pinmux {
+		pinctrl-single,pins = <
+			/* E1 interface, RMII mode */
+			AM33XX_PADCONF(AM335X_PIN_MII1_CRS, PIN_INPUT_PULLUP, MUX_MODE1)	/* mii1_crs.rmii1_crs_dv */
+			AM33XX_PADCONF(AM335X_PIN_RMII1_REF_CLK, PIN_INPUT_PULLUP, MUX_MODE0)	/* rmii1_ref_clk.rmii1_ref_clk */
+			AM33XX_PADCONF(AM335X_PIN_MII1_RXD0, PIN_INPUT_PULLUP, MUX_MODE1)	/* mii1_rxd0.rmii1_rxd0 */
+			AM33XX_PADCONF(AM335X_PIN_MII1_RXD1, PIN_INPUT_PULLUP, MUX_MODE1)	/* mii1_rxd1.rmii1_rxd1 */
+			AM33XX_PADCONF(AM335X_PIN_MII1_RX_ER, PIN_INPUT_PULLUP, MUX_MODE1)	/* mii1_rx_er.rmii1_rx_er */
+			AM33XX_PADCONF(AM335X_PIN_MII1_TXD0, PIN_OUTPUT_PULLDOWN, MUX_MODE1)	/* mii1_txd0.rmii1_txd0 */
+			AM33XX_PADCONF(AM335X_PIN_MII1_TXD1, PIN_OUTPUT_PULLDOWN, MUX_MODE1)	/* mii1_txd1.rmii1_txd1 */
+			AM33XX_PADCONF(AM335X_PIN_MII1_TX_EN, PIN_OUTPUT_PULLDOWN, MUX_MODE1)	/* mii1_tx_en.rmii1_tx_en */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA4, PIN_OUTPUT, MUX_MODE7)		/* lcd_data4.gpio2_10		=> GPIO_E1_LED_SPEED */
+
+			/* E2 interface, RMII mode */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_WAIT0, PIN_INPUT_PULLUP, MUX_MODE3)	/* gpmc_wait0.rmii2_crs_dv */
+			AM33XX_PADCONF(AM335X_PIN_MII1_COL, PIN_INPUT_PULLUP, MUX_MODE1)	/* mii1_col.rmii2_refclk */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A11, PIN_INPUT_PULLUP, MUX_MODE3)	/* gpmc_a11.rmii2_rxd0 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A10, PIN_INPUT_PULLUP, MUX_MODE3)	/* gpmc_a10.rmii2_rxd1 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_WPN, PIN_INPUT_PULLUP, MUX_MODE3)	/* gpmc_wpn.rmii2_rxerr */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A5, PIN_OUTPUT_PULLDOWN, MUX_MODE3)	/* gpmc_a5.rmii2_txd0 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A4, PIN_OUTPUT_PULLDOWN, MUX_MODE3)	/* gpmc_a4.rmii2_txd1 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A0, PIN_OUTPUT_PULLDOWN, MUX_MODE3)	/* gpmc_a0.rmii2_txen */
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA5, PIN_OUTPUT, MUX_MODE7)		/* lcd_data5.gpio2_11		=> GPIO_E2_LED_SPEED */
+		>;
+	};
+
+	mdio_pins_default: mdio_default_pinmux {
+		pinctrl-single,pins = <
+			/* MDIO */
+			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLUP | SLEWCTRL_FAST, MUX_MODE0)	/* mdio.mdio */
+			AM33XX_PADCONF(AM335X_PIN_MDC, PIN_OUTPUT_PULLUP, MUX_MODE0)			/* mdc.mdc */
+		>;
+	};
+
+	mmc1_pins_default: mmc1_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT0, PIN_INPUT_PULLUP, MUX_MODE0)	/* mmc0_dat0.mmc0_dat0 */
+			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT1, PIN_INPUT_PULLUP, MUX_MODE0)	/* mmc0_dat1.mmc0_dat1 */
+			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT2, PIN_INPUT_PULLUP, MUX_MODE0)	/* mmc0_dat2.mmc0_dat2 */
+			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT3, PIN_INPUT_PULLUP, MUX_MODE0)	/* mmc0_dat3.mmc0_dat3 */
+			AM33XX_PADCONF(AM335X_PIN_MMC0_CMD, PIN_INPUT_PULLUP, MUX_MODE0)	/* mmc0_cmd.mmc0_cmd */
+			AM33XX_PADCONF(AM335X_PIN_MMC0_CLK, PIN_INPUT_PULLUP, MUX_MODE0)	/* mmc0_clk.mmc0_clk */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A1, PIN_INPUT, MUX_MODE7)		/* gpmc_a1.gpio1_17		=> GPIO_MMC0_SDCD */
+		>;
+	};
+
+	dcan0_pins_default: dcan0_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_MII1_TXD3, PIN_OUTPUT, MUX_MODE1)		/* mii1_txd3.dcan0_tx */
+			AM33XX_PADCONF(AM335X_PIN_MII1_TXD2, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* mii1_txd2.dcan0_rx */
+		>;
+	};
+
+	usb0_pins_default: usb0_default_pinmux {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_USB0_DRVVBUS, PIN_OUTPUT, MUX_MODE0)		/* usb0_drvvbus.usb0_drvvbus */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A9, PIN_INPUT, MUX_MODE7)		/* gpmc_a9.gpio1_25		=> GPIO_USB0_OVCURR */
+		>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_default>;
+	u-boot,dm-spl;
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins_default>;
+	u-boot,dm-spl;
+};
+
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins_default>;
+	dtr-gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+};
+
+&uart5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5_pins_default>;
+	dcd-gpios = <&gpio2 16 GPIO_ACTIVE_HIGH>;
+	dtr-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+	dsr-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_default>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps: tps@24 {
+		reg = <0x24>;
+	};
+
+	pcf8563@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+};
+
+/include/ "tps65217.dtsi"
+
+&tps {
+	interrupts = <7>; /* NMI */
+	interrupt-parent = <&intc>;
+
+	ti,pmic-shutdown-controller;
+
+	regulators {
+		dcdc1_reg: regulator@0 {
+			regulator-name = "vdds_dpr";
+			regulator-always-on;
+		};
+
+		dcdc2_reg: regulator@1 {
+			/* VDD_MPU voltage limits 0.95V - 1.26V with +/-4% tolerance */
+			regulator-name = "vdd_mpu";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1351500>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc3_reg: regulator@2 {
+			/* VDD_CORE voltage limits 0.95V - 1.1V with +/-4% tolerance */
+			regulator-name = "vdd_core";
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <1150000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		ldo1_reg: regulator@3 {
+			regulator-name = "vio,vrtc,vdds";
+			regulator-always-on;
+		};
+
+		ldo2_reg: regulator@4 {
+			regulator-name = "vdd_3v3aux";
+			regulator-always-on;
+		};
+
+		ldo3_reg: regulator@5 {
+			regulator-name = "vdd_1v8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		ldo4_reg: regulator@6 {
+			regulator-name = "vdd_3v3a";
+			regulator-always-on;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins_default>;
+	u-boot,dm-spl;
+
+	spi_nor: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "winbond,w25q64", "jedec,spi-nor";
+		spi-max-frequency = <80000000>;
+		m25p,fast-read;
+		reg = <0>;
+
+		partition@0 {
+			label = "u-boot-spl";
+			reg = <0x0 0x80000>;
+			read-only;
+		};
+
+		partition@1 {
+			label = "u-boot";
+			reg = <0x80000 0x100000>;
+			read-only;
+		};
+
+		partition@2 {
+			label = "u-boot-env";
+			reg = <0x180000 0x20000>;
+			read-only;
+		};
+
+		partition@3 {
+			label = "misc";
+			reg = <0x1A0000 0x660000>;
+		};
+	};
+};
+
+&usb {
+	status = "okay";
+};
+
+&usb_ctrl_mod {
+	status = "okay";
+};
+
+&usb0_phy {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins_default>;
+	dr_mode = "peripheral";
+};
+
+&cppi41dma  {
+	status = "okay";
+};
+
+&mac {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth_cpsw_pins_default>;
+	dual_emac;
+};
+
+&davinci_mdio {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio_pins_default>;
+
+	ethphy0: ethernet-phy@1 {
+		reg = <1>;
+	};
+
+	ethphy1: ethernet-phy@3 {
+		reg = <3>;
+	};
+};
+
+&cpsw_emac0 {
+	phy-handle = <&ethphy0>;
+	phy-mode = "rmii";
+	dual_emac_res_vlan = <1>;
+};
+
+&cpsw_emac1 {
+	phy-handle = <&ethphy1>;
+	phy-mode = "rmii";
+	dual_emac_res_vlan = <2>;
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_default>;
+	brocken-cd;
+	u-boot,dm-spl;
+};
+
+&sham {
+	status = "okay";
+};
+
+&aes {
+	status = "okay";
+};
+
+&dcan0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan0_pins_default>;
+};
+
+&gpio0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpio0_pins_default>;
+	gpio-line-names =
+		"",                     "",         "",              "",              /* 0..3 */
+		"",                     "",         "",              "",              /* 4..7 */
+		"GPIO_TEST_CR2032_BAT", "GPIO_ATR", "",              "",              /* 8..11 */
+		"",                     "",         "",              "",              /* 12..15 */
+		"",                     "",         "",              "",              /* 16..19 */
+		"",                     "",         "GPIO_PSF1",     "GPIO_PSF2",     /* 20..23 */
+		"",                     "",         "GPIO_EXT_IRQ0", "GPIO_EXT_IRQ1", /* 24..27 */
+		"",                     "",         "",              "";              /* 28..31 */
+};
+
+&gpio1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpio1_pins_default>;
+	gpio-line-names =
+		"GPIO_BOARD_ADDR0", "GPIO_BOARD_ADDR1",  "GPIO_BOARD_ADDR2",    "GPIO_BOARD_ADDR3",    /* 0..3 */
+		"GPIO_BOARD_ADDR4", "GPIO_BOARD_ADDR5",  "GPIO_BOARD_ADDR6",    "GPIO_BOARD_ADDR7",    /* 4..7 */
+		"",                 "",                  "",                    "",                    /* 8..11 */
+		"GPIO_ENABLE_XBUS", "GPIO_E2_SWTICH",    "GPIO_E2_INT_PD",      "NC",                  /* 12..15 */
+		"",                 "GPIO_MMC0_SDCD",    "GPIO_TIMEMASTER",     "GPIO_EXT_FEEDBACK",   /* 16..19 */
+		"",                 "",                  "GPIO_RUN_LED",        "GPIO_UART3_DTR",      /* 20..23 */
+		"GPIO_ERROR_LED",   "GPIO_USB0_OVCURR",  "",                    "",                    /* 24..27 */
+		"GPIO_EXT_IO2",     "GPIO_EN_RS232_CP2", "GPIO_TERM_CP1_CPR01", "GPIO_TERM_CP2_CPR01"; /* 28..31 */
+};
+
+&gpio2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpio2_pins_default>;
+	gpio-line-names =
+		"GPIO_TERM_XBUS",   "GPIO_EN_RS232_CP1", "GPIO_TSO",          "GPIO_TSI",          /* 0..3 */
+		"GPIO_EXT_DETECT",  "",                  "GPIO_DEBUG_IO0",    "GPIO_DEBUG_IO1",    /* 4..7 */
+		"GPIO_ALR",         "GPIO_WRN_INT",      "GPIO_E1_LED_SPEED", "GPIO_E2_LED_SPEED", /* 8..11 */
+		"GPIO_DISABLE_CAN", "GPIO_EXT_IO0",      "GPIO_EXT_IO2",      "",                  /* 12..15 */
+		"GPIO_UART5_DCDN",  "",                  "",                  "GPIO_DEF_IP",       /* 16..19 */
+		"",                 "",                  "GPIO_UART5_DTR",    "GPIO_EXT_IRQ2",     /* 20..23 */
+		"GPIO_UART5_DSRN",  "GPIO_EXT_IRQ3",     "",                  "",                  /* 24..27 */
+		"",                 "",                  "",                  "";                  /* 28..31 */
+
+    enable-rs232-cp1 {
+        gpio-hog;
+        gpios = <1 GPIO_ACTIVE_HIGH>;
+        output-high;
+    };
+};
+
+&gpio3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpio3_pins_default>;
+	gpio-line-names =
+		"",               "",               "",   "",               /* 0..3 */
+		"",               "",               "",   "GPIO_DEBUG_IO2", /* 4..7 */
+		"GPIO_DEBUG_IO3", "",               "",   "",               /* 8..11 */
+		"",               "",               "",   "GPIO_EXT_IO3",   /* 12..15 */
+		"GPIO_EXT_RESET", "",               "NC", "NC",             /* 16..19 */
+		"NC",             "GPIO_E1_INT_PD", "",   "",               /* 20..23 */
+		"",               "",               "",   "",               /* 24..27 */
+		"",               "",               "",   "";               /* 28..31 */
+};
