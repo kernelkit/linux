@@ -210,16 +210,7 @@ static int cdns_pcie_ep_map_addr(struct pci_epc *epc, u8 fn, u8 vfn,
 	u32 first_vf_offset, stride;
 	u32 r;
 
-	if (vfn > 0) {
-		first_vf_offset = cdns_pcie_ep_fn_readw(pcie, fn, cap +
-							PCI_SRIOV_VF_OFFSET);
-		stride = cdns_pcie_ep_fn_readw(pcie, fn, cap +
-					       PCI_SRIOV_VF_STRIDE);
-		fn = fn + first_vf_offset + ((vfn - 1) * stride);
-	}
-
-	r = find_first_zero_bit(&ep->ob_region_map,
-				sizeof(ep->ob_region_map) * BITS_PER_LONG);
+	r = find_first_zero_bit(&ep->ob_region_map, BITS_PER_LONG);
 	if (r >= ep->max_regions - 1) {
 		dev_err(&epc->dev, "no free outbound region\n");
 		return -EINVAL;

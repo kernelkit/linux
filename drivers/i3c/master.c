@@ -1469,9 +1469,11 @@ i3c_master_register_new_i3c_devs(struct i3c_master_controller *master)
 			desc->dev->dev.of_node = desc->boardinfo->of_node;
 
 		ret = device_register(&desc->dev->dev);
-		if (ret)
+		if (ret) {
 			dev_err(&master->dev,
 				"Failed to add I3C device (err = %d)\n", ret);
+			put_device(&desc->dev->dev);
+		}
 	}
 }
 
@@ -2492,7 +2494,7 @@ int i3c_master_register(struct i3c_master_controller *master,
 
 	ret = i3c_master_bus_init(master);
 	if (ret)
-		goto err_destroy_wq;
+		goto err_put_dev;
 
 	ret = device_add(&master->dev);
 	if (ret)
@@ -2522,9 +2524,6 @@ err_del_dev:
 
 err_cleanup_bus:
 	i3c_master_bus_cleanup(master);
-
-err_destroy_wq:
-	destroy_workqueue(master->wq);
 
 err_put_dev:
 	put_device(&master->dev);

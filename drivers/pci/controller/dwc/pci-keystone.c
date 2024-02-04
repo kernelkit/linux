@@ -1028,8 +1028,8 @@ static irqreturn_t ks_pcie_err_irq_handler(int irq, void *priv)
 	return ks_pcie_handle_error_irq(ks_pcie);
 }
 
-static int __init ks_pcie_add_pcie_port(struct keystone_pcie *ks_pcie,
-					struct platform_device *pdev)
+static int ks_pcie_add_pcie_port(struct keystone_pcie *ks_pcie,
+				 struct platform_device *pdev)
 {
 	struct dw_pcie *pci = ks_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
@@ -1162,161 +1162,8 @@ static const struct dw_pcie_ep_ops ks_pcie_am654_ep_ops = {
 	.get_features = &ks_pcie_am654_get_features,
 };
 
-static void ks_pcie_disable_outbound_atu(struct keystone_pcie *ks_pcie,
-					 phys_addr_t addr)
-{
-	u8 index;
-	u8 regions;
-	u64 cpu_addr;
-
-	index = (addr >> KS_PCIE_WIN_INDEX_SHIFT) & KS_PCIE_WIN_INDEX_MASK;
-	regions = ks_pcie->ob_win[index].no_of_regions;
-	cpu_addr = ks_pcie->ob_win[index].cpu_addr;
-
-	WARN_ON(cpu_addr != addr);
-
-	while (regions--) {
-		ks_pcie_app_writel(ks_pcie, OB_OFFSET_INDEX(index), 0x0);
-		clear_bit(index++, &ks_pcie->ob_window_map);
-	}
-}
-
-static void ks_pcie_disable_inbound_atu(struct keystone_pcie *ks_pcie,
-					int index)
-{
-	ks_pcie_app_writel(ks_pcie, IB_BAR(index), 0x0);
-	ks_pcie_app_writel(ks_pcie, IB_START_LO(index), 0x0);
-	ks_pcie_app_writel(ks_pcie, IB_START_HI(index), 0x0);
-	ks_pcie_app_writel(ks_pcie, IB_OFFSET(index), 0x0);
-}
-
-static void ks_pcie_disable_atu(struct dw_pcie *pci, phys_addr_t addr,
-				int index, enum dw_pcie_region_type type)
-{
-	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
-
-	switch (type) {
-	case DW_PCIE_REGION_INBOUND:
-		ks_pcie_disable_inbound_atu(ks_pcie, index);
-		break;
-	case DW_PCIE_REGION_OUTBOUND:
-		ks_pcie_disable_outbound_atu(ks_pcie, addr);
-		break;
-	default:
-		return;
-	}
-}
-
-static int ks_pcie_inbound_atu(struct dw_pcie *pci, u32 index,
-			       enum pci_barno bar, dma_addr_t cpu_addr)
-{
-	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
-	struct device *dev = pci->dev;
-
-	if (bar == BAR_0) {
-		dev_err(dev, "BAR_0 is reserved\n");
-		return -EINVAL;
-	}
-
-	ks_pcie_app_writel(ks_pcie, IB_BAR(index), bar);
-	ks_pcie_app_writel(ks_pcie, IB_OFFSET(index), lower_32_bits(cpu_addr));
-
-	return 0;
-}
-
-static int ks_pcie_check_free(struct keystone_pcie *ks_pcie, u8 index,
-			      u8 regions)
-{
-	while (regions--) {
-		if (test_bit(index++, &ks_pcie->ob_window_map))
-			return false;
-	}
-
-	return true;
-}
-
-static int ks_pcie_outbound_atu(struct dw_pcie *pci, u64 cpu_addr, u64 pci_addr,
-				size_t size)
-{
-	u8 index;
-	u8 regions;
-	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
-
-	index = (cpu_addr >> KS_PCIE_WIN_INDEX_SHIFT) & KS_PCIE_WIN_INDEX_MASK;
-	regions = ((size - 1) >> KS_PCIE_WIN_INDEX_SHIFT) + 1;
-
-	if (!ks_pcie_check_free(ks_pcie, index, regions))
-		return -ENOMEM;
-	if (index + regions > ks_pcie->num_viewport)
-		return -ENOMEM;
-
-	ks_pcie->ob_win[index].cpu_addr = cpu_addr;
-	ks_pcie->ob_win[index].no_of_regions = regions;
-
-	while (regions--) {
-		ks_pcie_app_writel(ks_pcie, OB_OFFSET_INDEX(index),
-				   lower_32_bits(pci_addr) | OB_ENABLEN);
-		ks_pcie_app_writel(ks_pcie, OB_OFFSET_HI(index),
-				   upper_32_bits(pci_addr));
-		set_bit(index++, &ks_pcie->ob_window_map);
-		pci_addr += KS_PCIE_WIN_SIZE;
-	}
-
-	return 0;
-}
-
-static const struct dw_pcie_ops ks_pcie_dw_pcie_ops = {
-	.start_link = ks_pcie_start_link,
-	.stop_link = ks_pcie_stop_link,
-	.link_up = ks_pcie_link_up,
-	.read_dbi2 = ks_pcie_am654_read_dbi2,
-	.write_dbi2 = ks_pcie_am654_write_dbi2,
-	.inbound_atu = ks_pcie_inbound_atu,
-	.outbound_atu = ks_pcie_outbound_atu,
-	.disable_atu = ks_pcie_disable_atu,
-};
-
-static void ks_pcie_ep_init(struct dw_pcie_ep *ep)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
-	int flags;
-	u32 val;
-
-	dw_pcie_ep_reset_bar(pci, BAR_5);
-
-	ep->page_size = KS_PCIE_WIN_SIZE;
-	flags = PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_32;
-	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, APP_ADDR_SPACE_0 - 1);
-	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, flags);
-
-	ks_pcie_app_writel(ks_pcie, OB_SIZE, 0x0);
-	val = ks_pcie_app_readl(ks_pcie, CMD_STATUS);
-	ks_pcie_app_writel(ks_pcie, CMD_STATUS, val | OB_XLAT_EN_VAL |
-			   IB_XLAT_EN_VAL);
-}
-
-static const struct pci_epc_features ks_pcie_epc_features = {
-	.linkup_notifier = false,
-	.msi_capable = true,
-	.msix_capable = false,
-	.reserved_bar = 1 << BAR_0,
-};
-
-static const struct pci_epc_features*
-ks_pcie_get_features(struct dw_pcie_ep *ep)
-{
-	return &ks_pcie_epc_features;
-}
-
-static const struct dw_pcie_ep_ops ks_pcie_ep_ops = {
-	.ep_init = ks_pcie_ep_init,
-	.raise_irq = ks_pcie_am654_raise_irq,
-	.get_features = &ks_pcie_get_features,
-};
-
-static int __init ks_pcie_add_pcie_ep(struct keystone_pcie *ks_pcie,
-				      struct platform_device *pdev)
+static int ks_pcie_add_pcie_ep(struct keystone_pcie *ks_pcie,
+			       struct platform_device *pdev)
 {
 	int ret;
 	struct dw_pcie_ep *ep;
@@ -1534,7 +1381,7 @@ static const struct of_device_id ks_pcie_of_match[] = {
 	{ },
 };
 
-static int __init ks_pcie_probe(struct platform_device *pdev)
+static int ks_pcie_probe(struct platform_device *pdev)
 {
 	const struct dw_pcie_host_ops *host_ops;
 	const struct dw_pcie_ep_ops *ep_ops;
@@ -1777,7 +1624,7 @@ err_link:
 	return ret;
 }
 
-static int __exit ks_pcie_remove(struct platform_device *pdev)
+static int ks_pcie_remove(struct platform_device *pdev)
 {
 	struct keystone_pcie *ks_pcie = platform_get_drvdata(pdev);
 	struct device_link **link = ks_pcie->link;
@@ -1793,9 +1640,9 @@ static int __exit ks_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver ks_pcie_driver __refdata = {
+static struct platform_driver ks_pcie_driver = {
 	.probe  = ks_pcie_probe,
-	.remove = __exit_p(ks_pcie_remove),
+	.remove = ks_pcie_remove,
 	.driver = {
 		.name	= "keystone-pcie",
 		.of_match_table = of_match_ptr(ks_pcie_of_match),

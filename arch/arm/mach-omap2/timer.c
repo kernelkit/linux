@@ -625,7 +625,7 @@ void __init omap3_secure_sync32k_timer_init(void)
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX) || \
-	defined(CONFIG_SOC_AM43XX)
+	defined(CONFIG_SOC_AM43XX) || defined(CONFIG_SOC_DRA7XX)
 void __init omap3_gptimer_timer_init(void)
 {
 	__omap_sync32k_timer_init(2, "timer_sys_ck", NULL,
