@@ -53,10 +53,10 @@ int prueth_sw_init_fdb_table(struct prueth *prueth);
 void prueth_sw_free_fdb_table(struct prueth *prueth);
 
 
-extern const struct prueth_queue_info sw_queue_infos[][4];
+extern const struct prueth_queue_info sw_queue_infos[][NUM_QUEUES];
 /* Added for HSR/PRP TX optimization
 *  Parvathi@CIT - 19-Aug-2022
 */
-extern const struct prueth_queue_info lre_queue_infos[][4];
+extern const struct prueth_queue_info lre_queue_infos[][NUM_QUEUES];
 
 #endif /* __NET_TI_PRUETH_SWITCH_H */
