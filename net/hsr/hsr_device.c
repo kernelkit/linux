@@ -485,7 +485,7 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	set_hsr_stag_HSR_ver(hsr_stag, (hsr_ver ? 1 : 0));
 
 	/* From HSRv1 on we have separate supervision sequence numbers. */
-	spin_lock_irqsave(&hsr->seqnr_lock, irqflags);
+	raw_spin_lock_irqsave(&hsr->seqnr_lock, irqflags);
 	if (hsr_ver > 0) {
 		hsr_stag->sequence_nr = htons(hsr->sup_sequence_nr);
 		hsr->sup_sequence_nr++;
@@ -497,7 +497,7 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 		hsr_stag->sequence_nr = htons(hsr->sequence_nr);
 		hsr->sequence_nr++;
 	}
-	spin_unlock_irqrestore(&hsr->seqnr_lock, irqflags);
+	raw_spin_unlock_irqrestore(&hsr->seqnr_lock, irqflags);
 
 	hsr_stag->HSR_TLV_type = type;
 	/* TODO: Why 12 in HSRv0? */
@@ -516,7 +516,7 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 			return;
 	}
 
-	spin_lock_irqsave(&hsr->seqnr_lock, irqflags);
+	raw_spin_lock_irqsave(&hsr->seqnr_lock, irqflags);
 	if (hsr_ver == PRP_V1) {
 		tail = skb_tail_pointer(skb) - HSR_HLEN;
 		rct = (struct prp_rct *)tail;
@@ -525,7 +525,7 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 		rct->sequence_nr = htons(hsr->sequence_nr);
 		hsr->sequence_nr++;
 	}
-	spin_unlock_irqrestore(&hsr->seqnr_lock, irqflags);
+	raw_spin_unlock_irqrestore(&hsr->seqnr_lock, irqflags);
 
 	hsr_forward_skb(skb, master);
 	INC_CNT_TX_SUP(hsr);
@@ -845,7 +845,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	INIT_LIST_HEAD(&hsr->ports);
 	INIT_LIST_HEAD(&hsr->node_db);
 	INIT_LIST_HEAD(&hsr->self_node_db);
-	spin_lock_init(&hsr->list_lock);
+	raw_spin_lock_init(&hsr->list_lock);
 
 	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
 
@@ -867,7 +867,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		hsr->hsr_mode = IEC62439_3_HSR_MODE_H;
 	}
 
-	spin_lock_init(&hsr->seqnr_lock);
+	raw_spin_lock_init(&hsr->seqnr_lock);
 	/* Overflow soon to find bugs easier: */
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
