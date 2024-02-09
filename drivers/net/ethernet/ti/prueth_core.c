@@ -1366,11 +1366,11 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 			ssh = skb_hwtstamps(skb);
 			memset(ssh, 0, sizeof(*ssh));
 			ssh->hwtstamp = ns_to_ktime(ts);
-			if (PRUETH_IS_HSR(prueth)) {
-				ret = prueth_hsr_ptp_ct_tx_ts_enqueue(emac, skb, type);
-				if (ret == -EAGAIN)
-					goto out;
-			}
+			// if (PRUETH_IS_HSR(prueth)) {
+			// 	ret = prueth_hsr_ptp_ct_tx_ts_enqueue(emac, skb, type);
+			// 	if (ret == -EAGAIN)
+			// 		goto out;
+			// }
 		}
 
 		/* send packet up the stack */
