@@ -850,9 +850,11 @@ __SYSCALL(__NR_pidfd_open, sys_pidfd_open)
 #define __NR_clone3 435
 __SYSCALL(__NR_clone3, sys_clone3)
 #endif
+#define __NR_set_avoid_gpos 550
+__SYSCALL(__NR_set_avoid_gpos, sys_set_avoid_gpos)
 
 #undef __NR_syscalls
-#define __NR_syscalls 436
+#define __NR_syscalls 551
 
 /*
  * 32 bit systems traditionally used different

@@ -66,6 +66,9 @@ struct thread_info {
 #ifdef CONFIG_ARM_THUMBEE
 	unsigned long		thumbee_state;	/* ThumbEE Handler Base register */
 #endif
+
+#define AVOID_GPOS_TASKLET_BIT 0x1
+	unsigned int		avoid_gpos_stuff;
 };
 
 #define INIT_THREAD_INFO(tsk)						\

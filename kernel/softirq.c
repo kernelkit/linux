@@ -25,6 +25,7 @@
 #include <linux/smpboot.h>
 #include <linux/tick.h>
 #include <linux/irq.h>
+#include <asm/thread_info.h>
 #ifdef CONFIG_PREEMPT_RT
 #include <linux/locallock.h>
 #endif
@@ -358,6 +359,9 @@ asmlinkage __visible void __softirq_entry __do_softirq(void)
 	bool in_hardirq;
 	__u32 pending;
 	int softirq_bit;
+#if defined(CONFIG_ARM)
+	bool deferred_tasklet = false;
+#endif
 
 	/*
 	 * Mask out PF_MEMALLOC as the current task context is borrowed for the
@@ -379,6 +383,15 @@ asmlinkage __visible void __softirq_entry __do_softirq(void)
 restart:
 	/* Reset the pending bitmask before enabling irqs */
 	set_softirq_pending(0);
+
+#if defined(CONFIG_ARM)
+#define TASKLET_BIT (1UL << TASKLET_SOFTIRQ)
+	if ((pending & TASKLET_BIT) && (current_thread_info()->avoid_gpos_stuff & AVOID_GPOS_TASKLET_BIT))
+	{
+		deferred_tasklet = true;
+		pending &= ~TASKLET_BIT;
+	}
+#endif
 
 	local_irq_enable();
 
@@ -414,6 +427,14 @@ restart:
 	local_irq_disable();
 
 	pending = local_softirq_pending();
+
+#if defined(CONFIG_ARM)
+	if(deferred_tasklet)
+	{
+		pending &= ~(TASKLET_BIT);
+		or_softirq_pending(TASKLET_BIT);
+	}
+#endif
 	if (pending) {
 		if (time_before(jiffies, end) && !need_resched() &&
 		    --max_restart)
