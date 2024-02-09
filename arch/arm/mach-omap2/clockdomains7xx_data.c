@@ -316,7 +316,7 @@ static struct clockdomain l4per3_7xx_clkdm = {
 	.cm_inst	  = DRA7XX_CM_CORE_L4PER_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_L4PER_L4PER3_CDOFFS,
 	.dep_bit	  = DRA7XX_L4PER3_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain l4per2_7xx_clkdm = {
@@ -337,7 +337,7 @@ static struct clockdomain mpu0_7xx_clkdm = {
 	.prcm_partition	  = DRA7XX_MPU_PRCM_PARTITION,
 	.cm_inst	  = DRA7XX_MPU_PRCM_CM_C0_INST,
 	.clkdm_offs	  = DRA7XX_MPU_PRCM_CM_C0_CPU0_CDOFFS,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain iva_7xx_clkdm = {
@@ -349,7 +349,7 @@ static struct clockdomain iva_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_IVA_STATDEP_SHIFT,
 	.wkdep_srcs	  = iva_wkup_sleep_deps,
 	.sleepdep_srcs	  = iva_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain coreaon_7xx_clkdm = {
@@ -358,7 +358,7 @@ static struct clockdomain coreaon_7xx_clkdm = {
 	.prcm_partition	  = DRA7XX_CM_CORE_PARTITION,
 	.cm_inst	  = DRA7XX_CM_CORE_COREAON_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_COREAON_COREAON_CDOFFS,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain ipu1_7xx_clkdm = {
@@ -370,7 +370,7 @@ static struct clockdomain ipu1_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_IPU1_STATDEP_SHIFT,
 	.wkdep_srcs	  = ipu1_wkup_sleep_deps,
 	.sleepdep_srcs	  = ipu1_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain ipu2_7xx_clkdm = {
@@ -382,7 +382,7 @@ static struct clockdomain ipu2_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_IPU2_STATDEP_SHIFT,
 	.wkdep_srcs	  = ipu2_wkup_sleep_deps,
 	.sleepdep_srcs	  = ipu2_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain l3init_7xx_clkdm = {
@@ -394,7 +394,7 @@ static struct clockdomain l3init_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_L3INIT_STATDEP_SHIFT,
 	.wkdep_srcs	  = l3init_wkup_sleep_deps,
 	.sleepdep_srcs	  = l3init_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain l4sec_7xx_clkdm = {
@@ -416,7 +416,7 @@ static struct clockdomain l3main1_7xx_clkdm = {
 	.cm_inst	  = DRA7XX_CM_CORE_CORE_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_CORE_L3MAIN1_CDOFFS,
 	.dep_bit	  = DRA7XX_L3MAIN1_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain vpe_7xx_clkdm = {
@@ -428,7 +428,7 @@ static struct clockdomain vpe_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_VPE_STATDEP_SHIFT,
 	.wkdep_srcs	  = vpe_wkup_sleep_deps,
 	.sleepdep_srcs	  = vpe_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain mpu_7xx_clkdm = {
@@ -439,7 +439,7 @@ static struct clockdomain mpu_7xx_clkdm = {
 	.clkdm_offs	  = DRA7XX_CM_CORE_AON_MPU_MPU_CDOFFS,
 	.wkdep_srcs	  = mpu_wkup_sleep_deps,
 	.sleepdep_srcs	  = mpu_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain custefuse_7xx_clkdm = {
@@ -448,7 +448,7 @@ static struct clockdomain custefuse_7xx_clkdm = {
 	.prcm_partition	  = DRA7XX_CM_CORE_PARTITION,
 	.cm_inst	  = DRA7XX_CM_CORE_CUSTEFUSE_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_CUSTEFUSE_CUSTEFUSE_CDOFFS,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain ipu_7xx_clkdm = {
@@ -467,7 +467,7 @@ static struct clockdomain mpu1_7xx_clkdm = {
 	.prcm_partition	  = DRA7XX_MPU_PRCM_PARTITION,
 	.cm_inst	  = DRA7XX_MPU_PRCM_CM_C1_INST,
 	.clkdm_offs	  = DRA7XX_MPU_PRCM_CM_C1_CPU1_CDOFFS,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain gmac_7xx_clkdm = {
@@ -479,7 +479,7 @@ static struct clockdomain gmac_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_GMAC_STATDEP_SHIFT,
 	.wkdep_srcs	  = gmac_wkup_sleep_deps,
 	.sleepdep_srcs	  = gmac_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain l4cfg_7xx_clkdm = {
@@ -489,7 +489,7 @@ static struct clockdomain l4cfg_7xx_clkdm = {
 	.cm_inst	  = DRA7XX_CM_CORE_CORE_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_CORE_L4CFG_CDOFFS,
 	.dep_bit	  = DRA7XX_L4CFG_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain dma_7xx_clkdm = {
@@ -500,7 +500,7 @@ static struct clockdomain dma_7xx_clkdm = {
 	.clkdm_offs	  = DRA7XX_CM_CORE_CORE_DMA_CDOFFS,
 	.wkdep_srcs	  = dma_wkup_sleep_deps,
 	.sleepdep_srcs	  = dma_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain rtc_7xx_clkdm = {
@@ -509,7 +509,7 @@ static struct clockdomain rtc_7xx_clkdm = {
 	.prcm_partition	  = DRA7XX_CM_CORE_AON_PARTITION,
 	.cm_inst	  = DRA7XX_CM_CORE_AON_RTC_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_AON_RTC_RTC_CDOFFS,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain pcie_7xx_clkdm = {
@@ -531,7 +531,7 @@ static struct clockdomain atl_7xx_clkdm = {
 	.cm_inst	  = DRA7XX_CM_CORE_CORE_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_CORE_ATL_CDOFFS,
 	.dep_bit	  = DRA7XX_ATL_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain l3instr_7xx_clkdm = {
@@ -540,6 +540,7 @@ static struct clockdomain l3instr_7xx_clkdm = {
 	.prcm_partition	  = DRA7XX_CM_CORE_PARTITION,
 	.cm_inst	  = DRA7XX_CM_CORE_CORE_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_CORE_L3INSTR_CDOFFS,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain dss_7xx_clkdm = {
@@ -551,7 +552,7 @@ static struct clockdomain dss_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_DSS_STATDEP_SHIFT,
 	.wkdep_srcs	  = dss_wkup_sleep_deps,
 	.sleepdep_srcs	  = dss_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain emif_7xx_clkdm = {
@@ -561,7 +562,7 @@ static struct clockdomain emif_7xx_clkdm = {
 	.cm_inst	  = DRA7XX_CM_CORE_CORE_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_CORE_EMIF_CDOFFS,
 	.dep_bit	  = DRA7XX_EMIF_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain emu_7xx_clkdm = {
@@ -570,7 +571,7 @@ static struct clockdomain emu_7xx_clkdm = {
 	.prcm_partition	  = DRA7XX_PRM_PARTITION,
 	.cm_inst	  = DRA7XX_PRM_EMU_CM_INST,
 	.clkdm_offs	  = DRA7XX_PRM_EMU_CM_EMU_CDOFFS,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain dsp2_7xx_clkdm = {
@@ -582,7 +583,7 @@ static struct clockdomain dsp2_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_DSP2_STATDEP_SHIFT,
 	.wkdep_srcs	  = dsp2_wkup_sleep_deps,
 	.sleepdep_srcs	  = dsp2_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain dsp1_7xx_clkdm = {
@@ -594,7 +595,7 @@ static struct clockdomain dsp1_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_DSP1_STATDEP_SHIFT,
 	.wkdep_srcs	  = dsp1_wkup_sleep_deps,
 	.sleepdep_srcs	  = dsp1_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain cam_7xx_clkdm = {
@@ -616,7 +617,7 @@ static struct clockdomain l4per_7xx_clkdm = {
 	.cm_inst	  = DRA7XX_CM_CORE_L4PER_INST,
 	.clkdm_offs	  = DRA7XX_CM_CORE_L4PER_L4PER_CDOFFS,
 	.dep_bit	  = DRA7XX_L4PER_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain gpu_7xx_clkdm = {
@@ -628,7 +629,7 @@ static struct clockdomain gpu_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_GPU_STATDEP_SHIFT,
 	.wkdep_srcs	  = gpu_wkup_sleep_deps,
 	.sleepdep_srcs	  = gpu_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain eve4_7xx_clkdm = {
@@ -640,7 +641,7 @@ static struct clockdomain eve4_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_EVE4_STATDEP_SHIFT,
 	.wkdep_srcs	  = eve4_wkup_sleep_deps,
 	.sleepdep_srcs	  = eve4_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain eve2_7xx_clkdm = {
@@ -652,7 +653,7 @@ static struct clockdomain eve2_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_EVE2_STATDEP_SHIFT,
 	.wkdep_srcs	  = eve2_wkup_sleep_deps,
 	.sleepdep_srcs	  = eve2_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain eve3_7xx_clkdm = {
@@ -664,7 +665,7 @@ static struct clockdomain eve3_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_EVE3_STATDEP_SHIFT,
 	.wkdep_srcs	  = eve3_wkup_sleep_deps,
 	.sleepdep_srcs	  = eve3_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain wkupaon_7xx_clkdm = {
@@ -674,7 +675,7 @@ static struct clockdomain wkupaon_7xx_clkdm = {
 	.cm_inst	  = DRA7XX_PRM_WKUPAON_CM_INST,
 	.clkdm_offs	  = DRA7XX_PRM_WKUPAON_CM_WKUPAON_CDOFFS,
 	.dep_bit	  = DRA7XX_WKUPAON_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain eve1_7xx_clkdm = {
@@ -686,7 +687,7 @@ static struct clockdomain eve1_7xx_clkdm = {
 	.dep_bit	  = DRA7XX_EVE1_STATDEP_SHIFT,
 	.wkdep_srcs	  = eve1_wkup_sleep_deps,
 	.sleepdep_srcs	  = eve1_wkup_sleep_deps,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 /* As clockdomains are added or removed above, this list must also be changed */

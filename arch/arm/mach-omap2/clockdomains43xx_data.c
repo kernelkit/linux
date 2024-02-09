@@ -27,7 +27,7 @@ static struct clockdomain mpu_43xx_clkdm = {
 	.prcm_partition	  = AM43XX_CM_PARTITION,
 	.cm_inst	  = AM43XX_CM_MPU_INST,
 	.clkdm_offs	  = AM43XX_CM_MPU_MPU_CDOFFS,
-	.flags		  = CLKDM_CAN_HWSUP_SWSUP,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain l4ls_43xx_clkdm = {
@@ -126,6 +126,7 @@ static struct clockdomain l4_wkup_aon_43xx_clkdm = {
 	.prcm_partition	  = AM43XX_CM_PARTITION,
 	.cm_inst	  = AM43XX_CM_WKUP_INST,
 	.clkdm_offs	  = AM43XX_CM_WKUP_L4_WKUP_AON_CDOFFS,
+	.flags		  = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain l3_43xx_clkdm = {

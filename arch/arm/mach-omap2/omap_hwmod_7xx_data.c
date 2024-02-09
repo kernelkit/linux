@@ -55,6 +55,7 @@ static struct omap_hwmod dra7xx_dmm_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_EMIF_DMM_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_EMIF_DMM_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -76,7 +77,7 @@ static struct omap_hwmod dra7xx_l3_instr_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INSTR_L3_INSTR_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INSTR_L3_INSTR_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -90,11 +91,13 @@ static struct omap_hwmod dra7xx_l3_main_1_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3MAIN1_L3_MAIN_1_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3MAIN1_L3_MAIN_1_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
 
 /* l3_main_2 */
+//COV CHANGE THIS!!!!
 static struct omap_hwmod dra7xx_l3_main_2_hwmod = {
 	.name		= "l3_main_2",
 	.class		= &dra7xx_l3_hwmod_class,
@@ -103,7 +106,7 @@ static struct omap_hwmod dra7xx_l3_main_2_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INSTR_L3_MAIN_2_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INSTR_L3_MAIN_2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -125,6 +128,7 @@ static struct omap_hwmod dra7xx_l4_cfg_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_L4_CFG_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_L4_CFG_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -138,6 +142,7 @@ static struct omap_hwmod dra7xx_l4_per1_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER_L4_PER1_CLKCTRL_OFFSET,
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -151,6 +156,7 @@ static struct omap_hwmod dra7xx_l4_per2_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER2_L4_PER2_CLKCTRL_OFFSET,
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -164,6 +170,7 @@ static struct omap_hwmod dra7xx_l4_per3_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER3_L4_PER3_CLKCTRL_OFFSET,
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -177,6 +184,7 @@ static struct omap_hwmod dra7xx_l4_wkup_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_WKUPAON_L4_WKUP_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_WKUPAON_L4_WKUP_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -234,6 +242,7 @@ static struct omap_hwmod dra7xx_bb2d_hwmod = {
  *
  */
 
+//COV TODO Check this
 static struct omap_hwmod_class_sysconfig dra7xx_counter_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0010,
@@ -259,6 +268,7 @@ static struct omap_hwmod dra7xx_counter_32k_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_WKUPAON_COUNTER_32K_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_WKUPAON_COUNTER_32K_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -280,6 +290,7 @@ static struct omap_hwmod dra7xx_ctrl_module_wkup_hwmod = {
 	.prcm = {
 		.omap4 = {
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -429,6 +440,7 @@ static struct omap_hwmod dra7xx_dma_system_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_DMA_DMA_SYSTEM_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_DMA_DMA_SYSTEM_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 	.dev_attr	= &dma_dev_attr,
@@ -451,6 +463,7 @@ static struct omap_hwmod dra7xx_tpcc_hwmod = {
 		.omap4	= {
 			.clkctrl_offs = DRA7XX_CM_L3MAIN1_TPCC_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3MAIN1_TPCC_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -474,7 +487,7 @@ static struct omap_hwmod dra7xx_tptc0_hwmod = {
 		.omap4	= {
 			.clkctrl_offs = DRA7XX_CM_L3MAIN1_TPTC1_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3MAIN1_TPTC1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -490,7 +503,7 @@ static struct omap_hwmod dra7xx_tptc1_hwmod = {
 		.omap4	= {
 			.clkctrl_offs = DRA7XX_CM_L3MAIN1_TPTC2_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3MAIN1_TPTC2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -579,6 +592,7 @@ static struct omap_hwmod dra7xx_dss_dispc_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_DSS_DSS_CLKCTRL_OFFSET,
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 	.dev_attr	= &dss_dispc_dev_attr,
@@ -620,6 +634,7 @@ static struct omap_hwmod dra7xx_dss_hdmi_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_DSS_DSS_CLKCTRL_OFFSET,
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 	.opt_clks	= dss_hdmi_opt_clks,
@@ -650,7 +665,7 @@ static struct omap_hwmod dra7xx_aes1_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4SEC_AES1_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4SEC_AES1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -665,7 +680,7 @@ static struct omap_hwmod dra7xx_aes2_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4SEC_AES2_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4SEC_AES2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -692,7 +707,7 @@ struct omap_hwmod dra7xx_sha0_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4SEC_SHA2MD51_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4SEC_SHA2MD51_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -730,6 +745,7 @@ static struct omap_hwmod dra7xx_elm_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER_ELM_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4PER_ELM_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -767,7 +783,7 @@ static struct omap_hwmod dra7xx_gpmc_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3MAIN1_GPMC_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3MAIN1_GPMC_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -870,6 +886,7 @@ static struct omap_hwmod dra7xx_mailbox1_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX1_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX1_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -883,6 +900,7 @@ static struct omap_hwmod dra7xx_mailbox2_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX2_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX2_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -896,6 +914,7 @@ static struct omap_hwmod dra7xx_mailbox3_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX3_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX3_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -909,6 +928,7 @@ static struct omap_hwmod dra7xx_mailbox4_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX4_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX4_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -922,6 +942,7 @@ static struct omap_hwmod dra7xx_mailbox5_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX5_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX5_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -935,6 +956,7 @@ static struct omap_hwmod dra7xx_mailbox6_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX6_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX6_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -948,6 +970,7 @@ static struct omap_hwmod dra7xx_mailbox7_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX7_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX7_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -961,6 +984,7 @@ static struct omap_hwmod dra7xx_mailbox8_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX8_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX8_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -974,6 +998,7 @@ static struct omap_hwmod dra7xx_mailbox9_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX9_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX9_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -987,6 +1012,7 @@ static struct omap_hwmod dra7xx_mailbox10_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX10_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX10_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1000,6 +1026,7 @@ static struct omap_hwmod dra7xx_mailbox11_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX11_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX11_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1013,6 +1040,7 @@ static struct omap_hwmod dra7xx_mailbox12_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX12_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX12_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1026,6 +1054,7 @@ static struct omap_hwmod dra7xx_mailbox13_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX13_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_MAILBOX13_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1050,6 +1079,7 @@ static struct omap_hwmod dra7xx_mpu_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_MPU_MPU_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_MPU_MPU_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1084,7 +1114,7 @@ static struct omap_hwmod dra7xx_ocp2scp1_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_OCP2SCP1_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INIT_OCP2SCP1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -1099,7 +1129,7 @@ static struct omap_hwmod dra7xx_ocp2scp3_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_OCP2SCP3_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INIT_OCP2SCP3_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -1381,6 +1411,7 @@ static struct omap_hwmod dra7xx_spinlock_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4CFG_SPINLOCK_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4CFG_SPINLOCK_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1597,6 +1628,7 @@ static struct omap_hwmod dra7xx_timer12_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_WKUPAON_TIMER12_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_WKUPAON_TIMER12_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1684,7 +1716,7 @@ static struct omap_hwmod dra7xx_des_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4SEC_DES3DES_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4SEC_DES3DES_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -1712,7 +1744,7 @@ static struct omap_hwmod dra7xx_rng_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4SEC_RNG_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4SEC_RNG_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -1775,7 +1807,7 @@ static struct omap_hwmod dra7xx_usb_otg_ss2_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_USB_OTG_SS2_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INIT_USB_OTG_SS2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 	.opt_clks	= usb_otg_ss2_opt_clks,
@@ -1792,7 +1824,7 @@ static struct omap_hwmod dra7xx_usb_otg_ss3_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_USB_OTG_SS3_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INIT_USB_OTG_SS3_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -1807,7 +1839,7 @@ static struct omap_hwmod dra7xx_usb_otg_ss4_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_USB_OTG_SS4_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INIT_USB_OTG_SS4_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
+			.modulemode   = MODULEMODE_SWCTRL, //.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
 };
@@ -1831,6 +1863,7 @@ static struct omap_hwmod dra7xx_vcp1_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3MAIN1_VCP1_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3MAIN1_VCP1_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -1845,6 +1878,7 @@ static struct omap_hwmod dra7xx_vcp2_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3MAIN1_VCP2_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3MAIN1_VCP2_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
