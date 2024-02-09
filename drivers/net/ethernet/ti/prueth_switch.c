@@ -1711,6 +1711,16 @@ static void prueth_sw_switchdev_event_work(struct work_struct *work)
 	int port = emac->port_id;
 
 	rtnl_lock();
+	/*
+	 * Below code is fix for Crash when pru 20/21 port down using ifconfig before br0 down
+	 * Rajendar@CIT    - 14-December-2023
+	 */
+	/* Interface is not up */
+	if (!emac->prueth->fdb_tbl) {
+		rtnl_unlock();
+		return;
+	}
+
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		fdb = &switchdev_work->fdb_info;
