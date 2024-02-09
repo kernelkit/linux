@@ -320,7 +320,10 @@ static int cpts_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 {
 	struct cpts *cpts = container_of(ptp, struct cpts, info);
 	int neg_adj = 0;
-	u32 diff, mult, nppb = ppb;
+	u32 diff, mult;
+#ifdef CONFIG_TI_1PPS_DM_TIMER
+	u32 nppb = ppb;
+#endif
 	u64 adj;
 
 	if (ppb < 0) {
@@ -335,7 +338,9 @@ static int cpts_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	mutex_lock(&cpts->ptp_clk_mutex);
 
 	cpts->mult_new = neg_adj ? mult - diff : mult + diff;
+#ifdef CONFIG_TI_1PPS_DM_TIMER
 	cpts->ppb_new = nppb;
+#endif
 
 	cpts_update_cur_time(cpts, CPTS_EV_PUSH, NULL);
 
