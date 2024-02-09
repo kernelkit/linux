@@ -896,6 +896,7 @@ struct sk_buff {
 	__u16			transport_header;
 	__u16			network_header;
 	__u16			mac_header;
+	__u8			isQdisc;
 
 	/* private: */
 	__u32			headers_end[0];

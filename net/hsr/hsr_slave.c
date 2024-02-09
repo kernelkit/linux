@@ -67,7 +67,10 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 	}
 
 	INC_CNT_RX_AB(port->type, hsr);
-	hsr_forward_skb(skb, port);
+	if(NETDEV_TX_BUSY == hsr_forward_skb(skb, port))
+	{
+		kfree_skb(skb);
+	}
 
 finish_consume:
 	rcu_read_unlock(); /* hsr->node_db, hsr->ports */
