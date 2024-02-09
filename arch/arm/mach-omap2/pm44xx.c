@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <asm/system_misc.h>
+#include <linux/cpu.h>
 
 #include "soc.h"
 #include "common.h"
@@ -165,6 +166,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  */
 static void omap_default_idle(void)
 {
+	pr_err("COV: No active IDLE!\n");
 	omap_do_wfi();
 }
 
@@ -296,6 +298,8 @@ int __init omap4_pm_init(void)
 
 	/* Overwrite the default cpu_do_idle() */
 	arm_pm_idle = omap_default_idle;
+	//Ensure that we do run virtual sleep and not HW sleep.
+	cpu_idle_poll_ctrl(true);
 
 	if (cpu_is_omap44xx() || soc_is_omap54xx())
 		omap4_idle_init();
