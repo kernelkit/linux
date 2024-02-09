@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 
 #include "omap_l3_noc.h"
-
+#include <linux/nmi.h>
 /**
  * l3_handle_target() - Handle Target specific parse and reporting
  * @l3:		pointer to l3 struct
@@ -146,6 +146,8 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 	     l3_transaction_type[op_code],
 	     err_string, info_string);
 
+
+	trigger_allbutself_cpu_backtrace();
 	/* clear the std error log*/
 	clear = std_err_main | CLEAR_STDERR_LOG;
 	writel_relaxed(clear, l3_targ_stderr);
