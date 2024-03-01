@@ -677,3 +677,7 @@
 	};
 };
 
+&sgx {
+	status = "disabled";
+};
+

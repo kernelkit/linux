@@ -57,6 +57,28 @@
 		compatible = "hitachi,uio-pg-sram";
 		reg = <0x01000000 0x40000>; /* 256kB */
 	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hclk: hclk@0 {
+			compatible = "fixed-clock";
+			reg = <3>;
+			#clock-cells = <0>;
+			clock-frequency = <40000000>;
+			clock-output-names = "hclk";
+		};
+
+		cclk: cclk@0 {
+			compatible = "fixed-clock";
+			reg = <3>;
+			#clock-cells = <0>;
+			clock-frequency = <40000000>;
+			clock-output-names = "cclk";
+		};
+	};
 };
 
 &am43xx_pinmux {
@@ -332,8 +354,8 @@
 
 	spi0_atsam_pins_default: spi0_atsam_default_pinmux {
 		pinctrl-single,pins = <
-			0x150 ( PIN_OUTPUT         | MUX_MODE0 ) /* (P23) spi0_sclk.spi0_sclk        => SPI0_CLK */
-			0x154 ( PIN_OUTPUT         | MUX_MODE0 ) /* (T22) spi0_d0.spi0_d0            => SPI0_MISO */
+			0x150 ( PIN_INPUT          | MUX_MODE0 ) /* (P23) spi0_sclk.spi0_sclk        => SPI0_CLK */
+			0x154 ( PIN_INPUT          | MUX_MODE0 ) /* (T22) spi0_d0.spi0_d0            => SPI0_MISO */
 			0x158 ( PIN_OUTPUT         | MUX_MODE0 ) /* (T21) spi0_d1.spi0_d1            => SPI0_MOSI */
 			0x15c ( PIN_OUTPUT         | MUX_MODE0 ) /* (T20) spi0_cs0.spi0_cs0          => SPI0_CS0N */
 			0x190 ( PIN_OUTPUT         | MUX_MODE2 ) /* (N24) mcasp0_aclkx.spi0_cs3      => SPI0_CS3N */
@@ -348,8 +370,8 @@
 
 	spi3_can_fd_pins_default: spi3_can_fd_default_pinmux {
 		pinctrl-single,pins = <
-			0x1f4 ( PIN_OUTPUT         | MUX_MODE2 ) /* (AE22) cam1_data3.spi3_sclk      => SPI3_CLK */
-			0x1e8 ( PIN_OUTPUT         | MUX_MODE2 ) /* (AB20) cam1_data0.spi3_d0        => SPI3_MISO */
+			0x1f4 ( PIN_INPUT          | MUX_MODE2 ) /* (AE22) cam1_data3.spi3_sclk      => SPI3_CLK */
+			0x1e8 ( PIN_INPUT          | MUX_MODE2 ) /* (AB20) cam1_data0.spi3_d0        => SPI3_MISO */
 			0x1ec ( PIN_OUTPUT         | MUX_MODE2 ) /* (AC21) cam1_data1.spi3_d1        => SPI3_MOSI */
 			0x1f0 ( PIN_OUTPUT         | MUX_MODE2 ) /* (AD21) cam1_data2.spi3_cs0       => SPI3_CS0N */
 			0x1f8 ( PIN_INPUT          | MUX_MODE7 ) /* (AD22) cam1_data4.gpio4[18]      => GPIO_CAN_GPIO2N (high pull-up) */
@@ -642,14 +664,14 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&ethphy0>;
-	phy-mode = "rgmii-txid";
+	phy-handle = <&ethphy0>;
+	phy-mode = "rgmii-id";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&ethphy1>;
-	phy-mode = "rgmii-txid";
+	phy-handle = <&ethphy1>;
+	phy-mode = "rgmii-id";
 	dual_emac_res_vlan = <2>;
 };
 
@@ -709,10 +731,17 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+		clocks = <&hclk>, <&cclk>;
+		clock-names = "hclk", "cclk";
 		spi-max-frequency = <12000000>;
 		bosch,mram-cfg = <0x0 0 0 32 0 0 1 1>;
-		interrupt-parent = <&gpio4>;
-		interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
 	};
+};
+
+&sgx {
+	status = "disabled";
 };
 
