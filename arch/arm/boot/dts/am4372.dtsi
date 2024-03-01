@@ -266,6 +266,7 @@
 				ti,needs-special-reset;
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x0 0x1000>;
+				status = "disabled";
 			};
 		};
 
@@ -530,7 +531,7 @@
 			status = "disabled";
 		};
 
-		target-module@56000000 {
+		sgx: target-module@56000000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			clocks = <&gfx_l3_clkctrl AM4_GFX_L3_GFX_CLKCTRL 0>;
 			clock-names = "fck";

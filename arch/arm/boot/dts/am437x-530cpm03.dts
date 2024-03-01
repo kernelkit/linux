@@ -710,3 +710,7 @@
 	};
 };
 
+&sgx {
+	status = "disabled";
+};
+
