@@ -683,3 +683,8 @@
 		gpmc,wr-cycle-ns = <0x2d>;
 	};
 };
+
+&sgx {
+	status = "disabled";
+};
+
