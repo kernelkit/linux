@@ -188,9 +188,13 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	switch (pkt_type) {
 	case BR_PKT_MULTICAST:
 		mdst = br_mdb_entry_skb_get(brmctx, skb, vid);
-		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
-		    br_multicast_querier_exists(brmctx, eth_hdr(skb), mdst)) {
-			if ((mdst && mdst->host_joined) ||
+		/* Only use strict multicast filtering when:
+		 * 1. There's an MDB entry (someone joined this group), AND
+		 * 2. A querier exists (we can rely on IGMP/MLD)
+		 * Unknown multicast (no MDB entry) is always flooded.
+		 */
+		if (mdst && br_multicast_querier_exists(brmctx, eth_hdr(skb), mdst)) {
+			if (mdst->host_joined ||
 			    br_multicast_is_router(brmctx, skb) ||
 			    br->dev->flags & IFF_ALLMULTI) {
 				local_rcv = true;
@@ -228,7 +232,8 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		br_forward(br_fdb_dst_read(dst), skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
-			br_flood(br, vlan, skb, pkt_type, local_rcv, false);
+			br_flood(br, vlan, skb, brmctx, pkt_type, local_rcv,
+				 false);
 		else
 			br_multicast_flood(mdst, skb, brmctx, local_rcv, false);
 	}
