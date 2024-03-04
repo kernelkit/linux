@@ -241,8 +241,23 @@ static void br_flood_finish(const struct br_fwd_dst *fwd, int err,
 		__br_forward(fwd, skb, local_orig);
 }
 
+static bool br_flood_rport(struct net_bridge_mcast *brmctx,
+			   const struct net_bridge_port *p,
+			   struct sk_buff *skb)
+{
+	struct hlist_node *rp;
+
+	for (rp = br_multicast_get_first_rport_node(brmctx, skb); rp;
+	     rp = rcu_dereference(hlist_next_rcu(rp)))
+		if (br_multicast_rport_from_node_skb(rp, skb) == p)
+			return true;
+
+	return false;
+}
+
 static int br_flood_port(struct br_fwd_dst *prev,
 			 const struct br_fwd_dst *fwd, struct sk_buff *skb,
+			 struct net_bridge_mcast *brmctx,
 			 enum br_pkt_type pkt_type, bool local_orig)
 {
 	const struct net_bridge_port *p = fwd->port;
@@ -257,7 +272,8 @@ static int br_flood_port(struct br_fwd_dst *prev,
 		break;
 	case BR_PKT_MULTICAST:
 		if (!test_bit(BR_MCAST_FLOOD_BIT, &p->flags) &&
-		    skb->dev != p->br->dev)
+		    skb->dev != p->br->dev &&
+		    !br_flood_rport(brmctx, p, skb))
 			return 0;
 		break;
 	case BR_PKT_BROADCAST:
@@ -287,6 +303,7 @@ static int br_flood_port(struct br_fwd_dst *prev,
 
 static int br_flood_vlan(struct br_fwd_dst *prev,
 			 struct net_bridge_vlan *v, struct sk_buff *skb,
+			 struct net_bridge_mcast *brmctx,
 			 enum br_pkt_type pkt_type, bool local_orig)
 {
 	struct net_bridge_vlan_port_array *array;
@@ -303,7 +320,7 @@ static int br_flood_vlan(struct br_fwd_dst *prev,
 			pv = array->vlans[i];
 			fwd.port = pv->port;
 			fwd.vlan = pv;
-			err = br_flood_port(prev, &fwd, skb, pkt_type,
+			err = br_flood_port(prev, &fwd, skb, brmctx, pkt_type,
 					    local_orig);
 			if (err)
 				return err;
@@ -312,7 +329,7 @@ static int br_flood_vlan(struct br_fwd_dst *prev,
 		list_for_each_entry_rcu(pv, &masterv->port_vlist, port_vlist) {
 			fwd.port = pv->port;
 			fwd.vlan = pv;
-			err = br_flood_port(prev, &fwd, skb, pkt_type,
+			err = br_flood_port(prev, &fwd, skb, brmctx, pkt_type,
 					    local_orig);
 			if (err)
 				return err;
@@ -324,8 +341,8 @@ static int br_flood_vlan(struct br_fwd_dst *prev,
 
 /* called under rcu_read_lock */
 void br_flood(struct net_bridge *br, struct net_bridge_vlan *v,
-	      struct sk_buff *skb, enum br_pkt_type pkt_type,
-	      bool local_rcv, bool local_orig)
+	      struct sk_buff *skb, struct net_bridge_mcast *brmctx,
+	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig)
 {
 	struct br_fwd_dst prev = {};
 	int err = 0;
@@ -333,7 +350,8 @@ void br_flood(struct net_bridge *br, struct net_bridge_vlan *v,
 	br_tc_skb_miss_set(skb, pkt_type != BR_PKT_BROADCAST);
 
 	if (v) {
-		err = br_flood_vlan(&prev, v, skb, pkt_type, local_orig);
+		err = br_flood_vlan(&prev, v, skb, brmctx, pkt_type,
+				    local_orig);
 	} else {
 		struct net_bridge_port *p;
 
@@ -342,7 +360,7 @@ void br_flood(struct net_bridge *br, struct net_bridge_vlan *v,
 				.port = p,
 			};
 
-			err = br_flood_port(&prev, &fwd, skb, pkt_type,
+			err = br_flood_port(&prev, &fwd, skb, brmctx, pkt_type,
 					    local_orig);
 			if (err)
 				break;
