@@ -441,7 +441,13 @@
 #define HSRP1_TXOPT_Q7_BUFFER_OFFSET (HSRP1_TXOPT_Q6_BUFFER_OFFSET + QUEUE_6_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
 
 #define P0_COL_BUFFER_OFFSET    0xEE00
-#define P0_Q1_BUFFER_OFFSET	0x0000
+/* 
+ * Task - HSR/PRP: Wave 2: OCMC memory offset change
+ * Shifting the OCMC Start offset by 0x3000 as the 0x0000 to 0x3000 memory is used by system firmware
+ * Below change is for shifting the Rx Queues by 0x3000 offset 
+ * Roopak@CIT - 04-March-2024
+ */
+#define P0_Q1_BUFFER_OFFSET	0x3000
 
 /* The below bit will be set in BD for EMAC mode in the egress
  * direction and reset for PRP mode

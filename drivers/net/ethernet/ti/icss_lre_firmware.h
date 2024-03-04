@@ -98,7 +98,13 @@
 #define ICSS_LRE_PRIORITY_INTRS_STATUS_OFFSET	0x2FE6
 /* Enable/disable timestamping of packets. 0 = disabled (default) 1 = enabled */
 #define ICSS_LRE_TIMESTAMP_PKTS_STATUS_OFFSET	0x2FE7
-#define ICSS_LRE_TIMESTAMP_ARRAY_OFFSET          0xC200
+/* 
+ * Task - HSR/PRP: Wave 2: OCMC memory offset change
+ * Shifting the OCMC Start offset by 0x3000 as the 0x0000 to 0x3000 memory is used by system firmware 
+ * Below change is for shifting the ocmc by 0x3000 offset, 0xC200+0x3000 = 0xF200
+ * Roopak@CIT - 04-March-2024
+ */
+#define ICSS_LRE_TIMESTAMP_ARRAY_OFFSET          0xF200
 
 /* HOST_TIMER_CHECK_FLAGS bits */
 #define ICSS_LRE_HOST_TIMER_NODE_TABLE_CHECK_BIT	BIT(0)
