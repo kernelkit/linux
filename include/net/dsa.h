@@ -968,6 +968,10 @@ struct dsa_switch_ops {
 				     const u8 *sel, int nsel);
 	int	(*port_get_apptrust)(struct dsa_switch *ds, int port, u8 *sel,
 				     int *nsel);
+	int	(*port_add_etype_prio)(struct dsa_switch *ds, int port, u16 etype,
+				       u8 prio);
+	int	(*port_del_etype_prio)(struct dsa_switch *ds, int port, u16 etype,
+				       u8 prio);
 
 	/*
 	 * Suspend and resume
