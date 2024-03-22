@@ -301,6 +301,11 @@ struct mv88e6xxx_port {
 
 	/* MacAuth Bypass control flag */
 	bool mab;
+
+	struct {
+		refcount_t refcnt;
+		u16 proto;
+	} etype;
 };
 
 enum mv88e6xxx_region_id {
@@ -339,6 +344,11 @@ struct mv88e6xxx_hw_stat {
 	int type;
 };
 
+struct mv88e6xxx_po {
+	refcount_t refcnt;
+	u8 pri;
+};
+
 struct mv88e6xxx_chip {
 	const struct mv88e6xxx_info *info;
 
@@ -353,6 +363,14 @@ struct mv88e6xxx_chip {
 
 	/* This mutex protects the access to the switch registers */
 	struct mutex reg_lock;
+
+	/* This mutex protects arbitration of hardware resources which
+	 * may be allocated by multiple kernel consumers. As an
+	 * example, the dcb(8) facility manages priority overrides
+	 * independently per interface, whereas the hardware only
+	 * supports a single priority per chip.
+	 */
+	struct mutex arb_lock;
 
 	/* The MII bus and the address on the bus that is used to
 	 * communication with the switch
@@ -444,6 +462,9 @@ struct mv88e6xxx_chip {
 
 	/* FID map */
 	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
+
+	/* Queue priority overrides */
+	struct mv88e6xxx_po qpri_po[16];
 };
 
 struct mv88e6xxx_bus_ops {
