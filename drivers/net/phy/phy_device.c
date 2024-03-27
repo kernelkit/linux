@@ -1753,7 +1753,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	if (err)
 		goto error;
 
-	phy_resume(phydev);
 
 	/**
 	 * If the external phy used by current mac interface is managed by
