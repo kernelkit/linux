@@ -26,6 +26,7 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/irq.h>
+#include "fault_dumper.h"
 
 #include <linux/atomic.h>
 #include <asm/cacheflush.h>
@@ -365,10 +366,66 @@ void die(const char *str, struct pt_regs *regs, int err)
 	oops_end(flags, regs, sig);
 }
 
+static struct fault_callback* f_callback;
+
+struct fault_callback* get_current_fault_callback(void)
+{
+	return READ_ONCE(f_callback);
+}
+EXPORT_SYMBOL_GPL(get_current_fault_callback);
+
+
+int fault_dump_register(struct fault_callback* callback)
+{
+	struct fault_callback *current_callback;
+	do {
+		current_callback = READ_ONCE(f_callback);
+		if(current_callback || !callback)
+			goto exit_dump_reg;
+		
+	} while(!cmpxchg(&f_callback, current_callback, callback));
+
+exit_dump_reg:
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fault_dump_register);
+
+int fault_dump_unregister(struct fault_callback* callback)
+{
+	struct fault_callback* current_callback;
+	do {
+		current_callback = READ_ONCE(f_callback);
+		if(!callback || !current_callback || (current_callback != callback))
+			goto exit_dump_unreg;
+		
+	} while(!cmpxchg(&f_callback, current_callback, NULL));
+
+exit_dump_unreg:
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(fault_dump_unregister);
+
 void arm_notify_die(const char *str, struct pt_regs *regs,
 		int signo, int si_code, void __user *addr,
 		unsigned long err, unsigned long trap)
 {
+	struct fault_callback *current_callback;
+	current_callback = READ_ONCE(f_callback);
+	if(!current_callback)
+		goto skip_fault_dumper;
+
+	current_callback->info.entry_type_u.arm_die.str = str;
+	current_callback->info.entry_type_u.arm_die.signo = signo;
+	current_callback->info.entry_type_u.arm_die.si_code = si_code;
+	current_callback->info.entry_type_u.arm_die.addr = addr;
+	current_callback->info.entry_type_u.arm_die.err = err;
+	current_callback->info.entry_type_u.arm_die.trap = trap;
+	current_callback->info.which_entry = FAULT_ENTRY_ARM_DIE;
+	current_callback->info.len_entry = sizeof(current_callback->info.entry_type_u.arm_die);
+	current_callback->fault_dump_persist(current_callback);
+
+skip_fault_dumper:
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
