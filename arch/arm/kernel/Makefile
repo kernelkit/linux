@@ -103,3 +103,5 @@ endif
 obj-$(CONFIG_HAVE_ARM_SMCCC)	+= smccc-call.o
 
 extra-y := $(head-y) vmlinux.lds
+
+obj-$(CONFIG_PG_HAVE_FAULT_DUMPER) += fault_dumper.o

@@ -535,16 +535,19 @@ asmlinkage void
 do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = fsr_info + fsr_fs(fsr);
+	const char* name = "";
 
 	if (!inf->fn(addr, fsr & ~FSR_LNX_PF, regs))
 		return;
-
+#ifndef CONFIG_HAVE_PG_FAULT_DUMPER
 	pr_alert("8<--- cut here ---\n");
 	pr_alert("Unhandled fault: %s (0x%03x) at 0x%08lx\n",
 		inf->name, fsr, addr);
 	show_pte(KERN_ALERT, current->mm, addr);
-
-	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+#else
+	name = inf->name;
+#endif
+	arm_notify_die(name, regs, inf->sig, inf->code, (void __user *)addr,
 		       fsr, 0);
 }
 
@@ -565,14 +568,18 @@ asmlinkage void
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
+	const char* name = "";
 
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
 
+#ifndef CONFIG_HAVE_PG_FAULT_DUMPER
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 		inf->name, ifsr, addr);
-
-	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+#else
+	name = inf->name;
+#endif
+	arm_notify_die(name, regs, inf->sig, inf->code, (void __user *)addr,
 		       ifsr, 0);
 }
 
