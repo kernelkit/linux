@@ -539,7 +539,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	if (!inf->fn(addr, fsr & ~FSR_LNX_PF, regs))
 		return;
-#ifndef CONFIG_HAVE_PG_FAULT_DUMPER
+#ifndef CONFIG_PG_HAVE_FAULT_DUMPER
 	pr_alert("8<--- cut here ---\n");
 	pr_alert("Unhandled fault: %s (0x%03x) at 0x%08lx\n",
 		inf->name, fsr, addr);
@@ -573,7 +573,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
 
-#ifndef CONFIG_HAVE_PG_FAULT_DUMPER
+#ifndef CONFIG_PG_HAVE_FAULT_DUMPER
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 		inf->name, ifsr, addr);
 #else
