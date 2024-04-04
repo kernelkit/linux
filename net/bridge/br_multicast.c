@@ -1785,10 +1785,6 @@ static void br_ip6_multicast_querier_expired(struct timer_list *t)
 }
 #endif
 
-static void br_multicast_query_delay_expired(struct timer_list *t)
-{
-}
-
 static void br_multicast_select_own_querier(struct net_bridge_mcast *brmctx,
 					    struct br_ip *ip,
 					    struct sk_buff *skb)
@@ -3283,12 +3279,8 @@ out_err:
 
 static void
 br_multicast_update_query_timer(struct net_bridge_mcast *brmctx,
-				struct bridge_mcast_other_query *query,
-				unsigned long max_delay)
+				struct bridge_mcast_other_query *query)
 {
-	if (!timer_pending(&query->timer))
-		mod_timer(&query->delay_timer, jiffies + max_delay);
-
 	mod_timer(&query->timer, jiffies + brmctx->multicast_querier_interval);
 }
 
@@ -3479,13 +3471,12 @@ static void
 br_ip4_multicast_query_received(struct net_bridge_mcast *brmctx,
 				struct net_bridge_mcast_port *pmctx,
 				struct bridge_mcast_other_query *query,
-				struct br_ip *saddr,
-				unsigned long max_delay)
+				struct br_ip *saddr)
 {
 	if (!br_multicast_select_querier(brmctx, pmctx, saddr))
 		return;
 
-	br_multicast_update_query_timer(brmctx, query, max_delay);
+	br_multicast_update_query_timer(brmctx, query);
 	br_ip4_multicast_mark_router(brmctx, pmctx);
 }
 
@@ -3494,13 +3485,12 @@ static void
 br_ip6_multicast_query_received(struct net_bridge_mcast *brmctx,
 				struct net_bridge_mcast_port *pmctx,
 				struct bridge_mcast_other_query *query,
-				struct br_ip *saddr,
-				unsigned long max_delay)
+				struct br_ip *saddr)
 {
 	if (!br_multicast_select_querier(brmctx, pmctx, saddr))
 		return;
 
-	br_multicast_update_query_timer(brmctx, query, max_delay);
+	br_multicast_update_query_timer(brmctx, query);
 	br_ip6_multicast_mark_router(brmctx, pmctx);
 }
 #endif
@@ -3554,7 +3544,7 @@ static void br_ip4_multicast_query(struct net_bridge_mcast *brmctx,
 
 		br_ip4_multicast_query_received(brmctx, pmctx,
 						&brmctx->ip4_other_query,
-						&saddr, max_delay);
+						&saddr);
 		goto out;
 	}
 
@@ -3642,7 +3632,7 @@ static int br_ip6_multicast_query(struct net_bridge_mcast *brmctx,
 
 		br_ip6_multicast_query_received(brmctx, pmctx,
 						&brmctx->ip6_other_query,
-						&saddr, max_delay);
+						&saddr);
 		goto out;
 	} else if (!group) {
 		goto out;
@@ -4148,8 +4138,6 @@ void br_multicast_ctx_init(struct net_bridge *br,
 		    br_ip4_multicast_local_router_expired, 0);
 	timer_setup(&brmctx->ip4_other_query.timer,
 		    br_ip4_multicast_querier_expired, 0);
-	timer_setup(&brmctx->ip4_other_query.delay_timer,
-		    br_multicast_query_delay_expired, 0);
 	timer_setup(&brmctx->ip4_own_query.timer,
 		    br_ip4_multicast_query_expired, 0);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -4157,8 +4145,6 @@ void br_multicast_ctx_init(struct net_bridge *br,
 		    br_ip6_multicast_local_router_expired, 0);
 	timer_setup(&brmctx->ip6_other_query.timer,
 		    br_ip6_multicast_querier_expired, 0);
-	timer_setup(&brmctx->ip6_other_query.delay_timer,
-		    br_multicast_query_delay_expired, 0);
 	timer_setup(&brmctx->ip6_own_query.timer,
 		    br_ip6_multicast_query_expired, 0);
 #endif
@@ -4293,12 +4279,10 @@ static void __br_multicast_stop(struct net_bridge_mcast *brmctx)
 {
 	timer_delete_sync(&brmctx->ip4_mc_router_timer);
 	timer_delete_sync(&brmctx->ip4_other_query.timer);
-	timer_delete_sync(&brmctx->ip4_other_query.delay_timer);
 	timer_delete_sync(&brmctx->ip4_own_query.timer);
 #if IS_ENABLED(CONFIG_IPV6)
 	timer_delete_sync(&brmctx->ip6_mc_router_timer);
 	timer_delete_sync(&brmctx->ip6_other_query.timer);
-	timer_delete_sync(&brmctx->ip6_other_query.delay_timer);
 	timer_delete_sync(&brmctx->ip6_own_query.timer);
 #endif
 }
@@ -4771,8 +4755,6 @@ EXPORT_SYMBOL_GPL(br_multicast_router);
 
 int br_multicast_set_querier(struct net_bridge_mcast *brmctx, unsigned long val)
 {
-	unsigned long max_delay;
-
 	val = !!val;
 
 	spin_lock_bh(&brmctx->br->multicast_lock);
@@ -4783,19 +4765,9 @@ int br_multicast_set_querier(struct net_bridge_mcast *brmctx, unsigned long val)
 	if (!val)
 		goto unlock;
 
-	max_delay = brmctx->multicast_query_response_interval;
-
-	if (!timer_pending(&brmctx->ip4_other_query.timer))
-		mod_timer(&brmctx->ip4_other_query.delay_timer,
-			  jiffies + max_delay);
-
 	br_multicast_start_querier(brmctx, &brmctx->ip4_own_query);
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if (!timer_pending(&brmctx->ip6_other_query.timer))
-		mod_timer(&brmctx->ip6_other_query.delay_timer,
-			  jiffies + max_delay);
-
 	br_multicast_start_querier(brmctx, &brmctx->ip6_own_query);
 #endif
 
