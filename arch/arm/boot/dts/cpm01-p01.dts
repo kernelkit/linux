@@ -1257,10 +1257,12 @@
 
 &usb1 {
 	dr_mode = "otg";
+	snps,usb2-gadget-lpm-disable;
 };
 
 &usb2 {
 	dr_mode = "otg";
+	snps,usb2-gadget-lpm-disable;
 };
 
 / {
