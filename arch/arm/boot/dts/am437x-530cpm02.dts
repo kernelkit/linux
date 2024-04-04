@@ -420,6 +420,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb_pins_default>;
 	dr_mode = "peripheral";
+	snps,usb2-gadget-lpm-disable;
 };
 
 &i2c0 {
