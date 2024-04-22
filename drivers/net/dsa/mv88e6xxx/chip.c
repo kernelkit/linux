@@ -945,6 +945,9 @@ static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
 	const struct mv88e6xxx_ops *ops;
 	int err = 0;
 
+	if (mode == MLO_AN_INBAND)
+		return;
+
 	ops = chip->info->ops;
 
 	mv88e6xxx_reg_lock(chip);
@@ -974,6 +977,9 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	const struct mv88e6xxx_ops *ops;
 	int err = 0;
+
+	if (mode == MLO_AN_INBAND)
+		return;
 
 	ops = chip->info->ops;
 
