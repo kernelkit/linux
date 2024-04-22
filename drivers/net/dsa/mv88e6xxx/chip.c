@@ -964,6 +964,9 @@ static void mv88e6xxx_mac_link_down(struct phylink_config *config,
 	int port = dp->index;
 	int err = 0;
 
+	if (mode == MLO_AN_INBAND)
+		return;
+
 	ops = chip->info->ops;
 
 	mv88e6xxx_reg_lock(chip);
@@ -995,6 +998,9 @@ static void mv88e6xxx_mac_link_up(struct phylink_config *config,
 	const struct mv88e6xxx_ops *ops;
 	int port = dp->index;
 	int err = 0;
+
+	if (mode == MLO_AN_INBAND)
+		return;
 
 	ops = chip->info->ops;
 
