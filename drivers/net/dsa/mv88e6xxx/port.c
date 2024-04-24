@@ -1793,12 +1793,12 @@ int mv88e6393x_port_set_policy(struct mv88e6xxx_chip *chip, int port,
 	shift %= 8;
 	mask >>= ptr * 8;
 
-	err = mv88e6393x_port_policy_read(chip, port, ptr, &reg);
+	err = mv88e6393x_port_policy_read(chip, port, ptr << 8, &reg);
 	if (err)
 		return err;
 
 	reg &= ~mask;
 	reg |= (val << shift) & mask;
 
-	return mv88e6393x_port_policy_write(chip, port, ptr, reg);
+	return mv88e6393x_port_policy_write(chip, port, ptr << 8, reg);
 }
