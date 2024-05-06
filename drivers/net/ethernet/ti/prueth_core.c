@@ -1304,12 +1304,6 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 			if (hsr_ethhdr->hsr_tag.encap_proto != htons(ETH_P_1588)){
 				/*  If Not PTP, SET both 16th and 17th bits to indicate to firmware that this frame should be transmitted from both the ports */
 				wr_buf_desc |= (3 << 16);
-
-				/* We use two more bits from buffer descriptor to indicate that LANE information must be changed by the firmware
-				*  Port 1 - 8th bit
-				*  Port 2 - 9th bit
-				*/
-				wr_buf_desc |= (txport << 8);
 			}
 			else{
 				/* We are using two bits 16th and 17th from buffer descriptor, to indicate firmware that from which port this packet need to be sent out.
@@ -1319,6 +1313,12 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 				/*  If PTP, SET the 16th/17th bit depending on the txport vlaue that informs Firmware not to duplicate these packets */
 				wr_buf_desc |= (txport << 16);
 			}
+
+            /* Task(23248)-HSR: Incorrect LAN information in HSR Tagged frame when only pru21 connected   
+            * We use one more bit from buffer descriptor to indicate that RED tag is available and LANE information must be changed by the firmware 
+            * Rajendar@cit - 02-MAY-2024 
+            */
+            wr_buf_desc |= (1 << 8);
 		}
 		else {
 			/* Check if frame is PRP Tagged */
@@ -1327,16 +1327,17 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 			if (rct->PRP_suffix == htons(ETH_P_PRP)){
 				/*  If PRP, SET both 16th/17th bits to indicate to firmware that this frame should be transmitted from both the ports */
 				wr_buf_desc |= (3 << 16);
-
-				/* We use two more bits from buffer descriptor to indicate that LANE information must be changed by the firmware
-				*  Port 1 - 8th bit
-				*  Port 2 - 9th bit
+				
+				/* Task(23248)-HSR: Incorrect LAN information in HSR Tagged frame when only pru21 connected   
+				* We use one more bit from buffer descriptor to indicate that RED tag is available and LANE information must be changed by the firmware 
+				* Rajendar@cit - 02-MAY-2024 
 				*/
-				wr_buf_desc |= (txport << 8);
+				wr_buf_desc |= (1 << 8);
 			}
-			else
+			else {
 				/* SET the 16th/17th bit depending on the txport vlaue */
 				wr_buf_desc |= (txport << 16);
+			}
 		}
 	}
 
