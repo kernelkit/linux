@@ -2090,10 +2090,10 @@ config ARCH_HIBERNATION_POSSIBLE
 	default y if ARCH_SUSPEND_POSSIBLE
 
 config PG_HAVE_FAULT_DUMPER
-	tristate "Enable custom fault dumper from example arm_notify_die"
+	bool "Enable custom fault dumper from example arm_notify_die"
 	default n
 	help
-		Say m to have the module loadable, when loadable the application can easily specify
+		Say y to have the module loadable, when loadable the application can easily specify
 		where to write the dump and from where. Controlled by dumper_init_info
 
 endmenu
