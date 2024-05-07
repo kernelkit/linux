@@ -415,15 +415,19 @@ void arm_notify_die(const char *str, struct pt_regs *regs,
 	if(!current_callback)
 		goto skip_fault_dumper;
 
-	current_callback->info.entry_type_u.arm_die.str = str;
-	current_callback->info.entry_type_u.arm_die.signo = signo;
-	current_callback->info.entry_type_u.arm_die.si_code = si_code;
-	current_callback->info.entry_type_u.arm_die.addr = addr;
-	current_callback->info.entry_type_u.arm_die.err = err;
-	current_callback->info.entry_type_u.arm_die.trap = trap;
-	current_callback->info.which_entry = FAULT_ENTRY_ARM_DIE;
-	current_callback->info.len_entry = sizeof(current_callback->info.entry_type_u.arm_die);
-	current_callback->fault_dump_persist(current_callback);
+	if(mutex_trylock(&current_callback->info.callback_mutex))
+	{
+		current_callback->info.entry_type_u.arm_die.str = str;
+		current_callback->info.entry_type_u.arm_die.signo = signo;
+		current_callback->info.entry_type_u.arm_die.si_code = si_code;
+		current_callback->info.entry_type_u.arm_die.addr = addr;
+		current_callback->info.entry_type_u.arm_die.err = err;
+		current_callback->info.entry_type_u.arm_die.trap = trap;
+		current_callback->info.which_entry = FAULT_ENTRY_ARM_DIE;
+		current_callback->info.len_entry = sizeof(current_callback->info.entry_type_u.arm_die);
+		current_callback->fault_dump_persist(current_callback);
+		mutex_unlock(&current_callback->info.callback_mutex);
+	}
 
 skip_fault_dumper:
 	if (user_mode(regs)) {

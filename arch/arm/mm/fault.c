@@ -528,6 +528,9 @@ hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *)
 	fsr_info[nr].name = name;
 }
 
+/* always align this length with fault_dumper.h, 
+ * dont generalize since we dont aim to upstream this */ 
+#define MAX_LEN_STR_ARM_DIE 128
 /*
  * Dispatch a data abort to the relevant handler.
  */
@@ -535,7 +538,7 @@ asmlinkage void
 do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = fsr_info + fsr_fs(fsr);
-	const char* name = "";
+	const char name[MAX_LEN_STR_ARM_DIE] = "";
 
 	if (!inf->fn(addr, fsr & ~FSR_LNX_PF, regs))
 		return;
@@ -545,7 +548,8 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		inf->name, fsr, addr);
 	show_pte(KERN_ALERT, current->mm, addr);
 #else
-	name = inf->name;
+	snprintf(name, sizeof(name), "Unhandled fault: %s (0x%03x) at 0x%08lx\n",
+		inf->name, fsr, addr);
 #endif
 	arm_notify_die(name, regs, inf->sig, inf->code, (void __user *)addr,
 		       fsr, 0);
@@ -568,7 +572,7 @@ asmlinkage void
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
-	const char* name = "";
+	const char name[MAX_LEN_STR_ARM_DIE] = "";
 
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
@@ -577,7 +581,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 		inf->name, ifsr, addr);
 #else
-	name = inf->name;
+	snprintf(name, sizeof(name), "Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
+		inf->name, ifsr, addr);
 #endif
 	arm_notify_die(name, regs, inf->sig, inf->code, (void __user *)addr,
 		       ifsr, 0);
