@@ -1010,10 +1010,15 @@ error:
 
 static int mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 {
+	int err;
+
 	if (!chip->info->ops->stats_snapshot)
 		return -EOPNOTSUPP;
 
-	return chip->info->ops->stats_snapshot(chip, port);
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->stats_snapshot(chip, port);
+	mv88e6xxx_reg_unlock(chip);
+	return err;
 }
 
 #define MV88E6XXX_HW_STAT_MAPPER(_fn)				    \
@@ -1385,10 +1390,7 @@ static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int ret;
 
-	mv88e6xxx_reg_lock(chip);
-
 	ret = mv88e6xxx_stats_snapshot(chip, port);
-	mv88e6xxx_reg_unlock(chip);
 
 	if (ret < 0)
 		return;
