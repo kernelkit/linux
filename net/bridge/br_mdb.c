@@ -734,7 +734,7 @@ static int br_mdb_replace_group_sg(const struct br_mdb_config *cfg,
 	else
 		del_timer(&pg->timer);
 
-	br_mdb_notify(cfg->br->dev, mp, pg, RTM_NEWMDB);
+	br_mdb_notify(cfg->br->dev, mp, pg, RTM_SETMDB);
 
 	return 0;
 }
@@ -955,7 +955,7 @@ static int br_mdb_replace_group_star_g(const struct br_mdb_config *cfg,
 	else
 		del_timer(&pg->timer);
 
-	br_mdb_notify(cfg->br->dev, mp, pg, RTM_NEWMDB);
+	br_mdb_notify(cfg->br->dev, mp, pg, RTM_SETMDB);
 
 	if (br_multicast_should_handle_mode(brmctx, cfg->group.proto))
 		br_multicast_star_g_handle_mode(pg, cfg->filter_mode);
