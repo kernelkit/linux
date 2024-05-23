@@ -63,7 +63,7 @@ struct gpioline_info {
 #define GPIOHANDLE_REQUEST_ACTIVE_LOW	(1UL << 2)
 #define GPIOHANDLE_REQUEST_OPEN_DRAIN	(1UL << 3)
 #define GPIOHANDLE_REQUEST_OPEN_SOURCE	(1UL << 4)
-#define GPIOHANDLE_REQUEST_OUT_TIMESTAMP	(1UL << 5)
+#define GPIOHANDLE_REQUEST_OUT_TIMESTAMP	(1UL << 8)
 
 /**
  * struct gpiohandle_request - Information about a GPIO handle request
