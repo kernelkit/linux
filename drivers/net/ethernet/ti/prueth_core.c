@@ -1137,8 +1137,19 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	struct vlan_ethhdr *vlan_hdr;
 	struct ethhdr *ethhdr;
 	bool is_vlan = false;
+	bool link_up = false;
         __be16 proto;
         u8 *hdr;
+	/*Task(23312) : PRP - linkstatus change
+	* As per TX optimization, We have to send packet/update rd/wr ptr's if any one of the port link is up.
+	* Using link_up flag to identify port link state on either of the ports.
+	* link_up flag will be used further to update the write pointer for both the ports 
+	* Firmware has been modified to move the read pointer based on the link status instead of waiting for linkup.
+	* Otherwise there is a chance that the pointer across ports can loss the synchronization.
+	* Roopak@cit - 22-May-2024
+	*/
+	if( PRUETH_IS_LRE(prueth) && (emac->link || other_emac->link) )
+		link_up = true;
 
 	if (!PRUETH_IS_EMAC(prueth))
 		dram = prueth->mem[PRUETH_MEM_DRAM1].va;
@@ -1176,7 +1187,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Below code was added for HSR/PRP TX optimization
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link){
+	if (PRUETH_IS_LRE(prueth) && link_up){
 		queue_desc_other_port = emac->tx_queue_descs_other_port + queue_id;
 		bd_rd_ptr_other_port = readw(&queue_desc_other_port->rd_ptr);
 	}
@@ -1190,7 +1201,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Below code was added for HSR/PRP TX optimization
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link)
+	if (PRUETH_IS_LRE(prueth) && link_up)
                 read_block_other_port = (bd_rd_ptr_other_port - txqueue->buffer_desc_offset) / BD_SIZE;
 	if (write_block > read_block) {
 		free_blocks = buffer_desc_count - write_block;
@@ -1203,7 +1214,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Below code was added for HSR/PRP TX optimization
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link){
+	if (PRUETH_IS_LRE(prueth) && link_up){
                 if (write_block > read_block_other_port) {
                         free_blocks_other_port = buffer_desc_count - write_block;
                         free_blocks_other_port += read_block_other_port;
@@ -1355,7 +1366,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Update queue descriptor for HSR/PRP TX OPT
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link)
+	if (PRUETH_IS_LRE(prueth) && link_up)
                 writew(update_wr_ptr, &queue_desc_other_port->wr_ptr);
 
 	return 0;
