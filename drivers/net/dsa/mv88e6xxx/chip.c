@@ -31,6 +31,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/phylink.h>
 #include <net/dsa.h>
+#include <net/pkt_sched.h>
 
 #include "chip.h"
 #include "devlink.h"
@@ -7200,6 +7201,68 @@ err:
 	return err;
 }
 
+static int mv88e6xxx_qos_port_mqprio(struct mv88e6xxx_chip *chip, int port,
+				     struct tc_mqprio_qopt_offload *mqprio)
+{
+	struct net_device *dev = dsa_to_port(chip->ds, port)->user;
+	struct tc_mqprio_qopt *qopt = &mqprio->qopt;
+	int tc, err = 0, num_txq = 0;
+
+	if (!qopt->num_tc)
+		goto out_reset;
+
+	err = netdev_set_num_tc(dev, qopt->num_tc);
+	if (err)
+		return err;
+
+	for (tc = 0; tc < qopt->num_tc; tc++) {
+		num_txq += qopt->count[tc];
+
+		err = netdev_set_tc_queue(dev, tc, qopt->count[tc], qopt->offset[tc]);
+		if (err)
+			goto out_reset;
+	}
+
+	err = netif_set_real_num_tx_queues(dev, num_txq);
+	if (err)
+		goto out_reset;
+
+	return 0;
+
+out_reset:
+	netdev_reset_tc(dev);
+	return err;
+
+}
+
+static int mv88e6xxx_qos_query_caps(struct tc_query_caps_base *base)
+{
+	switch (base->type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		struct tc_mqprio_caps *caps = base->caps;
+
+		caps->validate_queue_counts = true;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+static int mv88e6xxx_port_setup_tc(struct dsa_switch *ds, int port,
+				   enum tc_setup_type type,
+				   void *type_data)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+
+	switch (type) {
+	case TC_QUERY_CAPS:
+		return mv88e6xxx_qos_query_caps(type_data);
+	case TC_SETUP_QDISC_MQPRIO:
+		return mv88e6xxx_qos_port_mqprio(chip, port, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct phylink_mac_ops mv88e6xxx_phylink_mac_ops = {
 	.mac_select_pcs		= mv88e6xxx_mac_select_pcs,
 	.mac_prepare		= mv88e6xxx_mac_prepare,
@@ -7271,6 +7334,7 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.crosschip_lag_leave	= mv88e6xxx_crosschip_lag_leave,
 	.port_add_etype_prio	= mv88e6xxx_port_add_etype_prio,
 	.port_del_etype_prio	= mv88e6xxx_port_del_etype_prio,
+	.port_setup_tc		= mv88e6xxx_port_setup_tc,
 };
 
 static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
@@ -7296,6 +7360,12 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 	 * be enough for anyone.
 	 */
 	ds->num_lag_ids = mv88e6xxx_has_lag(chip) ? 16 : 0;
+
+	/* Even though older chips only have 4 queues, we always have
+	 * 3 bits of priority information in the DSA tag, which is how
+	 * we indirectly address the queues.
+	 */
+	ds->num_tx_queues = 8;
 
 	dev_set_drvdata(dev, ds);
 
