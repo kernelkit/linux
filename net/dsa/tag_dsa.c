@@ -323,6 +323,13 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 		dsa_strip_etype_header(skb, DSA_HLEN + extra);
 	}
 
+	/* Ideally we would have a way of configuring the mapping of PCP
+	 * bits to skb->priority on DSA ports (like ingress-qos-map for
+	 * vlan interfaces). For now, assume that a 1:1 mapping is more
+	 * useful than ignoring the priority altogether.
+	 */
+	skb->priority = dsa_header[2] >> 5;
+
 	return skb;
 }
 
