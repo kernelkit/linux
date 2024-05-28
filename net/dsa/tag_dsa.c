@@ -180,8 +180,10 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		}
 	} else {
 		u16 vid;
+		u8 tc;
 
 		vid = br_dev ? MV88E6XXX_VID_BRIDGED : MV88E6XXX_VID_STANDALONE;
+		tc = netdev_txq_to_tc(dev, skb_get_queue_mapping(skb));
 
 		skb_push(skb, DSA_HLEN + extra);
 		dsa_alloc_etype_header(skb, DSA_HLEN + extra);
@@ -191,7 +193,7 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 
 		dsa_header[0] = (cmd << 6) | tag_dev;
 		dsa_header[1] = tag_port << 3;
-		dsa_header[2] = vid >> 8;
+		dsa_header[2] = (tc << 5) | (vid >> 8);
 		dsa_header[3] = vid & 0xff;
 	}
 
