@@ -3443,9 +3443,13 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 
 	/* Port Control: disable Drop-on-Unlock, disable Drop-on-Lock,
 	 * disable Header mode, enable IGMP/MLD snooping, disable VLAN
-	 * tunneling, determine priority by looking at 802.1p and IP
-	 * priority fields (IP prio has precedence), and set STP state
-	 * to Forwarding.
+	 * tunneling, and set STP state to Forwarding.
+	 *
+	 * Use the following sources of information, in order of
+	 * precedence, to determine a packet's initial Qpri/Fpri:
+	 * 1. VLAN PCP field, if available
+	 * 2. IPv4/6 DSCP field, if available
+	 * 3. Ingress port defaults
 	 *
 	 * If this is the CPU link, use DSA or EDSA tagging depending
 	 * on which tagging mode was configured.
@@ -3456,6 +3460,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * forwarding of unknown unicasts and multicasts.
 	 */
 	reg = MV88E6185_PORT_CTL0_USE_TAG | MV88E6185_PORT_CTL0_USE_IP |
+		MV88E6XXX_PORT_CTL0_TAG_IF_BOTH |
 		MV88E6XXX_PORT_CTL0_STATE_FORWARDING;
 	/* Forward any IPv4 IGMP or IPv6 MLD frames received
 	 * by a USER port to the CPU port to allow snooping.
