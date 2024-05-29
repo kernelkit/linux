@@ -1051,7 +1051,14 @@ static const struct {
 	{"lreCntSupPru0", PRUETH_LRE_STAT_OFS(lre_cnt_sup_pru0)},
 	{"lreCntSupPru1", PRUETH_LRE_STAT_OFS(lre_cnt_sup_pru1)},
 	{"lreNoPRPtagRxA", PRUETH_LRE_STAT_OFS(lre_no_prp_tag_rx_a)},
-        {"lreNoPRPtagRxB", PRUETH_LRE_STAT_OFS(lre_no_prp_tag_rx_b)},
+    {"lreNoPRPtagRxB", PRUETH_LRE_STAT_OFS(lre_no_prp_tag_rx_b)},
+	/* 
+	* Task(23277) : HSR: Rx optimization: port queue overflow counter in ethtool stat
+	* As per Hitachi requirement included port queue overflow counters, This counters are use-full in tracking forwarding drops. 
+	* Roopak@cit - 30-May-2024
+	*/
+	{"lreFwdOverflowPru0", PRUETH_LRE_STAT_OFS(lre_fwd_overflow_pru0)},
+	{"lreFwdOverflowPru1", PRUETH_LRE_STAT_OFS(lre_fwd_overflow_pru1)},
 };
 
 void prueth_lre_set_stats(struct prueth *prueth,

@@ -81,7 +81,14 @@ struct lre_statistics {
 	u32 lre_cnt_sup_pru0; /* count of supervisor frames to host on PRU 0 */
 	u32 lre_cnt_sup_pru1; /* count of supervisor frames to host on PRU 1 */
 	u32 lre_no_prp_tag_rx_a; /* count of frames with no RCT tag to host on PRU 0 */
-        u32 lre_no_prp_tag_rx_b; /* count of frames with no RCT tag to host on PRU 1*/
+    u32 lre_no_prp_tag_rx_b; /* count of frames with no RCT tag to host on PRU 1*/
+	/* 
+	* Task(23277) : HSR: Rx optimization: port queue overflow counter in ethtool stat
+	* As per Hitachi requirement included port queue overflow counters, This counters are use-full in tracking forwarding drops. 
+	* Roopak@cit - 30-May-2024
+	*/
+	u32 lre_fwd_overflow_pru0; /* count of port overflow frames to port on PRU 0 */
+	u32 lre_fwd_overflow_pru1; /* count of port overflow frames to port on PRU 1 */
 } __packed;
 
 /*
