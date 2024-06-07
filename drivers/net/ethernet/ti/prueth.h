@@ -117,6 +117,13 @@ struct prueth_packet_info {
 	bool start_offset;
 	bool ll_has_no_hsrTag;
 	bool shadow;
+
+	/* Structure was modified for HSR RX optimization
+         *  boolean flag indicates packet is consumed for HOST or not. 
+	 *  basharath@CIT - 08-Sep-2023
+	 */
+	bool host_recv_flag;
+
 	unsigned int port;
 	unsigned int length;
 	bool broadcast;

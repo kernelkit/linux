@@ -438,9 +438,13 @@ const struct prueth_queue_desc hsr_prp_txopt_queue_descs[][NUM_QUEUES] = {
                 { .rd_ptr = P0_Q3_BD_OFFSET, .wr_ptr = P0_Q3_BD_OFFSET, },
                 { .rd_ptr = P0_Q4_BD_OFFSET, .wr_ptr = P0_Q4_BD_OFFSET, },
         },
+	/* Below code was added for HSR RX optimization
+	 * Merge HOST & PORT Queue - Same HOST queue descriptors are used for PORT Queues.
+	 * basharath@CIT - 08-Sep-2023
+	 */
         [PRUETH_PORT_QUEUE_MII0] = {
-                { .rd_ptr = P1_Q1_BD_OFFSET, .wr_ptr = P1_Q1_BD_OFFSET, },
-                { .rd_ptr = P1_Q2_BD_OFFSET, .wr_ptr = P1_Q2_BD_OFFSET, },
+                { .rd_ptr = P0_Q3_BD_OFFSET, .wr_ptr = P0_Q3_BD_OFFSET, },
+                { .rd_ptr = P0_Q4_BD_OFFSET, .wr_ptr = P0_Q4_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, },
 		/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
@@ -451,8 +455,8 @@ const struct prueth_queue_desc hsr_prp_txopt_queue_descs[][NUM_QUEUES] = {
 				{ .rd_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, },
         },
         [PRUETH_PORT_QUEUE_MII1] = {
-                { .rd_ptr = HSRP2_TXOPT_Q1_BD_OFFSET, .wr_ptr = HSRP2_TXOPT_Q1_BD_OFFSET, },
-                { .rd_ptr = HSRP2_TXOPT_Q2_BD_OFFSET, .wr_ptr = HSRP2_TXOPT_Q2_BD_OFFSET, },
+                { .rd_ptr = P0_Q1_BD_OFFSET, .wr_ptr = P0_Q1_BD_OFFSET, },
+                { .rd_ptr = P0_Q2_BD_OFFSET, .wr_ptr = P0_Q2_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q3_BD_OFFSET, },
                 { .rd_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q4_BD_OFFSET, },
 		/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
@@ -1392,6 +1396,14 @@ void parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
 		pkt_info->start_offset = false;
 
 	pkt_info->ll_has_no_hsrTag = (buffer_descriptor & PRUETH_LL_HAS_NO_HSRTAG_MASK);
+
+	/* Below code was added for HSR RX optimization
+	 * Read flag from BD to indicate packet is valid or not for HOST.
+	 * basharath@CIT - 08-Sep-2023
+	 */
+
+	pkt_info->host_recv_flag = !!(buffer_descriptor & PRUETH_BD_HOST_RECV_MASK);
+	
 	pkt_info->port = (buffer_descriptor & PRUETH_BD_PORT_MASK) >>
 			 PRUETH_BD_PORT_SHIFT;
 	pkt_info->length = (buffer_descriptor & PRUETH_BD_LENGTH_MASK) >>
@@ -1627,8 +1639,35 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	/* calculate new pointer in ram */
 	*bd_rd_ptr = rxqueue->buffer_desc_offset + (update_block * BD_SIZE);
 
+	/* Below code was added for HSR RX optimization
+	 * If the packet is invalid of HOST, 
+	 * after updating next read pointer(*bd_rd_ptr) and 
+	 * skip processing since this is a dummy packet for HOST.
+	 * basharath@CIT - 08-Sep-2023
+	 */
+	if(PRUETH_IS_HSR(prueth)){		
+		if(!pkt_info.host_recv_flag)
+		{
+			return 0;
+		}
+	}
+
 	/* Pkt len w/ HSR tag removed, If applicable */
 	actual_pkt_len = pkt_info.length - start_offset;
+
+	/* Below code was added for HSR RX optimization
+	 *  basharath@CIT - 08-Sep-2023
+	 */
+	if (PRUETH_IS_HSR(prueth)){
+		/* Below code was added for HSR RX optimization
+		 * HSR TAG Removal Handling - Packet is sent with HSR TAG to Driver
+		 * basharath@CIT - 08-Sep-2023
+		 */
+		if(!start_offset && !pkt_info.timestamp)
+		{
+			actual_pkt_len -= ICSS_LRE_TAG_RCT_SIZE;
+		}
+	}	
 
 	/* Need to add dummy hsr tag for PTP LL packets */
 	if(pkt_info.ll_has_no_hsrTag){
@@ -1653,30 +1692,46 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	
 	src_addr += start_offset;
 
+
+			/* Below code was added for HSR RX optimization
+			 * HSR TAG Removal Handling - Packet is sent with HSR TAG to Driver
+			 * basharath@CIT - 08-Sep-2023
+			 */
+	/* Copy destination and source MAC address first */
+	memcpy(dst_addr, src_addr, PRUETH_ETH_TYPE_OFFSET);
+	src_addr += PRUETH_ETH_TYPE_OFFSET;
+	dst_addr += PRUETH_ETH_TYPE_OFFSET;
+
+	adjust_for_dummy_hsr_tag += PRUETH_ETH_TYPE_OFFSET;
+
+	/* Check for VLAN tag */
+	check_vlan_ptr = src_addr;
+	type = (*check_vlan_ptr++) << PRUETH_ETH_TYPE_UPPER_SHIFT;
+	type |= *check_vlan_ptr++;
+
+	if(type == ETH_P_8021Q){
+		memcpy(dst_addr, src_addr, VLAN_HLEN);
+		src_addr += VLAN_HLEN;
+		dst_addr += VLAN_HLEN;
+		adjust_for_dummy_hsr_tag += VLAN_HLEN;
+	}
+
 	if(pkt_info.ll_has_no_hsrTag){
-	     /* Copy destination and source MAC address first */
-		memcpy(dst_addr, src_addr, PRUETH_ETH_TYPE_OFFSET);
-		src_addr += PRUETH_ETH_TYPE_OFFSET;
-		dst_addr += PRUETH_ETH_TYPE_OFFSET;
-
-		adjust_for_dummy_hsr_tag += PRUETH_ETH_TYPE_OFFSET;
-
-		/* Check for VLAN tag */
-		check_vlan_ptr = src_addr;
-		type = (*check_vlan_ptr++) << PRUETH_ETH_TYPE_UPPER_SHIFT;
-		type |= *check_vlan_ptr++;
-
-		if(type == ETH_P_8021Q){
-			memcpy(dst_addr, src_addr, VLAN_HLEN);
-			src_addr += VLAN_HLEN;
-			dst_addr += VLAN_HLEN;
-			adjust_for_dummy_hsr_tag += VLAN_HLEN;
-		}
 		/* Copy dummy HSR tag */
 		memcpy(dst_addr, dummy_hsr_tag, ICSS_LRE_TAG_RCT_SIZE);
 		dst_addr += ICSS_LRE_TAG_RCT_SIZE;
 	}
 
+			/* Below code was added for HSR RX optimization
+			 * HSR TAG Removal Handling - Packet is sent with HSR TAG to Driver
+			 * basharath@CIT - 08-Sep-2023
+			 */
+	if (PRUETH_IS_HSR(prueth)){
+		if(!start_offset && !pkt_info.timestamp)
+		{
+			src_addr += ICSS_LRE_TAG_RCT_SIZE;
+		}
+	}	
 	/* Copy the data from PRU buffers(OCMC) to socket buffer(DRAM) */
 	if (buffer_wrapped) { /* wrapped around buffer */
 		int bytes = (buffer_desc_count - read_block) * ICSS_BLOCK_SIZE;
@@ -1692,6 +1747,17 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 
 		/* If applicable, account for the HSR tag removed */
 		bytes -= start_offset;
+
+			/* Below code was added for HSR RX optimization
+			 * HSR TAG Removal Handling - Packet is sent with HSR TAG to Driver
+			 * basharath@CIT - 08-Sep-2023
+			 */
+		if (PRUETH_IS_HSR(prueth)){
+			if(!start_offset && !pkt_info.timestamp)
+			{
+				bytes -= ICSS_LRE_TAG_RCT_SIZE;
+			}
+		}
 
 		/* copy non-wrapped part */
 		memcpy(dst_addr, src_addr, bytes - adjust_for_dummy_hsr_tag);

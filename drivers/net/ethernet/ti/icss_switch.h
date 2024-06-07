@@ -110,6 +110,14 @@
 #define PRUETH_BD_SW_FLOOD_MASK		BIT(7)
 #define PRUETH_BD_SW_FLOOD_SHIFT	7
 
+/* Below macro was added for HSR RX optimization
+ *  bit indicates whether packet is consumed by host or not.
+ *  Re-using Bit 10 as it is currently not used.
+ *  basharath@CIT - 08-Sep-2023
+ */
+#define PRUETH_BD_HOST_RECV_MASK    BIT(10)
+#define PRUETH_BD_HOST_RECV_SHIFT	10
+
 #define	PRUETH_LL_HAS_NO_HSRTAG_MASK	BIT(13)
 #define	PRUETH_LL_HAS_NO_HSRTAG_SHIFT	13
 
@@ -427,12 +435,14 @@
 /* Below Macros are for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
  * Roopak@CIT - 02-June-2023
  */
-#define HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET 0x0000 
-#define HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET (HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
-#define HSRP1_TXOPT_Q3_BUFFER_OFFSET (HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
-#define HSRP2_TXOPT_Q1_BUFFER_OFFSET (HSRP1_TXOPT_Q3_BUFFER_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
-#define HSRP2_TXOPT_Q2_BUFFER_OFFSET (HSRP2_TXOPT_Q1_BUFFER_OFFSET + QUEUE_1_SIZE * ICSS_BLOCK_SIZE)
-#define HSRP1_TXOPT_Q4_BUFFER_OFFSET (HSRP2_TXOPT_Q2_BUFFER_OFFSET + QUEUE_2_SIZE * ICSS_BLOCK_SIZE)
+/* 
+ * Task(22795) - HSR/PRP: Handle the hole in the OCMC by Port Tx queues
+ * Removed forwarding queues and shift host tx queues to starting of the 2nd 64kb offset
+ * Roopak@CIT - 03-june-2024
+ */
+#define HSRP1_TXOPT_Q3_BUFFER_OFFSET 0x0000
+#define HSRP1_TXOPT_Q4_BUFFER_OFFSET (HSRP1_TXOPT_Q3_BUFFER_OFFSET + QUEUE_3_HSRPRP_TXOPT_SIZE * ICSS_BLOCK_SIZE)
+
 /* Below macros are for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
  * Roopak@CIT - 02-June-2023
  */

@@ -338,20 +338,24 @@ const struct prueth_queue_info lre_queue_infos[][NUM_QUEUES] = {
 			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
 	},
+	/* Below code was added for HSR RX optimization
+	 * Merge HOST & PORT Queue - Same HOST queue context are used for PORT Queues.
+	 * basharath@CIT - 08-Sep-2023
+	 */
 	[PRUETH_PORT_QUEUE_MII0] = {
 		[PRUETH_QUEUE1] = {
-			HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET, 
-			HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET + 
-				((QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P1_Q1_BD_OFFSET,
-			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+			P0_Q3_BUFFER_OFFSET,
+			P0_Q3_BUFFER_OFFSET +
+				((HOST_QUEUE_3_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P0_Q3_BD_OFFSET,
+			P0_Q3_BD_OFFSET + ((HOST_QUEUE_3_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
-			HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET, 
-			HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET + 
-				((QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
-			P1_Q2_BD_OFFSET,
-			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+			P0_Q4_BUFFER_OFFSET,
+			P0_Q4_BUFFER_OFFSET +
+				((HOST_QUEUE_4_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P0_Q4_BD_OFFSET,
+			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE3] = {
 			HSRP1_TXOPT_Q3_BUFFER_OFFSET,
@@ -392,20 +396,24 @@ const struct prueth_queue_info lre_queue_infos[][NUM_QUEUES] = {
 			HSRP1_TXOPT_Q7_BD_OFFSET + ((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
 		},
 	},
+	/* Below code was added for HSR RX optimization
+	 * Merge HOST & PORT Queue - Same HOST queue context are used for PORT Queues.
+	 * basharath@CIT - 08-Sep-2023
+	 */
 	[PRUETH_PORT_QUEUE_MII1] = {
 		[PRUETH_QUEUE1] = {
-			HSRP2_TXOPT_Q1_BUFFER_OFFSET,
-			HSRP2_TXOPT_Q1_BUFFER_OFFSET +
-				((QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
-			HSRP2_TXOPT_Q1_BD_OFFSET,
-			HSRP2_TXOPT_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+			P0_Q1_BUFFER_OFFSET,
+			P0_Q1_BUFFER_OFFSET +
+				((HOST_QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P0_Q1_BD_OFFSET,
+			P0_Q1_BD_OFFSET + ((HOST_QUEUE_1_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
-			HSRP2_TXOPT_Q2_BUFFER_OFFSET,
-			HSRP2_TXOPT_Q2_BUFFER_OFFSET +
-				((QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
-			HSRP2_TXOPT_Q2_BD_OFFSET,
-			HSRP2_TXOPT_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+			P0_Q2_BUFFER_OFFSET,
+			P0_Q2_BUFFER_OFFSET +
+				((HOST_QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P0_Q2_BD_OFFSET,
+			P0_Q2_BD_OFFSET + ((HOST_QUEUE_2_SIZE - 1) * BD_SIZE),
 		},
 		/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
  		 * Roopak@CIT - 02-June-2023
@@ -479,18 +487,22 @@ static const struct prueth_queue_info lre_rx_queue_infos[][NUM_QUEUES] = {
 			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
 	},
+	/* Below code was added for HSR RX optimization
+	 * Merge HOST & PORT Queue - Same HOST queue context are used for PORT Queues.
+	 * basharath@CIT - 08-Sep-2023
+	 */
 	[PRUETH_PORT_QUEUE_MII0] = {
 		[PRUETH_QUEUE1] = {
-			HSR_PRP_NEW_QUEUE_P1_Q1_BUFFER_OFFSET, //P1_Q1_BUFFER_OFFSET,
+			P0_Q3_BUFFER_OFFSET,
 			P1_QUEUE_DESC_OFFSET,
-			P1_Q1_BD_OFFSET,
-			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+			P0_Q3_BD_OFFSET,
+			P0_Q3_BD_OFFSET + ((HOST_QUEUE_3_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
-			HSR_PRP_NEW_QUEUE_P1_Q2_BUFFER_OFFSET, //P1_Q2_BUFFER_OFFSET,
+			P0_Q4_BUFFER_OFFSET,
 			P1_QUEUE_DESC_OFFSET + 8,
-			P1_Q2_BD_OFFSET,
-			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+			P0_Q4_BD_OFFSET,
+			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE3] = {
 			HSRP1_TXOPT_Q3_BUFFER_OFFSET,
@@ -526,18 +538,22 @@ static const struct prueth_queue_info lre_rx_queue_infos[][NUM_QUEUES] = {
 			HSRP1_TXOPT_Q7_BD_OFFSET + ((QUEUE_7_HSRPRP_TXOPT_SIZE - 1) * BD_SIZE),
 		},
 	},
+	/* Below code was modified for HSR RX optimization
+	 * Merge HOST & PORT Queue - Same HOST queue context are used for PORT Queues.
+	 * basharath@CIT - 08-Sep-2023
+	 */
 	[PRUETH_PORT_QUEUE_MII1] = {
 		[PRUETH_QUEUE1] = {
-			HSRP2_TXOPT_Q1_BUFFER_OFFSET,
+			P0_Q1_BUFFER_OFFSET,
 			P2_QUEUE_DESC_OFFSET,
-			HSRP2_TXOPT_Q1_BD_OFFSET,
-			HSRP2_TXOPT_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+			P0_Q1_BD_OFFSET,
+			P0_Q1_BD_OFFSET + ((HOST_QUEUE_1_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE2] = {
-			HSRP2_TXOPT_Q2_BUFFER_OFFSET,
+			P0_Q2_BUFFER_OFFSET,
 			P2_QUEUE_DESC_OFFSET + 8,
-			HSRP2_TXOPT_Q2_BD_OFFSET,
-			HSRP2_TXOPT_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+			P0_Q2_BD_OFFSET,
+			P0_Q2_BD_OFFSET + ((HOST_QUEUE_2_SIZE - 1) * BD_SIZE),
 		},
 		[PRUETH_QUEUE3] = {
 			HSRP1_TXOPT_Q3_BUFFER_OFFSET,
@@ -842,12 +858,15 @@ static int prueth_lre_port_config(struct prueth *prueth,
 	       dram + 4);
 	writew(lre_queue_infos[port_id][PRUETH_QUEUE4].buffer_offset,
 	       dram + 6);
-
+	/* Below code was added for HSR RX optimization
+	 * Merge HOST & PORT Queue - Same HOST queue size are used for PORT Queues.
+	 * basharath@CIT - 08-Sep-2023
+	 */
 	/* queue size lookup table */
 	dram = dram_base + QUEUE_SIZE_ADDR +
 	       port_id * RX_NUM_QUEUES * sizeof(u16);
-	writew(QUEUE_1_SIZE, dram);
-	writew(QUEUE_2_SIZE, dram + 2);
+	writew(HOST_QUEUE_1_SIZE, dram);
+	writew(HOST_QUEUE_2_SIZE, dram + 2);
 	writew(QUEUE_3_SIZE, dram + 4);
 	writew(QUEUE_4_SIZE, dram + 6);
 	/* queue table */
