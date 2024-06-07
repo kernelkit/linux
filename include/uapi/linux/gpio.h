@@ -108,7 +108,7 @@ struct gpiohandle_data {
 
 #define GPIOHANDLE_GET_LINE_VALUES_IOCTL _IOWR(0xB4, 0x08, struct gpiohandle_data)
 #define GPIOHANDLE_SET_LINE_VALUES_IOCTL _IOWR(0xB4, 0x09, struct gpiohandle_data)
-#define GPIOHANDLE_GET_LINE_TIMESTAMP_IOCTL _IOR(0xB4, 0x0A, __u64)
+#define GPIOHANDLE_GET_LINE_TIMESTAMP_IOCTL _IOR(0xB4, 0x10, __u64)
 
 /* Eventrequest flags */
 #define GPIOEVENT_REQUEST_RISING_EDGE	(1UL << 0)
