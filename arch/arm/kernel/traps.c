@@ -430,6 +430,15 @@ void arm_notify_die(const char *str, struct pt_regs *regs,
 	}
 
 skip_fault_dumper:
+
+// when this flag is disabled it is already printed before calling arm_notify_die
+// we want to print only after we have called fault_dump_persist to avoid delays saving it to persistent memory
+#ifdef CONFIG_PG_HAVE_FAULT_DUMPER
+	pr_alert("8<--- cut here ---\n");
+	pr_alert("str: %s signo: %d, si_code %d, addr %p, err %lu, trap: %lu (%s)\n",
+        str, signo, si_code, addr, err, trap, __func__);
+#endif
+
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
