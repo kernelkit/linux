@@ -7,8 +7,10 @@ enum FAULT_ENTRY_DUMPER {
 	FAULT_ENTRY_ARM_DIE = 0,
 };
 
-// The length looks to be enough based on where arm_notify_die is called
-#define MAX_LEN_STR_ARM_DIE 40
+/* The length looks to be enough based on where arm_notify_die is called
+ * always align this length with fault.c, 
+ * dont generalize since we dont aim to upstream this */ 
+#define MAX_LEN_STR_ARM_DIE 128
 struct arm_die_entry {
 	const char *str;
 	char make_additional_space_for_str[MAX_LEN_STR_ARM_DIE - sizeof(const char *)];
@@ -25,7 +27,8 @@ struct fault_callback_info
 		struct arm_die_entry 		arm_die;
 	} entry_type_u;
 
-	int which_entry;
+	struct mutex callback_mutex;
+	unsigned int which_entry;
 	size_t len_entry;
 	void* handle;
 };

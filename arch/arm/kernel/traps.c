@@ -416,17 +416,30 @@ void arm_notify_die(const char *str, struct pt_regs *regs,
 	if(!current_callback)
 		goto skip_fault_dumper;
 
-	current_callback->info.entry_type_u.arm_die.str = str;
-	current_callback->info.entry_type_u.arm_die.signo = signo;
-	current_callback->info.entry_type_u.arm_die.si_code = si_code;
-	current_callback->info.entry_type_u.arm_die.addr = addr;
-	current_callback->info.entry_type_u.arm_die.err = err;
-	current_callback->info.entry_type_u.arm_die.trap = trap;
-	current_callback->info.which_entry = FAULT_ENTRY_ARM_DIE;
-	current_callback->info.len_entry = sizeof(current_callback->info.entry_type_u.arm_die);
-	current_callback->fault_dump_persist(current_callback);
+	if(mutex_trylock(&current_callback->info.callback_mutex))
+	{
+		current_callback->info.entry_type_u.arm_die.str = str;
+		current_callback->info.entry_type_u.arm_die.signo = signo;
+		current_callback->info.entry_type_u.arm_die.si_code = si_code;
+		current_callback->info.entry_type_u.arm_die.addr = addr;
+		current_callback->info.entry_type_u.arm_die.err = err;
+		current_callback->info.entry_type_u.arm_die.trap = trap;
+		current_callback->info.which_entry = FAULT_ENTRY_ARM_DIE;
+		current_callback->info.len_entry = sizeof(current_callback->info.entry_type_u.arm_die);
+		current_callback->fault_dump_persist(current_callback);
+		mutex_unlock(&current_callback->info.callback_mutex);
+	}
 
 skip_fault_dumper:
+
+// when this flag is disabled it is already printed before calling arm_notify_die
+// we want to print only after we have called fault_dump_persist to avoid delays saving it to persistent memory
+#ifdef CONFIG_PG_HAVE_FAULT_DUMPER
+	pr_alert("8<--- cut here ---\n");
+	pr_alert("str: %s signo: %d, si_code %d, addr %p, err %lu, trap: %lu (%s)\n",
+        str, signo, si_code, addr, err, trap, __func__);
+#endif
+
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;

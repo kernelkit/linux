@@ -110,4 +110,6 @@ obj-$(CONFIG_GENERIC_CPU_VULNERABILITIES) += spectre.o
 
 extra-y := $(head-y) vmlinux.lds
 
-obj-$(CONFIG_PG_HAVE_FAULT_DUMPER) += fault_dumper.o
+ifeq ($(CONFIG_PG_HAVE_FAULT_DUMPER),y)
+obj-m += fault_dumper.o
+endif
