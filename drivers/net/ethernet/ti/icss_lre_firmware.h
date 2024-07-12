@@ -50,7 +50,7 @@
  * Below code change is fix for common counters issue in shared memory
  * Rajendar@CIT    - 01/02/2023
  */
-#define ICSS_LRE_STATS_DMEM_SIZE		0x00B0
+#define ICSS_LRE_STATS_DMEM_SIZE		0x00B8
 #define ICSS_LRE_DEBUG_COUNTER_DMEM_SIZE	0x0050
 
 #define ICSS_LRE_DUPLICATE_HOST_TABLE_SIZE_INIT	0x800004 /* N = 128, M = 4 */

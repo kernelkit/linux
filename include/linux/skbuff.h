@@ -852,6 +852,9 @@ struct sk_buff {
 #endif
 	__u8			scm_io_uring:1;
 
+	/* HSR specific allocation marks */
+	__u8			is_hsr:1;
+
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #endif

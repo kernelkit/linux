@@ -1137,8 +1137,19 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	struct vlan_ethhdr *vlan_hdr;
 	struct ethhdr *ethhdr;
 	bool is_vlan = false;
+	bool link_up = false;
         __be16 proto;
         u8 *hdr;
+	/*Task(23312) : PRP - linkstatus change
+	* As per TX optimization, We have to send packet/update rd/wr ptr's if any one of the port link is up.
+	* Using link_up flag to identify port link state on either of the ports.
+	* link_up flag will be used further to update the write pointer for both the ports
+	* Firmware has been modified to move the read pointer based on the link status instead of waiting for linkup.
+	* Otherwise there is a chance that the pointer across ports can loss the synchronization.
+	* Roopak@cit - 22-May-2024
+	*/
+	if( PRUETH_IS_LRE(prueth) && (emac->link || other_emac->link) )
+		link_up = true;
 
 	if (!PRUETH_IS_EMAC(prueth))
 		dram = prueth->mem[PRUETH_MEM_DRAM1].va;
@@ -1176,7 +1187,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Below code was added for HSR/PRP TX optimization
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link){
+	if (PRUETH_IS_LRE(prueth) && link_up){
 		queue_desc_other_port = emac->tx_queue_descs_other_port + queue_id;
 		bd_rd_ptr_other_port = readw(&queue_desc_other_port->rd_ptr);
 	}
@@ -1190,7 +1201,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Below code was added for HSR/PRP TX optimization
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link)
+	if (PRUETH_IS_LRE(prueth) && link_up)
                 read_block_other_port = (bd_rd_ptr_other_port - txqueue->buffer_desc_offset) / BD_SIZE;
 	if (write_block > read_block) {
 		free_blocks = buffer_desc_count - write_block;
@@ -1203,7 +1214,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Below code was added for HSR/PRP TX optimization
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link){
+	if (PRUETH_IS_LRE(prueth) && link_up){
                 if (write_block > read_block_other_port) {
                         free_blocks_other_port = buffer_desc_count - write_block;
                         free_blocks_other_port += read_block_other_port;
@@ -1304,12 +1315,6 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 			if (hsr_ethhdr->hsr_tag.encap_proto != htons(ETH_P_1588)){
 				/*  If Not PTP, SET both 16th and 17th bits to indicate to firmware that this frame should be transmitted from both the ports */
 				wr_buf_desc |= (3 << 16);
-
-				/* We use two more bits from buffer descriptor to indicate that LANE information must be changed by the firmware
-				*  Port 1 - 8th bit
-				*  Port 2 - 9th bit
-				*/
-				wr_buf_desc |= (txport << 8);
 			}
 			else{
 				/* We are using two bits 16th and 17th from buffer descriptor, to indicate firmware that from which port this packet need to be sent out.
@@ -1319,6 +1324,12 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 				/*  If PTP, SET the 16th/17th bit depending on the txport vlaue that informs Firmware not to duplicate these packets */
 				wr_buf_desc |= (txport << 16);
 			}
+
+            /* Task(23248)-HSR: Incorrect LAN information in HSR Tagged frame when only pru21 connected
+            * We use one more bit from buffer descriptor to indicate that RED tag is available and LANE information must be changed by the firmware
+            * Rajendar@cit - 02-MAY-2024
+            */
+            wr_buf_desc |= (1 << 8);
 		}
 		else {
 			/* Check if frame is PRP Tagged */
@@ -1328,15 +1339,16 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 				/*  If PRP, SET both 16th/17th bits to indicate to firmware that this frame should be transmitted from both the ports */
 				wr_buf_desc |= (3 << 16);
 
-				/* We use two more bits from buffer descriptor to indicate that LANE information must be changed by the firmware
-				*  Port 1 - 8th bit
-				*  Port 2 - 9th bit
+				/* Task(23248)-HSR: Incorrect LAN information in HSR Tagged frame when only pru21 connected
+				* We use one more bit from buffer descriptor to indicate that RED tag is available and LANE information must be changed by the firmware
+				* Rajendar@cit - 02-MAY-2024
 				*/
-				wr_buf_desc |= (txport << 8);
+				wr_buf_desc |= (1 << 8);
 			}
-			else
+			else {
 				/* SET the 16th/17th bit depending on the txport vlaue */
 				wr_buf_desc |= (txport << 16);
+			}
 		}
 	}
 
@@ -1354,7 +1366,7 @@ static int prueth_tx_enqueue(struct prueth_emac *emac, struct sk_buff *skb,
 	/* Update queue descriptor for HSR/PRP TX OPT
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth) && other_emac->link)
+	if (PRUETH_IS_LRE(prueth) && link_up)
                 writew(update_wr_ptr, &queue_desc_other_port->wr_ptr);
 
 	return 0;

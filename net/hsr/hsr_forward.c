@@ -252,7 +252,14 @@ static struct sk_buff *prp_fill_rct(struct sk_buff *skb,
 	if (skb_put_padto(skb, min_size))
 		return NULL;
 
-	trailer = (struct prp_rct *)skb_put(skb, HSR_HLEN);
+	/* Check for already existing PRP tag */
+	if (skb->is_hsr)
+		trailer = (struct prp_rct *)(skb_tail_pointer(skb) - HSR_HLEN);
+	else
+		trailer = (struct prp_rct *)skb_put(skb, HSR_HLEN);
+
+	skb->is_hsr = 1;
+
 	lsdu_size = skb->len - 14;
 	if (frame->is_vlan)
 		lsdu_size -= 4;
@@ -329,27 +336,84 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 	struct sk_buff *skb;
 	struct skb_redundant_info *sred;
 	struct hsr_ethhdr *hsr_ethhdr;
+	int min_size = ETH_ZLEN;
 	u16 s;
 
-	if (port->hsr->prot_version > HSR_V1) {
-		skb = skb_copy_expand(skb_o, skb_headroom(skb_o),
-				      skb_tailroom(skb_o) + HSR_HLEN,
-				      GFP_ATOMIC);
-		skb = prp_fill_rct(skb, frame, port);
-		return skb;
-	} else if ((port->hsr->prot_version == HSR_V1) &&
-		   (port->hsr->hsr_mode == IEC62439_3_HSR_MODE_T)) {
-		return skb_clone(skb_o, GFP_ATOMIC);
+	/* HACK/Optimization: Reuse the SKB passed to hsr_xmit() for both
+	 * slaves. This avoids the allocation and freeing of new SKBs.  The hsr
+	 * device's tailroom/headroom settings make sure that enough space is
+	 * available.
+	 */
+
+	/* Task(22853) - PRP: TCP socket crash
+	 * Below code change is to reallocate new SKB in case enough headroom/
+	 * tailroom/data length is not available to insert redundancy tag.
+	 * In order to reuse the SKB, minimum data length should be available in
+	 * the source SKB. Otherwise we should allocate new SKB.
+	 * HSR:
+	 * Allocate new SKB in case of insufficient headroom
+	 * skb_get() cannot be used in conjunction with __pskb_copy() as both
+	 * api's are giving new references to the original SKB, which is
+	 * conflicting with request to response mapping of TXTS request's from
+	 * PTP stack.
+	 * With __pskb_copy(), a new reference SKB is allocated but required flags
+	 * are not copied appropriately. Using skb_o instead of skb to check the
+	 * redundancy information.
+	 * PRP:
+	 * Allocate new SKB in case of insufficient tailroom to avoid kernel
+	 * over panic due to insufficient tailroom from source SKB while
+	 * reusing.
+	 * Rajendar@cit - 19-APR-2024
+	 */
+
+	if (frame->is_vlan)
+		min_size = VLAN_ETH_ZLEN;
+
+	if (port->hsr->prot_version > HSR_V1)
+	{
+		if ((skb_o->len < min_size) || (skb_o->tail + HSR_HLEN >= skb_o->end)) {
+			skb = skb_copy_expand(skb_o, skb_headroom(skb_o),
+				skb_tailroom(skb_o) + HSR_HLEN, GFP_ATOMIC);
+			if (!skb)
+				return NULL;
+		}
+		else {
+			/* Reuse the original SKB only if enough headroom/tailroom and minimum
+			* data length is available.
+			* Rajendar@cit - 19-APR-2024
+			*/
+			skb = skb_get(skb_o);
+		}
+	} else if (port->hsr->prot_version == HSR_V1) {
+		if ((skb_o->len < min_size) || (skb_o->data - HSR_HLEN <= skb_o->head)) {
+			skb = __pskb_copy(skb_o, skb_headroom(skb_o) + HSR_HLEN, GFP_ATOMIC);
+			if (!skb)
+				return NULL;
+		}
+		else{
+		   /* Reuse the original SKB only if enough headroom/tailroom and minimum
+			* data length is available.
+			* Rajendar@cit - 19-APR-2024
+			*/
+			skb = skb_get(skb_o);
+		}
 	}
 
-	/* Create the new skb with enough headroom to fit the HSR tag */
-	skb = __pskb_copy(skb_o, skb_headroom(skb_o) + HSR_HLEN, GFP_ATOMIC);
-	if (!skb)
-		return NULL;
+	if (port->hsr->prot_version > HSR_V1) {
+		return prp_fill_rct(skb, frame, port);
+	} else if ((port->hsr->prot_version == HSR_V1) &&
+		 (port->hsr->hsr_mode == IEC62439_3_HSR_MODE_T)) {
+		return skb;
+	}
+
 	skb_reset_mac_header(skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		skb->csum_start += HSR_HLEN;
+
+	/* If this SKB has been expanded before just fill the HSR tag. */
+	if (skb->is_hsr)
+		goto fill_tag;
 
 	movelen = ETH_HLEN;
 	if (frame->is_vlan)
@@ -360,11 +424,33 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 	memmove(dst, src, movelen);
 	skb_reset_mac_header(skb);
 
-	skb = hsr_fill_tag(skb, frame, port, port->hsr->prot_version);
-	if (!skb)
-		return NULL;
+fill_tag:
 
-	if (REDINFO_T(skb) == DIRECTED_TX)
+    /* Task(22863)-HSR: pru21 lane not receiving the packets when pru20 down
+     * HSR tag has been inserted into source skb buffer in HSR_PT_SLAVE_A
+     * iteration and below change is required to avoid reinserting/updating
+     * HSR tag for HSR_PT_SLAVE_B/Duplicate packet.
+
+     * hsr_fill_tag() will be bypassed based on following conditions
+
+     *  Directed packet    !(HSR_PT_SLAVE_B)
+     *       0                  !(1)          Bypass adding/updating HSR tag
+     *       0                  !(0)          Add/update HSR tag in skb
+     *       1                    X           Add/update HSR tag in skb
+     * Rajendar@cit - 12-Feb-2024
+     */
+    if ((port->type != HSR_PT_SLAVE_B) || (REDINFO_T(skb_o) == DIRECTED_TX))  {
+		skb = hsr_fill_tag(skb, frame, port, port->hsr->prot_version);
+		if (!skb)
+			return NULL;
+	}
+
+	skb->is_hsr = 1;
+	/* PTP Sync fix - Code was returning skb without executing ptp related code
+	* Added ptp check to execute ptp related code for ptp packets.
+	* Parvathi@CIT - 21-Sep-2023
+	*/
+	if ((REDINFO_T(skb_o) == DIRECTED_TX) && !(is_hsr_l2ptp(skb, frame)))
 		return skb;
 
 	skb_shinfo(skb)->tx_flags |= skb_shinfo(skb_o)->tx_flags & SKBTX_ANY_TSTAMP;
