@@ -523,6 +523,10 @@
 	status = "okay";
 };
 
+&sgx {
+	status = "disabled";
+};
+
 &gpio0 {
 	status = "okay";
 	pinctrl-names = "default";

@@ -485,6 +485,10 @@
 	status = "okay";
 };
 
+&sgx {
+	status = "disabled";
+};
+
 &dcan0 {
 	status = "okay";
 	pinctrl-names = "default";
