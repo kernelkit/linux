@@ -35,6 +35,11 @@
 #define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
 
+/* LED0: Activity, LED1: Link */
+static int ledsel = 0x78;
+module_param(ledsel, int, 0);
+MODULE_PARM_DESC(ledsel, "Override default LED configuration");
+
 #define R8152_PHY_ID		32
 
 #define PLA_IDR			0xc000
@@ -7405,6 +7410,9 @@ static void r8153b_init(struct r8152 *tp)
 	/* rx aggregation */
 	ocp_word_clr_bits(tp, MCU_TYPE_USB, USB_USB_CTRL,
 			  RX_AGG_DISABLE | RX_ZERO_EN);
+
+	/* set customized led */
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_LEDSEL, ledsel);
 
 	rtl_tally_reset(tp);
 
