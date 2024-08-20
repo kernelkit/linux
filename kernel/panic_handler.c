@@ -259,8 +259,8 @@ static int test_kmsg_dumper(const char *val, const struct kernel_param *kp)
 	struct panic_handler_context *ctx = &panic_handler_ctx;
 	char* dumpString = "[TEST] Panic_handler kmsg_dumper [TEST]";
 	bool ret = false;
-	ret = write_to_sram_buf(dumpString, strlen(dumpString));
 	ctx->local_header.panic_detected = true;
+	ret = write_to_sram_buf(dumpString, strlen(dumpString));
 	pr_info("panic_handler: Testing of write_to_sram_buf %s.\n", ret ? "OK" : "FAIL");
 	return 0;
 }
