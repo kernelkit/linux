@@ -218,8 +218,13 @@
 #define MV88E6390_G1_MONITOR_MGMT_CTL_PTR_CPU_DEST_MGMTPRI	0x00e0
 #define MV88E6390_G1_MONITOR_MGMT_CTL_DATA_MASK			0x00ff
 
+/* Offset 0x19/0x1A: Hidden Queue Controller Register Access */
+#define MV88E6393X_G1_QC_HIDDEN_CTL			0x19
+#define MV88E6393X_G1_QC_HIDDEN_DATA			0x1a
+
 /* Offset 0x1B: Free Queue Size Register */
 #define MV88E6XXX_G1_FREE_Q_SIZE		0x1b
+#define MV88E6393X_G1_FREE_Q_SIZE_HIDDEN_QC	0x2000
 
 /* Offset 0x1C: Global Control 2 */
 #define MV88E6XXX_G1_CTL2			0x1c

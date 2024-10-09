@@ -3708,6 +3708,42 @@ static int mv88e6390_setup_errata(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_software_reset(chip);
 }
 
+/* Fix an undocumented issue where the queue controller inadvertently
+ * triggers the switch's internal watchdog. Increase the size of the
+ * free pool FIFO to 16 buffers, presumably working around the issue
+ * by preventing immediate buffer reuse.
+ */
+static int mv88e6393x_setup_errata(struct mv88e6xxx_chip *chip)
+{
+	u16 free_q;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_FREE_Q_SIZE, &free_q);
+
+	/* Enable access to hidden queue controller registers */
+	err = err ? : mv88e6xxx_g1_write(chip, MV88E6XXX_G1_FREE_Q_SIZE,
+					 MV88E6393X_G1_FREE_Q_SIZE_HIDDEN_QC);
+	if (err)
+		goto out;
+
+	err = mv88e6xxx_g1_wait_bit(chip, MV88E6393X_G1_QC_HIDDEN_CTL, 15, 0);
+
+	/* Set FIFO size */
+	err = err ? : mv88e6xxx_g1_write(chip, MV88E6393X_G1_QC_HIDDEN_DATA, 0x8400);
+	err = err ? : mv88e6xxx_g1_write(chip, MV88E6393X_G1_QC_HIDDEN_CTL, 0xff0c);
+
+	if (err)
+		mv88e6xxx_g1_write(chip, MV88E6XXX_G1_FREE_Q_SIZE, free_q);
+	else
+		err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_FREE_Q_SIZE, free_q);
+
+out:
+	if (err)
+		dev_err(chip->dev, "Unable to apply QC FIFO workaround (%d)\n", err);
+
+	return err;
+}
+
 /* prod_id for switch families which do not have a PHY model number */
 static const u16 family_prod_id_table[] = {
 	[MV88E6XXX_FAMILY_6341] = MV88E6XXX_PORT_SWITCH_ID_PROD_6341,
@@ -5558,6 +5594,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 
 static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	/* MV88E6XXX_FAMILY_6393 */
+	.setup_errata = mv88e6393x_setup_errata,
 	.irl_init_all = mv88e6390_g2_irl_init_all,
 	.get_eeprom = mv88e6xxx_g2_get_eeprom8,
 	.set_eeprom = mv88e6xxx_g2_set_eeprom8,
