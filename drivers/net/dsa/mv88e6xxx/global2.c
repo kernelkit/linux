@@ -959,21 +959,22 @@ static int mv88e6390_watchdog_setup(struct mv88e6xxx_chip *chip)
 
 static int mv88e6390_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 {
-	u16 reg;
+	u16 event, history;
 
 	mv88e6xxx_g2_write(chip, MV88E6390_G2_WDOG_CTL,
 			   MV88E6390_G2_WDOG_CTL_PTR_EVENT);
-	mv88e6xxx_g2_read(chip, MV88E6390_G2_WDOG_CTL, &reg);
-
-	dev_info(chip->dev, "Watchdog event: 0x%04x",
-		 reg & MV88E6390_G2_WDOG_CTL_DATA_MASK);
+	mv88e6xxx_g2_read(chip, MV88E6390_G2_WDOG_CTL, &event);
+	event &= MV88E6390_G2_WDOG_CTL_DATA_MASK;
 
 	mv88e6xxx_g2_write(chip, MV88E6390_G2_WDOG_CTL,
 			   MV88E6390_G2_WDOG_CTL_PTR_HISTORY);
-	mv88e6xxx_g2_read(chip, MV88E6390_G2_WDOG_CTL, &reg);
+	mv88e6xxx_g2_read(chip, MV88E6390_G2_WDOG_CTL, &history);
+	history &= MV88E6390_G2_WDOG_CTL_DATA_MASK;
 
-	dev_info(chip->dev, "Watchdog history: 0x%04x",
-		 reg & MV88E6390_G2_WDOG_CTL_DATA_MASK);
+	dev_err_ratelimited(chip->dev,
+			    "Watchdog interrupt%s (event:0x%04x history:0x%04x)",
+			    chip->info->ops->reset ? ", resetting datapath" : "",
+			    event, history);
 
 	/* Trigger a software reset to try to recover the switch */
 	if (chip->info->ops->reset)
