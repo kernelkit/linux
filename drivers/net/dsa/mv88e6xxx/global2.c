@@ -959,7 +959,17 @@ static int mv88e6390_watchdog_setup(struct mv88e6xxx_chip *chip)
 
 static int mv88e6390_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 {
-	u16 event, history;
+	u16 event, history, source;
+
+	/* This read is not only informational. On 6393X, an
+	 * undocumented interrupt source (bit 5) can sometimes be
+	 * activated, and reading this register seems to be the only
+	 * way of ACKing it.
+	 */
+	mv88e6xxx_g2_write(chip, MV88E6390_G2_WDOG_CTL,
+			   MV88E6390_G2_WDOG_CTL_PTR_INT_SOURCE);
+	mv88e6xxx_g2_read(chip, MV88E6390_G2_WDOG_CTL, &source);
+	source &= MV88E6390_G2_WDOG_CTL_DATA_MASK;
 
 	mv88e6xxx_g2_write(chip, MV88E6390_G2_WDOG_CTL,
 			   MV88E6390_G2_WDOG_CTL_PTR_EVENT);
@@ -972,9 +982,9 @@ static int mv88e6390_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 	history &= MV88E6390_G2_WDOG_CTL_DATA_MASK;
 
 	dev_err_ratelimited(chip->dev,
-			    "Watchdog interrupt%s (event:0x%04x history:0x%04x)",
+			    "Watchdog interrupt%s (source:0x%04x event:0x%04x history:0x%04x)",
 			    chip->info->ops->reset ? ", resetting datapath" : "",
-			    event, history);
+			    source, event, history);
 
 	/* Trigger a software reset to try to recover the switch */
 	if (chip->info->ops->reset)
