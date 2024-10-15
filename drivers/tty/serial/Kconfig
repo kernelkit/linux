@@ -1573,6 +1573,13 @@ config SERIAL_MILBEAUT_USIO_CONSOLE
 	  receives all kernel messages and warnings and which allows logins in
 	  single user mode).
 
+config SERIAL_ATSAM3_SPIUART
+	tristate "Support for ATSAM3 UART port via SPI interface"
+	select SERIAL_CORE
+	default y
+	help
+	  Choose 'M' to enable UART port from Atmel SAM3
+
 config SERIAL_PRU_SUART
 	tristate "TI PRU Software UART support"
 	depends on PRU_REMOTEPROC && !ARCH_K3

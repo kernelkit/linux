@@ -17,6 +17,7 @@ obj-$(CONFIG_SERIAL_SUNHV) += sunhv.o
 obj-$(CONFIG_SERIAL_SUNZILOG) += sunzilog.o
 obj-$(CONFIG_SERIAL_SUNSU) += sunsu.o
 obj-$(CONFIG_SERIAL_SUNSAB) += sunsab.o
+obj-$(CONFIG_SERIAL_ATSAM3_SPIUART) += atsam3/
 
 obj-$(CONFIG_SERIAL_21285) += 21285.o
 

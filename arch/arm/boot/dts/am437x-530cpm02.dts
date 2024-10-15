@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 Hitachi Energy.
+ * Copyright 2021-2024 Hitachi Energy.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -238,7 +238,7 @@
 			0x254 ( PIN_INPUT          | MUX_MODE7 ) /* (R24) spi4_d0.gpio5[5]           => GPIO_HW_IDENT1 (fix connected to low) */
 			0x258 ( PIN_INPUT          | MUX_MODE7 ) /* (P24) spi4_d1.gpio5[6]           => GPIO_HW_IDENT2 (fix connected to low) */
 			0x25c ( PIN_INPUT          | MUX_MODE7 ) /* (N25) spi4_cs0.gpio5[7]          => GPIO_HW_IDENT3 (fix connected to low) */
-			0x20c ( PIN_INPUT_PULLDOWN | MUX_MODE7 ) /* (AB18) cam0_data1.gpio5[20]      => GPIO_RESET_SERIAL1N (low pull-down) */
+			0x20c ( PIN_OUTPUT         | MUX_MODE7 ) /* (AB18) cam0_data1.gpio5[20]      => GPIO_RESET_SERIAL1N (low pull-down) */
 								   /* This output must be set to high to get the serial ATSAM3N */
 								   /* controller out of reset */
 		>;
@@ -683,7 +683,7 @@
 	pinctrl-0 = <&sram_128x16_pins_default>;
 	ranges = <0x0 0x0 0x1000000 0x40000>;
 
-	#address-cells = <2>;
+	#address-cells = <2>; 
 	#size-cells = <1>;
 
 	sram@0,0 {
@@ -718,6 +718,45 @@
 		&edma_xbar 53 0 26
 		&edma_xbar 54 0 27>;
 	dma-names = "tx0", "rx0", "tx1", "rx1", "tx2", "rx2", "tx3", "rx3";
+	mode = "mode1";
+    ti,spi-num-cs = <4>;
+
+	SLC = "SLC_ATSAM3N.bin";
+	LCC = "LCC_ATSAM3N.bin";
+	PDC = "PDC_ATSAM3N.bin";
+	BTL = "BOOT_ATSAM3N.bin";
+	BTA = "BOOT_ATSAM3N_APPL.bin";
+
+	atsam3spiuart@0 {
+		status = "okay";
+		compatible = "hitachi,atsam3-spiuart";
+        serialid = <0>;
+		reg = <0>;
+		clocks = <&hclk>, <&cclk>;
+		clock-names = "hclk", "cclk";
+		spi-max-frequency = <12000000>;
+    	fb-gpios = <&gpio5 19 GPIO_ACTIVE_HIGH >;
+		reset-gpios = <&gpio5 20 GPIO_ACTIVE_HIGH >;
+		interrupt-gpios = < &gpio3 15 GPIO_ACTIVE_LOW >; /* H23 SPI0_IRQ0 */
+		interrupt-parent = <&gpio3>;
+		interrupts = <16 IRQ_TYPE_LEVEL_LOW>; /* H23 SPI0_IRQ0 */
+		interrupt-names = "SPI0_IRQ0";
+	};
+
+	atsam3spiuart@3 {
+		status = "okay";
+		compatible = "hitachi,atsam3-spiuart";
+        serialid = <1>;
+		reg = <3>;
+		clocks = <&hclk>, <&cclk>;
+		clock-names = "hclk", "cclk";
+		spi-max-frequency = <12000000>;
+		reset-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH >;
+		interrupt-gpios = <&gpio3 16 GPIO_ACTIVE_LOW >; /* N22 SPI0_IRQ1 */
+		interrupt-parent = <&gpio3>;
+		interrupts = <15 IRQ_TYPE_LEVEL_LOW>; /* N22 SPI0_IRQ1 */
+		interrupt-names = "SPI0_IRQ1";
+	};
 };
 
 &spi3 {
