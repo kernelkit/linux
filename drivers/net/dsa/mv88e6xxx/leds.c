@@ -99,7 +99,7 @@ static int mv88e6393x_led_flags_to_mode(struct mv88e6xxx_led *led, unsigned long
 			return i;
 	}
 
-	return -EINVAL;
+	return -EOPNOTSUPP;
 }
 
 static int mv88e6393x_led_mode_to_flags(struct mv88e6xxx_led *led, u8 mode,
@@ -215,6 +215,9 @@ static int mv88e6393x_led_hw_control_set(struct mv88e6xxx_led *led,
 					 unsigned long flags)
 {
 	int mode = mv88e6393x_led_flags_to_mode(led, flags);
+
+	if (mode < 0)
+		return mode;
 
 	return mv88e6393x_led_set(led, mode);
 }
