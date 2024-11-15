@@ -3211,8 +3211,9 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *de
 {
 	struct sk_buff *skb = first;
 	int rc = NETDEV_TX_OK;
-
+#if 0
 	while (skb) {
+#endif
 		struct sk_buff *next = skb->next;
 
 		skb_mark_not_on_list(skb);
@@ -3225,9 +3226,13 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *de
 		skb = next;
 		if (netif_tx_queue_stopped(txq) && skb) {
 			rc = NETDEV_TX_BUSY;
+#if 0
 			break;
+#endif
 		}
+#if 0
 	}
+#endif
 
 out:
 	*ret = rc;
@@ -3678,6 +3683,7 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
 	return netdev_get_tx_queue(dev, queue_index);
 }
 
+
 /**
  *	__dev_queue_xmit - transmit a buffer
  *	@skb: buffer to transmit
@@ -3704,6 +3710,7 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
  *      the BH enable code must have IRQs enabled so that it will not deadlock.
  *          --BLG
  */
+#include <linux/sched.h>
 static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 {
 	struct net_device *dev = skb->dev;
@@ -3779,13 +3786,31 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 
 			if (!netif_xmit_stopped(txq)) {
 				dev_xmit_recursion_inc();
-				skb = dev_hard_start_xmit(skb, dev, txq, &rc);
+
+				while (skb) {
+					skb = dev_hard_start_xmit(skb, dev, txq, &rc);
+					if (unlikely(!dev_xmit_complete(rc))) {
+						break;
+					}
+
+					if(task_is_pi_boosted(current))
+					{
+						dev_xmit_recursion_dec();
+						HARD_TX_UNLOCK(dev, txq);
+						HARD_TX_LOCK(dev, txq, cpu);
+						if (netif_xmit_stopped(txq)) {
+							goto netif_xmit_stopped_label;
+						}
+						dev_xmit_recursion_inc();
+					}
+				}
 				dev_xmit_recursion_dec();
 				if (dev_xmit_complete(rc)) {
 					HARD_TX_UNLOCK(dev, txq);
 					goto out;
 				}
 			}
+netif_xmit_stopped_label:
 			HARD_TX_UNLOCK(dev, txq);
 			net_crit_ratelimited("Virtual device %s asks to queue packet!\n",
 					     dev->name);
