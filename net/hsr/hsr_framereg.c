@@ -90,16 +90,16 @@ int hsr_create_self_node(struct hsr_priv *hsr,
 	ether_addr_copy(node->macaddress_A, addr_a);
 	ether_addr_copy(node->macaddress_B, addr_b);
 
-	spin_lock_bh(&hsr->list_lock);
+	raw_spin_lock_bh(&hsr->list_lock);
 	oldnode = list_first_or_null_rcu(self_node_db,
 					 struct hsr_node, mac_list);
 	if (oldnode) {
 		list_replace_rcu(&oldnode->mac_list, &node->mac_list);
-		spin_unlock_bh(&hsr->list_lock);
+		raw_spin_unlock_bh(&hsr->list_lock);
 		kfree_rcu(oldnode, rcu_head);
 	} else {
 		list_add_tail_rcu(&node->mac_list, self_node_db);
-		spin_unlock_bh(&hsr->list_lock);
+		raw_spin_unlock_bh(&hsr->list_lock);
 	}
 
 	return 0;
@@ -110,13 +110,13 @@ void hsr_del_self_node(struct hsr_priv *hsr)
 	struct list_head *self_node_db = &hsr->self_node_db;
 	struct hsr_node *node;
 
-	spin_lock_bh(&hsr->list_lock);
+	raw_spin_lock_bh(&hsr->list_lock);
 	node = list_first_or_null_rcu(self_node_db, struct hsr_node, mac_list);
 	if (node) {
 		list_del_rcu(&node->mac_list);
 		kfree_rcu(node, rcu_head);
 	}
-	spin_unlock_bh(&hsr->list_lock);
+	raw_spin_unlock_bh(&hsr->list_lock);
 }
 
 void hsr_del_nodes(struct list_head *node_db)
@@ -165,7 +165,7 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 			new_node->san_b = true;
 	}
 
-	spin_lock_bh(&hsr->list_lock);
+	raw_spin_lock_bh(&hsr->list_lock);
 	list_for_each_entry_rcu(node, node_db, mac_list) {
 		if (ether_addr_equal(node->macaddress_A, addr))
 			goto out;
@@ -173,10 +173,10 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 			goto out;
 	}
 	list_add_tail_rcu(&new_node->mac_list, node_db);
-	spin_unlock_bh(&hsr->list_lock);
+	raw_spin_unlock_bh(&hsr->list_lock);
 	return new_node;
 out:
-	spin_unlock_bh(&hsr->list_lock);
+	raw_spin_unlock_bh(&hsr->list_lock);
 	kfree(new_node);
 	return node;
 }
@@ -304,9 +304,9 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	}
 	node_real->addr_B_port = port_rcv->type;
 
-	spin_lock_bh(&hsr->list_lock);
+	raw_spin_lock_bh(&hsr->list_lock);
 	list_del_rcu(&node_curr->mac_list);
-	spin_unlock_bh(&hsr->list_lock);
+	raw_spin_unlock_bh(&hsr->list_lock);
 	kfree_rcu(node_curr, rcu_head);
 
 done:
@@ -434,7 +434,7 @@ void hsr_prune_nodes(struct timer_list *t)
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
 
-	spin_lock_bh(&hsr->list_lock);
+	raw_spin_lock_bh(&hsr->list_lock);
 	list_for_each_entry_safe(node, tmp, &hsr->node_db, mac_list) {
 		/* Don't prune own node. Neither time_in[HSR_PT_SLAVE_A]
 		 * nor time_in[HSR_PT_SLAVE_B], will ever be updated for
@@ -483,7 +483,7 @@ void hsr_prune_nodes(struct timer_list *t)
 			kfree_rcu(node, rcu_head);
 		}
 	}
-	spin_unlock_bh(&hsr->list_lock);
+	raw_spin_unlock_bh(&hsr->list_lock);
 
 	/* Restart timer */
 	mod_timer(&hsr->prune_timer,
