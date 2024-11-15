@@ -290,6 +290,8 @@ ok:
 }
 EXPORT_SYMBOL_GPL(xfrm_dev_offload_ok);
 
+
+#include <linux/sched.h>
 void xfrm_dev_resume(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -303,7 +305,23 @@ void xfrm_dev_resume(struct sk_buff *skb)
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_xmit_frozen_or_stopped(txq))
-		skb = dev_hard_start_xmit(skb, dev, txq, &ret);
+	{
+		while (skb) {
+			skb = dev_hard_start_xmit(skb, dev, txq, &ret);
+			if (unlikely(!dev_xmit_complete(ret))) {
+				break;
+			}
+
+			if(task_is_pi_boosted(current))
+			{
+				HARD_TX_UNLOCK(dev, txq);
+				HARD_TX_LOCK(dev, txq, smp_processor_id());
+				if (netif_xmit_frozen_or_stopped(txq)) {
+					break;
+				}
+			}
+		}
+	}
 	HARD_TX_UNLOCK(dev, txq);
 
 	if (!dev_xmit_complete(ret)) {
