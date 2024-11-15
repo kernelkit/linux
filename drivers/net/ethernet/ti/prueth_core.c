@@ -1117,6 +1117,7 @@ static int prueth_hsr_ptp_ct_tx_ts_enqueue(struct prueth_emac *emac, struct sk_b
 
 	ptp_type = ptp_event_type(skb);
 	event = prueth_ptp_ts_event_type(skb);
+	// netdev_err(other_emac->ndev, "Enter, PTP type: %d event: %d\n", ptp_type, event);
 
 	__skb_push(skb, changed);
 
@@ -1124,6 +1125,7 @@ static int prueth_hsr_ptp_ct_tx_ts_enqueue(struct prueth_emac *emac, struct sk_b
 	if (ptp_type != PTP_SYNC_MSG_ID && ptp_type != PTP_DLY_REQ_MSG_ID)
 		return 0;
 
+	// netdev_err(other_emac->ndev, "We are here 0\n");
 	/* cut through packet might have already be forwarded before the rx packet has reached
 	 * the host. In this case tx irq handler ignores the interrupt as there is no skb stored.
 	 * So check if ts is already available before storing the skb.
@@ -1135,21 +1137,33 @@ static int prueth_hsr_ptp_ct_tx_ts_enqueue(struct prueth_emac *emac, struct sk_b
 		memset(red_ssh, 0, sizeof(*red_ssh));
 		red_ssh->hwtstamp = ns_to_ktime(ns);
 
+		// netdev_err(other_emac->ndev, "We return here 0\n");
+		// netdev_err(other_emac->ndev, "some stats: ns %d port %d link %d \n", ns, (other_emac->port_id-1), other_emac->link);
+		return 0;
+		
+	}
+	else
+	{
 		return 0;
 	}
+	// netdev_err(other_emac->ndev, "some stats: ns %d port %d link %d \n", ns, (other_emac->port_id-1), other_emac->link);
+	// netdev_err(other_emac->ndev, "We are here 1\n");
+
+// [  168.051834] 000: prueth pruss1_eth _pru10: some stats: ns -1897116959 port 242800446 link 0
+// [   69.482777] 000: prueth pruss1_eth _pru10: some stats: ns 0 port 0 link 0
 
 	/* Store the skb so that tx irq handler will populate the ts */
 	spin_lock_irqsave(&other_emac->ptp_skb_lock, flags);
 	if (other_emac->ptp_ct_skb[event]) {
 		dev_consume_skb_any(other_emac->ptp_skb[event]);
 		prueth_ptp_tx_ts_reset(other_emac, event);
-		netdev_warn(other_emac->ndev, "Dropped cut through event waiting for tx ts.\n");
+		netdev_err(other_emac->ndev, "Dropped cut through event waiting for tx ts.\n");
 	}
 
 	skb_get(skb);
 	other_emac->ptp_ct_skb[event] = skb;
 	spin_unlock_irqrestore(&other_emac->ptp_skb_lock, flags);
-
+	netdev_err(other_emac->ndev, "We return here 1\n");
 	return -EAGAIN;
 }
 
@@ -1366,11 +1380,11 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 			ssh = skb_hwtstamps(skb);
 			memset(ssh, 0, sizeof(*ssh));
 			ssh->hwtstamp = ns_to_ktime(ts);
-			// if (PRUETH_IS_HSR(prueth)) {
-			// 	ret = prueth_hsr_ptp_ct_tx_ts_enqueue(emac, skb, type);
-			// 	if (ret == -EAGAIN)
-			// 		goto out;
-			// }
+			if (PRUETH_IS_HSR(prueth)) {
+				ret = prueth_hsr_ptp_ct_tx_ts_enqueue(emac, skb, type);
+				if (ret == -EAGAIN)
+					goto out;
+			}
 		}
 
 		/* send packet up the stack */
