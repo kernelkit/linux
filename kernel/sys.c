@@ -2651,3 +2651,14 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
 	return 0;
 }
 #endif /* CONFIG_COMPAT */
+
+#include <asm/thread_info.h>
+SYSCALL_DEFINE1(set_avoid_gpos, unsigned int, avoid_gpos_mask)
+{
+#if defined(CONFIG_ARM)
+	current_thread_info()->avoid_gpos_stuff = avoid_gpos_mask;
+	return 0;
+#else
+	return -ENOSYS;
+#endif
+}
