@@ -2497,6 +2497,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->priority = po->sk.sk_priority;
 	skb->mark = po->sk.sk_mark;
 	skb->tstamp = sockc->transmit_time;
+	skb->isQdisc = !(po->xmit == packet_direct_xmit);
 	skb_setup_tx_timestamp(skb, sockc->tsflags);
 
 	skb_reserve(skb, hlen);

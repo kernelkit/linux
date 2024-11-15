@@ -381,18 +381,19 @@ static int hsr_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hsr_priv *hsr = netdev_priv(dev);
 	struct hsr_port *master;
+	int ret = NETDEV_TX_OK;
 
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 	if (master) {
 		skb->dev = master->dev;
 		skb_reset_mac_header(skb);
-		hsr_forward_skb(skb, master);
+		ret = hsr_forward_skb(skb, master);
 		INC_CNT_RX_C(hsr);
 	} else {
 		atomic_long_inc(&dev->tx_dropped);
 		dev_kfree_skb_any(skb);
 	}
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static const struct header_ops hsr_header_ops = {
@@ -527,7 +528,11 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	}
 	raw_spin_unlock_irqrestore(&hsr->seqnr_lock, irqflags);
 
-	hsr_forward_skb(skb, master);
+	if(NETDEV_TX_BUSY == hsr_forward_skb(skb, master))
+	{
+		kfree_skb(skb);
+	}
+	
 	INC_CNT_TX_SUP(hsr);
 	return;
 

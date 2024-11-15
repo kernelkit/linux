@@ -480,7 +480,11 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
 		ether_addr_copy(eth_hdr(skb)->h_source, port->dev->dev_addr);
 	}
 	INC_CNT_TX_AB(port->type, port->hsr);
-	return dev_direct_xmit(skb, 0);
+	
+	if(skb->isQdisc)
+ 		return dev_queue_xmit(skb);
+	else
+		return dev_direct_xmit(skb, 0);
 }
 
 static void stripped_skb_get_shared_info(struct sk_buff *skb_stripped,
@@ -545,7 +549,7 @@ hsr_directed_tx_ports(struct hsr_frame_info *frame)
  * tags if they're of the non-HSR type (but only after duplicate discard). The
  * master device always strips HSR tags.
  */
-static void hsr_forward_do(struct hsr_frame_info *frame)
+static int hsr_forward_do(struct hsr_frame_info *frame)
 {
 	struct hsr_port *port;
 	struct sk_buff *skb = NULL;
@@ -643,6 +647,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 			/* Added for HSR/PRP TX OPT */
 			skip_tx_duplicate = hsr_xmit(skb, port, frame);
 	}
+	return (skip_tx_duplicate == NETDEV_TX_BUSY) ? NETDEV_TX_BUSY : NETDEV_TX_OK;
 }
 
 static void check_local_dest(struct hsr_priv *hsr, struct sk_buff *skb,
@@ -791,9 +796,10 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 }
 
 /* Must be called holding rcu read lock (because of the port parameter) */
-void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
+int hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 {
 	struct hsr_frame_info frame;
+	int ret = NETDEV_TX_OK;
 
 	if (hsr_fill_frame_info(&frame, skb, port) < 0)
 		goto out_drop;
@@ -814,7 +820,11 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 	if (!port->hsr->rx_offloaded)
 		hsr_register_frame_in(frame.node_src, port,
 				      frame.sequence_nr);
-	hsr_forward_do(&frame);
+	ret = hsr_forward_do(&frame);
+	
+	if(ret == NETDEV_TX_BUSY)
+		goto out_busy;
+
 	/* Gets called for ingress frames as well as egress from master port.
 	 * So check and increment stats for master port only here.
 	 */
@@ -829,10 +839,12 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 		kfree_skb(frame.skb_prp);
 	if (frame.skb_std)
 		kfree_skb(frame.skb_std);
-	return;
+	return ret;
 
 out_drop:
 	INC_CNT_RX_ERROR_AB(port->type, port->hsr);
 	port->dev->stats.tx_dropped++;
 	kfree_skb(skb);
+out_busy:
+	return ret;
 }
