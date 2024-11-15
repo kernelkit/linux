@@ -105,6 +105,9 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 
 	case CUSTOM_ERROR:
 		err_description = "Custom";
+		snprintf(err_string, sizeof(err_string),
+			 ": At Address: 0x%08X ",
+			 readl_relaxed(l3_targ_slvofslsb));
 
 		l3_targ_mstaddr = l3_targ_base +
 				  L3_TARG_STDERRLOG_CINFO_MSTADDR;
@@ -138,6 +141,15 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 		 (m_req_info & BIT(1)) ? "Supervisor" : "User",
 		 (m_req_info & BIT(3)) ? "Debug" : "Functional");
 
+	dev_err(l3->dev,
+	     "%s:L3 %s Error: MASTER %s TARGET %s (%s)%s%s\n",
+	     dev_name(l3->dev),
+	     err_description,
+	     master_name, target_name,
+	     l3_transaction_type[op_code],
+	     err_string, info_string);
+
+		 
 	WARN(true,
 	     "%s:L3 %s Error: MASTER %s TARGET %s (%s)%s%s\n",
 	     dev_name(l3->dev),
