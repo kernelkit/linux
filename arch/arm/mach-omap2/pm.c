@@ -157,7 +157,7 @@ int __init omap2_common_pm_late_init(void)
 	if (error)
 		pr_warn("%s: pm soc init failed: %i\n", __func__, error);
 
-	omap2_clk_enable_autoidle_all();
+	omap2_clk_disable_autoidle_all();
 
 	return 0;
 }

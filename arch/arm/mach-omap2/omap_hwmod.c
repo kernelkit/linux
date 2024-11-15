@@ -288,6 +288,10 @@ static int _update_sysc_cache(struct omap_hwmod *oh)
 	return 0;
 }
 
+static int _set_module_autoidle(struct omap_hwmod *oh, u8 autoidle, u32 *v);
+static int _set_master_standbymode(struct omap_hwmod *oh, u8 standbymode, u32 *v);
+static int _set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode, u32 *v);
+
 /**
  * _write_sysconfig - write a value to the module's OCP_SYSCONFIG register
  * @v: OCP_SYSCONFIG value to write
@@ -304,6 +308,11 @@ static void _write_sysconfig(u32 v, struct omap_hwmod *oh)
 	}
 
 	/* XXX ensure module interface clock is up */
+
+	//never allow idle
+	_set_module_autoidle(oh, 0, &v);
+	_set_master_standbymode(oh, HWMOD_IDLEMODE_NO, &v);
+	_set_slave_idlemode(oh, HWMOD_IDLEMODE_NO, &v);
 
 	/* Module might have lost context, always update cache and register */
 	oh->_sysc_cache = v;
@@ -2397,7 +2406,7 @@ static void __init parse_module_flags(struct omap_hwmod *oh,
 		oh->flags |= HWMOD_INIT_NO_RESET;
 	if (of_find_property(np, "ti,no-idle-on-init", NULL))
 		oh->flags |= HWMOD_INIT_NO_IDLE;
-	if (of_find_property(np, "ti,no-idle", NULL))
+	//if (of_find_property(np, "ti,no-idle", NULL))
 		oh->flags |= HWMOD_NO_IDLE;
 }
 
@@ -3728,7 +3737,7 @@ int omap_hwmod_init_module(struct device *dev,
 	if (error)
 		return error;
 
-	if (data->cfg->quirks & SYSC_QUIRK_NO_IDLE)
+	//if (data->cfg->quirks & SYSC_QUIRK_NO_IDLE)
 		oh->flags |= HWMOD_NO_IDLE;
 	if (data->cfg->quirks & SYSC_QUIRK_NO_IDLE_ON_INIT)
 		oh->flags |= HWMOD_INIT_NO_IDLE;
@@ -3736,12 +3745,12 @@ int omap_hwmod_init_module(struct device *dev,
 		oh->flags |= HWMOD_INIT_NO_RESET;
 	if (data->cfg->quirks & SYSC_QUIRK_USE_CLOCKACT)
 		oh->flags |= HWMOD_SET_DEFAULT_CLOCKACT;
-	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE)
-		oh->flags |= HWMOD_SWSUP_SIDLE;
-	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE_ACT)
-		oh->flags |= HWMOD_SWSUP_SIDLE_ACT;
-	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_MSTANDBY)
-		oh->flags |= HWMOD_SWSUP_MSTANDBY;
+	//if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE)
+		oh->flags &= ~HWMOD_SWSUP_SIDLE;
+	//if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE_ACT)
+		oh->flags &= ~HWMOD_SWSUP_SIDLE_ACT;
+	//if (data->cfg->quirks & SYSC_QUIRK_SWSUP_MSTANDBY)
+		oh->flags &= ~HWMOD_SWSUP_MSTANDBY;
 
 	error = omap_hwmod_check_module(dev, oh, data, sysc_fields,
 					rev_offs, sysc_offs, syss_offs,

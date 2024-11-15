@@ -408,7 +408,10 @@ fail:
 static int rpm_idle(struct device *dev, int rpmflags)
 {
 	int (*callback)(struct device *);
-	int retval;
+	int retval = 0;
+
+	if(dev->power.runtime_status == RPM_ACTIVE)
+		goto out;
 
 	trace_rpm_idle_rcuidle(dev, rpmflags);
 	retval = rpm_check_suspend_allowed(dev);
@@ -526,7 +529,10 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 {
 	int (*callback)(struct device *);
 	struct device *parent = NULL;
-	int retval;
+	int retval = 0;
+
+	if(dev->power.runtime_status == RPM_ACTIVE)
+		goto out;
 
 	trace_rpm_suspend_rcuidle(dev, rpmflags);
 
@@ -719,6 +725,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	int (*callback)(struct device *);
 	struct device *parent = NULL;
 	int retval = 0;
+	if(dev->power.runtime_status == RPM_ACTIVE)
+		goto out2;
 
 	trace_rpm_resume_rcuidle(dev, rpmflags);
 
@@ -883,6 +891,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		spin_lock_irq(&dev->power.lock);
 	}
 
+out2:
 	trace_rpm_return_int_rcuidle(dev, _THIS_IP_, retval);
 
 	return retval;
@@ -908,6 +917,9 @@ static void pm_runtime_work(struct work_struct *work)
 	req = dev->power.request;
 	dev->power.request = RPM_REQ_NONE;
 	dev->power.request_pending = false;
+	
+	if(dev->power.runtime_status == RPM_ACTIVE)
+		goto out;
 
 	switch (req) {
 	case RPM_REQ_NONE:
