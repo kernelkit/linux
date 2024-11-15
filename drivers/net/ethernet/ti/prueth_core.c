@@ -1632,6 +1632,9 @@ static int emac_request_irqs(struct prueth_emac *emac)
 
 static int emac_sanitize_feature_flags(struct prueth_emac *emac)
 {
+
+		/* Prevent recursive tx locking */
+	emac->ndev->features |= NETIF_F_LLTX;
 	if (PRUETH_IS_HSR(emac->prueth) &&
 	    !(emac->ndev->features & NETIF_F_HW_HSR_RX_OFFLOAD)) {
 		netdev_err(emac->ndev, "Error: Turn ON HSR offload\n");
