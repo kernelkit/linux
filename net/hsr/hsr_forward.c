@@ -718,11 +718,11 @@ static void fill_frame_info_non_prefixed(struct hsr_frame_info *frame,
 				   hsr->prot_version == PRP_V1 ||
 				   hsr->prot_version == HSR_V0)	{
 				/* Sequence nr for the master node */
-				spin_lock_irqsave(&hsr->seqnr_lock,
+				raw_spin_lock_irqsave(&hsr->seqnr_lock,
 						  irqflags);
 				frame->sequence_nr = hsr->sequence_nr;
 				hsr->sequence_nr++;
-				spin_unlock_irqrestore(&hsr->seqnr_lock,
+				raw_spin_unlock_irqrestore(&hsr->seqnr_lock,
 						       irqflags);
 			}
 		}

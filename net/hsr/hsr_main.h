@@ -232,8 +232,8 @@ struct hsr_priv {
 	u16 sequence_nr;
 	u16 sup_sequence_nr;	/* For HSRv1 separate seq_nr for supervision */
 	enum hsr_version prot_version;	/* Indicate if HSRv0, HSRv1 or PRPv1 */
-	spinlock_t seqnr_lock;	/* locking for sequence_nr */
-	spinlock_t list_lock;	/* locking for node list */
+	raw_spinlock_t seqnr_lock;	/* locking for sequence_nr */
+	raw_spinlock_t list_lock;	/* locking for node list */
 #define PRP_LAN_ID	0x5     /* 0x1010 for A and 0x1011 for B. Bit 0 is set
 				 * based on SLAVE_A or SLAVE_B
 				 */
