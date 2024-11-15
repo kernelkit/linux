@@ -659,6 +659,17 @@ static int prueth_lre_emac_rx_packets(struct prueth_emac *emac,
 
 	/* use the correct wrap value based on ICSSM version */
 	iep_wrap = prueth->fw_offsets->iep_wrap;
+	/* Check that the other PRU is initialized so we do not risk having null pointer queues */
+	if(emac->rx_queue_descs == NULL)
+	{
+		netdev_err(emac->ndev, "DBG_irq well we are null 0\n");
+		return 0;
+	}
+	if(other_emac->rx_queue_descs == NULL)
+	{
+		netdev_err(emac->ndev, "DBG_irq well we are null 1\n");
+		return 0;
+	}
 	/* search host queues for packets */
 	queue_desc = emac->rx_queue_descs + qid1;
 	queue_desc_o = other_emac->rx_queue_descs + qid2;
