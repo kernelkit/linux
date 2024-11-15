@@ -53,6 +53,9 @@
 #define OCMC_RAM_SIZE		(SZ_128K)
 #define PRUETH_ETH_TYPE_OFFSET		12
 #define PRUETH_ETH_TYPE_UPPER_SHIFT	8
+#define PRU_PORTS 4
+#define NOT_INITIALIZED -1
+#define UNBLOCK_ALL_PORTS -1
 
 /* TX Minimum Inter packet gap */
 #define TX_MIN_IPG		0xb8
@@ -1463,6 +1466,81 @@ static int prueth_hsr_ptp_ct_tx_ts_enqueue(struct prueth_emac *emac, struct sk_b
 	return -EAGAIN;
 }
 
+
+/*
+!!This can only be used for a PRU interface, and is specific for APR for a produce specific interface!!
+
+It is adviced that the APR interface for toggling PRU ports between allowing/blocking traffic be used.
+
+Writing the ifindex for the matching PRU to /sys/module/prueth/parameters/pru_ap_toggle
+will toggle between allowing/blocking all traffic on that specific PRU port.
+(Note it is required to check the real port and not any virtual port!)
+
+The ifindex for each PRU port can be found by using "ip link show".
+
+The array "blockedPorts" tracks which ports based on ifindex are being blocked. -1 means that the slot is uninitialized/allowing traffic.
+*/
+static int blockedPorts[PRU_PORTS] = { NOT_INITIALIZED,
+									   NOT_INITIALIZED,
+									   NOT_INITIALIZED, 
+									   NOT_INITIALIZED };
+
+static int set_sysc_override_state(const char *val, const struct kernel_param *kp)
+{
+	int ifIndex;
+	kstrtoint(val, 0, &ifIndex);
+	int i;
+
+	if (ifIndex == UNBLOCK_ALL_PORTS) {
+		for (i = 0; i < (sizeof(blockedPorts) / sizeof(blockedPorts[0])); i++) {
+			blockedPorts[i] = NOT_INITIALIZED;		
+		}
+		goto exit;	
+	}
+
+	for (i = 0; i < (sizeof(blockedPorts) / sizeof(blockedPorts[0])); i++) {
+		if (blockedPorts[i] == ifIndex) {
+			blockedPorts[i] = NOT_INITIALIZED;
+			pr_debug("Setting ifIndex: %d to allow traffic!\n", ifIndex);
+			goto exit;
+			
+		}
+	}
+
+	for (i = 0; i < (sizeof(blockedPorts) / sizeof(blockedPorts[0])); i++) {
+		if (blockedPorts[i] == NOT_INITIALIZED) {
+			blockedPorts[i] = ifIndex;
+			pr_debug("Setting ifIndex: %d to block traffic!\n", ifIndex);
+			goto exit;		
+		}	
+	}
+
+exit:
+
+	pr_debug("Blocked PRU ports ifIndex:%d :%d :%d :%d\n", blockedPorts[0], blockedPorts[1], blockedPorts[2], blockedPorts[3]);
+
+	return 0;
+}
+
+
+/*
+Will print out which PRU ports based on ifindex are being blocked.
+*/
+static int get_sysc_override_state(char *buffer, const struct kernel_param *kp)
+{
+	printk("Ifindex PRU ports being blocked:%d :%d :%d :%d (-1 means not initialized/allowing traffic)\n",
+	       blockedPorts[0], blockedPorts[1], blockedPorts[2], blockedPorts[3]);
+
+	return 0;
+}
+
+static const struct kernel_param_ops pru_ap_toggle_interface = {
+	.set = set_sysc_override_state,
+	.get = get_sysc_override_state,
+};
+
+module_param_cb(pru_ap_toggle, &pru_ap_toggle_interface, NULL, 0644);
+
 /* get packet from queue
  * negative for error
  */
@@ -1492,6 +1570,17 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
         char dummy_hsr_tag[] = {0x89, 0x2f, 0x00, 0x00, 0x00, 0x00};
 	int adjust_for_dummy_hsr_tag = 0;
 	u8 *check_vlan_ptr;
+
+	/*
+	If ndev->ifindex exists in the blockedPorts array, then the packet from the queue will be ignored.
+	This will result in overflows in the RX-path (since we do not empty the queues we will see overflows occurring)
+	*/
+	int i;
+	for (i = 0; i < (sizeof(blockedPorts)/sizeof(blockedPorts[0])); i++) {
+		if (blockedPorts[i] == ndev->ifindex) {
+			return 0;
+		}
+	}
 
 	if (PRUETH_IS_HSR(prueth))
 		start_offset = (pkt_info.start_offset ?
@@ -2418,6 +2507,17 @@ static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	*  Parvathi@CIT - 23-Sep-2022
 	*/
 	void *lock_queue;
+
+	/*
+	If ndev->ifindex exists in the blockedPorts array, then the packet will not be sent.
+	*/
+	int i;
+	for (i = 0; i < (sizeof(blockedPorts) / sizeof(blockedPorts[0])); i++) {
+		if (blockedPorts[i] == ndev->ifindex) {
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
+	}
 
 	if (unlikely(!emac->link)) {
 		if (netif_msg_tx_err(emac) && net_ratelimit())
