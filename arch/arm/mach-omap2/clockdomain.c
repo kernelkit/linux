@@ -955,7 +955,7 @@ void clkdm_allow_idle_nolock(struct clockdomain *clkdm)
 	if (!clkdm->usecount && (clkdm->flags & CLKDM_CAN_FORCE_SLEEP))
 		clkdm_sleep_nolock(clkdm);
 
-	if (!(clkdm->flags & CLKDM_CAN_ENABLE_AUTO))
+	//if (!(clkdm->flags & CLKDM_CAN_ENABLE_AUTO)) 
 		return;
 
 	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING)

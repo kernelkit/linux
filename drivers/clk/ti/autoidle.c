@@ -108,6 +108,8 @@ int omap2_clk_allow_idle(struct clk *clk)
 {
 	struct clk_hw *hw;
 
+	return 0;
+
 	if (!clk)
 		return -EINVAL;
 
@@ -126,6 +128,7 @@ static void _allow_autoidle(struct clk_ti_autoidle *clk)
 {
 	u32 val;
 
+	return;
 	val = ti_clk_ll_ops->clk_readl(&clk->reg);
 
 	if (clk->flags & AUTOIDLE_LOW)

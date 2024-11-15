@@ -17,6 +17,7 @@
  * up-to-date with the file contents.
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 
@@ -729,6 +730,168 @@ static struct clockdomain *clockdomains_dra7xx[] __initdata = {
 	&eve1_7xx_clkdm,
 	NULL
 };
+
+// no idlemode, no standbymode
+#define MMCHS_HL_SYSCONFIG 				{0x4809C010, ((1 << 2 | 1 << 3) | (1 << 4 | 1 << 5)), (1 << 2) | (1 << 4)}
+// autoidle off, wakeup mechanism disabled, sidlemode reqest ignored, no standby mode
+#define MMCHS_SYSCONFIG 				{0x4809c110, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4) | (1 << 12 | 1 << 13)), (1 << 3) | (1 << 12)}
+
+//autoidle off, no idlemode
+#define MMU_SYSCONFIG1					{0x4881C010, (1 << 0 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define MMU_SYSCONFIG2					{0x4881E010, (1 << 0 | (1 << 3 | 1 << 4)), (1 << 3)}
+
+// autodle off, wakeup mechanism disabled, no idlemode
+#define I2C_SYSC_I2C3 					{0x48060010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define I2C_SYSC_I2C1 					{0x48070010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define I2C_SYSC_I2C2 					{0x48072010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define I2C_SYSC_I2C4 					{0x4807A010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define I2C_SYSC_I2C5 					{0x4807C010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+
+// autoidle off, wakeup generation is disabled, no idlemode
+#define GPIO_SYSC_GPIO7 				{0x48051010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define GPIO_SYSC_GPIO8 				{0x48053010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define GPIO_SYSC_GPIO2 				{0x48055010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define GPIO_SYSC_GPIO3 				{0x48057010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define GPIO_SYSC_GPIO4					{0x48059010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define GPIO_SYSC_GPIO5					{0x4805B010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define GPIO_SYSC_GPIO6					{0x4805D010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+#define GPIO_SYSC_GPIO1 				{0x4AE10010, (1 << 0 | 1 << 2 | (1 << 3 | 1 << 4)), (1 << 3)}
+
+// not supported on the platform
+//#define VCP_SYSC1 						{0x48446010,
+//#define VCP_SYSC2 						{0x48448010,
+
+// no idlemode, no standbymode
+#define VPE_SYSC_TOPLEVEL 				{0x489D0010, ((1 << 2 | 1 << 3) | (1 << 4 | 1 << 5)), (1 << 2) | (1 << 4)}
+
+// no idlemode
+#define OCMC_SYSC_PM_RAM1 				{0x48804004, (1 << 2 | 1 << 3), (1 << 2)}
+#define OCMC_SYSC_PM_RAM2 				{0x4880A004, (1 << 2 | 1 << 3), (1 << 2)}
+#define OCMC_SYSC_PM_RAM3 				{0x48810004, (1 << 2 | 1 << 3), (1 << 2)}
+
+// no idlemode
+#define PRUSS_SYSC_PRUSS1				{0x4B226004, (1 << 0), (1 << 0)}
+#define PRUSS_SYSC_PRUSS2				{0x4B2A6004, (1 << 0), (1 << 0)}
+
+// autoidle off, wakeup generation is disabled, no idlemode
+#define UART_SYSC_UART1 				{0x4806A054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART2 				{0x4806C054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART3 				{0x48020054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART4 				{0x4806E054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART5 				{0x48066054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART6 				{0x48068054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART7 				{0x48420054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART8 				{0x48422054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART9 				{0x48424054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+#define UART_SYSC_UART10 				{0x4AE2B054, ((1 << 0) | (1 << 2) | (1 << 3 | 1 << 4)), (1 << 3)}
+
+
+struct pg_override_sysc {
+	u32 addr;
+	u32 mask;
+	u32 value;
+};
+
+struct pg_override_sysc clkctrlToOverrideSysc[] = {
+	/* MMC 		*/
+	MMCHS_HL_SYSCONFIG,
+	MMCHS_SYSCONFIG,
+	/* MMU 		*/
+	MMU_SYSCONFIG1,
+	MMU_SYSCONFIG2,
+	/* i2C 		*/
+	I2C_SYSC_I2C3,
+	I2C_SYSC_I2C1,
+	I2C_SYSC_I2C2,
+	I2C_SYSC_I2C4,
+	I2C_SYSC_I2C5,
+	/* GPIO		*/
+	GPIO_SYSC_GPIO7,
+	GPIO_SYSC_GPIO8,
+	GPIO_SYSC_GPIO2,
+	GPIO_SYSC_GPIO3,
+	GPIO_SYSC_GPIO4,
+	GPIO_SYSC_GPIO5,
+	GPIO_SYSC_GPIO6,
+	GPIO_SYSC_GPIO1,
+	/* VCP	not supported on this platform	*/
+	//VCP_SYSC1,
+	//VCP_SYSC2,
+	/* VPE		*/
+	VPE_SYSC_TOPLEVEL,
+	/* OCMC		*/
+	OCMC_SYSC_PM_RAM1,
+	OCMC_SYSC_PM_RAM2,
+	OCMC_SYSC_PM_RAM3,
+	/* UART */
+	UART_SYSC_UART1,
+	UART_SYSC_UART2,
+	UART_SYSC_UART3,
+	UART_SYSC_UART4,
+	UART_SYSC_UART5,
+	UART_SYSC_UART6,
+	UART_SYSC_UART7,
+	UART_SYSC_UART8,
+	UART_SYSC_UART9,
+	UART_SYSC_UART10,
+};
+
+static int set_sysc_override_state(const char *val, const struct kernel_param *kp)
+{
+
+	u32 new_val;
+	u32* addr;
+	u32 i;
+	printk(KERN_WARNING "Manually overriding sysc states\n");
+	for(i = 0; i < sizeof(clkctrlToOverrideSysc)/sizeof(*clkctrlToOverrideSysc); ++i)
+	{
+		addr = ioremap(clkctrlToOverrideSysc[i].addr, sizeof(u32));
+		if(!addr)
+		{
+			printk(KERN_ERR ".addr could not ioremap: %x \n", clkctrlToOverrideSysc[i].addr);
+			continue;
+		}
+		//printk(KERN_ERR "addr: %x, mask: %x, val: %x", clkctrlToOverrideSysc[i].addr, clkctrlToOverrideSysc[i].mask, clkctrlToOverrideSysc[i].value);
+		new_val = readl_relaxed(addr);
+		new_val &= ~clkctrlToOverrideSysc[i].mask;
+		new_val |= clkctrlToOverrideSysc[i].value;
+		writel_relaxed(new_val, addr);
+		iounmap(addr);
+	}
+	return 0;
+}
+
+static int get_sysc_override_state(char *buffer, const struct kernel_param *kp)
+{		
+	u32 new_val;
+	u32 i;
+	u32* addr;
+	for(i = 0; i < sizeof(clkctrlToOverrideSysc)/sizeof(*clkctrlToOverrideSysc); ++i)
+	{
+		addr = ioremap(clkctrlToOverrideSysc[i].addr, sizeof(u32));
+		if(!addr)
+		{
+			printk(KERN_ERR ".addr could not ioremap: %x \n", clkctrlToOverrideSysc[i].addr);
+			continue;
+		}
+		printk(KERN_ERR "addr: %x, mask: %x, val: %x", clkctrlToOverrideSysc[i].addr, clkctrlToOverrideSysc[i].mask, clkctrlToOverrideSysc[i].value);
+		new_val = readl_relaxed(addr);
+		printk(KERN_ERR "curr: %x", new_val);
+		new_val &= ~clkctrlToOverrideSysc[i].mask;
+		new_val |= clkctrlToOverrideSysc[i].value;
+		printk(KERN_CONT ", exp: %x\n", new_val);
+		iounmap(addr);
+	}
+	return 0;
+}
+
+static const struct kernel_param_ops sysc_override_disable_ops = {
+	.set = set_sysc_override_state,
+	.get = get_sysc_override_state,
+};
+
+static unsigned long state_sysc_override = 1;
+module_param_cb(sysc_override, &sysc_override_disable_ops, &state_sysc_override, 0644);
 
 void __init dra7xx_clockdomains_init(void)
 {
