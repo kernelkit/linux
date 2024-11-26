@@ -2610,7 +2610,7 @@ static int mv88e6xxx_port_broadcast_sync(struct mv88e6xxx_chip *chip, int port,
 }
 
 static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
-				    u16 vid, u8 member, bool warn)
+				    u16 vid, u8 member, bool warn, bool policy)
 {
 	const u8 non_member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 	struct mv88e6xxx_vtu_entry vlan;
@@ -2622,9 +2622,7 @@ static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 
 	if (!vlan.valid) {
 		memset(&vlan, 0, sizeof(vlan));
-
-		if (vid == MV88E6XXX_VID_STANDALONE)
-			vlan.policy = true;
+		vlan.policy = policy;
 
 		err = mv88e6xxx_atu_new(chip, &vlan.fid);
 		if (err)
@@ -2647,6 +2645,9 @@ static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 		if (err)
 			return err;
 	} else if (vlan.member[port] != member) {
+		if (vlan.policy != policy)
+			return -EBUSY;
+
 		vlan.member[port] = member;
 
 		err = mv88e6xxx_vtu_loadpurge(chip, &vlan);
@@ -2693,7 +2694,8 @@ static int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	mv88e6xxx_reg_lock(chip);
 
-	err = mv88e6xxx_port_vlan_join(chip, port, vlan->vid, member, warn);
+	err = mv88e6xxx_port_vlan_join(chip, port, vlan->vid, member, warn,
+				       vlan->from_upper);
 	if (err) {
 		dev_err(ds->dev, "p%d: failed to add VLAN %d%c\n", port,
 			vlan->vid, untagged ? 'u' : 't');
@@ -3433,14 +3435,17 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	/* On chips that support it, set all downstream DSA ports'
-	 * VLAN policy to TRAP. In combination with loading
-	 * MV88E6XXX_VID_STANDALONE as a policy entry in the VTU, this
-	 * provides a better isolation barrier between standalone
-	 * ports, as the ATU is bypassed on any intermediate switches
-	 * between the incoming port and the CPU.
+	/* On chips that support it, set all downstream DSA and user
+	 * ports' VLAN policy to TRAP. for downstream DSA ports, in
+	 * combination with loading MV88E6XXX_VID_STANDALONE as a
+	 * policy entry in the VTU, this provides a better isolation
+	 * barrier between standalone ports, as the ATU is bypassed on
+	 * any intermediate switches between the incoming port and the
+	 * CPU. On user ports we need it to support stacked VLAN
+	 * uppers on ports that are simultaneously attached to a VLAN
+	 * filtering bridge.
 	 */
-	if (dsa_is_downstream_port(ds, port) &&
+	if ((dsa_is_downstream_port(ds, port) || dsa_is_user_port(ds, port)) &&
 	    chip->info->ops->port_set_policy) {
 		err = chip->info->ops->port_set_policy(chip, port,
 						MV88E6XXX_POLICY_MAPPING_VTU,
@@ -3470,7 +3475,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 */
 	err = mv88e6xxx_port_vlan_join(chip, port, MV88E6XXX_VID_STANDALONE,
 				       MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNMODIFIED,
-				       false);
+				       false, true);
 	if (err)
 		return err;
 
@@ -3484,7 +3489,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 */
 	err = mv88e6xxx_port_vlan_join(chip, port, MV88E6XXX_VID_BRIDGED,
 				       MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNMODIFIED,
-				       false);
+				       false, false);
 	if (err)
 		return err;
 
