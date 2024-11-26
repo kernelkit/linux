@@ -1795,6 +1795,8 @@ static int dsa_user_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 		.vid = vid,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
+
+		.from_upper = true,
 	};
 	struct netlink_ext_ack extack = {0};
 	struct dsa_switch *ds = dp->ds;
@@ -1869,6 +1871,8 @@ static int dsa_user_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 		.vid = vid,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
+
+		.from_upper = true,
 	};
 	struct dsa_switch *ds = dp->ds;
 	struct netdev_hw_addr *ha;
