@@ -104,6 +104,10 @@ struct switchdev_obj_port_vlan {
 	 * Entries with BRIDGE_VLAN_INFO_BRENTRY unset are not notified at all.
 	 */
 	bool changed;
+
+	/* If set, this VLAN object stems from an upper interface
+	 * being stacked on/removed from the original device. */
+	bool from_upper;
 };
 
 #define SWITCHDEV_OBJ_PORT_VLAN(OBJ) \
