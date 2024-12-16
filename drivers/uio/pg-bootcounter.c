@@ -1,16 +1,9 @@
 /*
- * Copyright 2023 Hitachi Energy.
+ * Copyright 2024 Hitachi Energy.
  *
- * UIO driver for SRAM and boot counter access
+ * Driver for pg boot counter access
  *
- * The UIO driver has two purposes:
- * 1) Provide user space access to entire sram via UIO access lib (libuio.h).
- *    The sram base address and size and retrieved from a root device tree node
- *    containing base address and size of sram.
- *    The node must be compatible to "hitachi,uio-pg-sram".
- *    It is assumed that the sram is accessible through the GPMC.
- *
- * 2) Encapsulate access to the bootcounter via sysfs
+ * The driver encapsulates access to the bootcounter via sysfs
  *
  *    reset: Boot counter reset for application: By writing any value to this write-only file, 
  *           the application acknowledges successful start. 
@@ -21,11 +14,11 @@
  *           This can be used by diagnostics.
  *    max:   This read-only file returns MaxBoot.
  * 
- *    The files appear under /sys/devices/platform/<address@uio-pg-sram>/<filename>
+ *    The files appear under /sys/devices/platform/<address@pg-bootcounter>/<filename>
  * 
- * Module is configured with parameters maxboot and bootCounterOffset
- * - maxboot: the maximum number of boot attempts. Is typically an U-Boot CONFIG parameter
- * - bootCounterOffset: offset of the boot counter info structure from sram base address.
+ * Module is configured with dt attributes maxboot and base
+ * - maxboot: the maximum number of boot attempts. default is 3.
+ * - base: address of the boot counter info structure in ram.
  *
  * IMPORTANT:
  * The module shares the constant "MAGICWORD" and the type "t_BootInfo" with U-Boot.
@@ -46,48 +39,33 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#define DRIVER_NAME "uio_pg_sram"
+#define DRIVER_NAME "pg_bootcounter"
 // Magic word to detect integrity of the BootInfo structure.
-// If the magic word in sram is not equal to MAGICWORD, this driver exits with -EINVAL.
+// If the magic word in ram is not equal to MAGICWORD, this driver exits with -EINVAL.
 // Make sure U-Boot uses the same magic word.
 #define MAGICWORD 0xCAFED00D 
 
-// BootInfo structure in sram
-// Make sure U-Boot uses the same BootInfo structure
+// BootInfo structure. Make sure U-Boot uses the same structure
 typedef struct  {
 	u32 boot_counter; 
 	u32 magicword;
 } t_BootInfo;
 
-struct pg_sram_uio_data {
+struct pg_bootcounter_data {
     struct uio_info info;
+    uint base;
+    uint maxboot;
     void __iomem * bootinfo_addr; // mapped address of BootInfo structure 
 };
-
-//
-// Module parameters maxboot and bootCounterOffset
-//
-static uint maxboot;
-module_param(maxboot, uint, 0);
-MODULE_PARM_DESC(maxboot, "Max number of boot attempts until we switch to backup system");
-
-static uint bootCounterOffset;
-module_param(bootCounterOffset, uint, 0);
-MODULE_PARM_DESC(bootCounterOffset, "Boot counter offset");
-
-//
-// Device attributes reset, zero and value
-// These attibutes are exposed in sysfs
-// 
 
 // Setter function for the sysfs file "reset"
 static ssize_t reset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-    struct pg_sram_uio_data *data = dev_get_drvdata(dev);
+    struct pg_bootcounter_data *data = dev_get_drvdata(dev);
  
     uint bountercounter_value = readl_relaxed(data->bootinfo_addr + offsetof(t_BootInfo, boot_counter));
 
-    if (bountercounter_value <= maxboot) {
+    if (bountercounter_value <= data->maxboot) {
         writel_relaxed(0, data->bootinfo_addr + offsetof(t_BootInfo, boot_counter));
     }
     return count;
@@ -98,7 +76,7 @@ static DEVICE_ATTR_WO(reset);
 // Setter function for the sysfs file "zero"
 static ssize_t zero_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-    struct pg_sram_uio_data *data = dev_get_drvdata(dev);
+    struct pg_bootcounter_data *data = dev_get_drvdata(dev);
 
     writel_relaxed(0, data->bootinfo_addr + offsetof(t_BootInfo, boot_counter));
 
@@ -110,7 +88,7 @@ static DEVICE_ATTR_WO(zero);
 // Getter function for the sysfs file "value"
 static ssize_t value_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    struct pg_sram_uio_data *data = dev_get_drvdata(dev);
+    struct pg_bootcounter_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", readl_relaxed(data->bootinfo_addr + offsetof(t_BootInfo, boot_counter)));
 }
@@ -119,14 +97,16 @@ static DEVICE_ATTR_RO(value);
 // Getter function for the sysfs file "max"
 static ssize_t max_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", maxboot);
+    struct pg_bootcounter_data *data = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", data->maxboot);
 }
 static DEVICE_ATTR_RO(max);
 
 // Probe function
-static int pg_sram_uio_probe(struct platform_device *pdev)
+static int pg_bootcounter_probe(struct platform_device *pdev)
 {
-    struct pg_sram_uio_data *data;
+    struct pg_bootcounter_data *data;
     struct resource *res;
     int ret;
 
@@ -134,21 +114,25 @@ static int pg_sram_uio_probe(struct platform_device *pdev)
     if (!data)
         return -ENOMEM;
 
-    res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-    if (!res) {
-        dev_err(&pdev->dev, "no memory resource\n");
-        return -ENODEV;
-    }
+	ret = device_property_read_u32(&pdev->dev, "maxboot", &data->maxboot);
+	if (ret) {
+		data->maxboot = 3;
+	}
+
+    ret = device_property_read_u32(&pdev->dev, "base", &data->base);
+	if (ret) {
+        return -EINVAL; 
+	}
 
     data->info.name = DRIVER_NAME;
     data->info.version = "1.0";
     data->info.irq = UIO_IRQ_NONE;
-    data->info.mem[0].addr = res->start;
-    data->info.mem[0].size = resource_size(res);
+    data->info.mem[0].addr = data->base;
+    data->info.mem[0].size = sizeof(t_BootInfo);
     data->info.mem[0].memtype = UIO_MEM_PHYS;
 
     // map the 32-bit bootcounter for access in getter/setter functions
-    data->bootinfo_addr = devm_ioremap(&pdev->dev, data->info.mem[0].addr + bootCounterOffset, sizeof(t_BootInfo));
+    data->bootinfo_addr = devm_ioremap(&pdev->dev, data->info.mem[0].addr, sizeof(t_BootInfo));
 
    	if (IS_ERR(data->bootinfo_addr)) {
         dev_err(&pdev->dev, "Could not ioremap\n");
@@ -156,16 +140,21 @@ static int pg_sram_uio_probe(struct platform_device *pdev)
     }
 
     if (MAGICWORD != readl_relaxed(data->bootinfo_addr + offsetof(t_BootInfo, magicword))) {
+        dev_err(&pdev->dev, "Bootcounter magic word invalid\n");
         return -EINVAL;
     } 
 
     // check if maxboot is valid
-    if (maxboot == 0)
-        return -EINVAL; 
+    if (data->maxboot == 0) {
+        dev_err(&pdev->dev, "bootCounter maxboot is 0\n");
+        return -EINVAL;
+    } 
 
     ret = uio_register_device(&pdev->dev, &data->info);
-    if (ret)
+    if (ret){
+        dev_err(&pdev->dev, "Could not register device\n");
         return ret;
+    }
 
     // remember driver data for later access in getter/ setter functions)
     dev_set_drvdata(&pdev->dev, data);
@@ -193,7 +182,7 @@ static int pg_sram_uio_probe(struct platform_device *pdev)
         device_remove_file(&pdev->dev, &dev_attr_reset);
         uio_unregister_device(&data->info);
         return ret;
-    }
+    } 
 
     ret = device_create_file(&pdev->dev, &dev_attr_max);
     if (ret) {
@@ -208,7 +197,7 @@ static int pg_sram_uio_probe(struct platform_device *pdev)
     return 0;
 }
 
-static int pg_sram_uio_remove(struct platform_device *pdev)
+static int pg_bootcounter_remove(struct platform_device *pdev)
 {
     struct uio_info *info = platform_get_drvdata(pdev);
 
@@ -223,24 +212,24 @@ static int pg_sram_uio_remove(struct platform_device *pdev)
     return 0;
 }
 
-static const struct of_device_id pg_sram_uio_of_match[] = {
-    { .compatible = "hitachi,uio-pg-sram" },
+static const struct of_device_id pg_bootcounter_of_match[] = {
+    { .compatible = "hitachi,pg-bootcounter" },
     {},
 };
-MODULE_DEVICE_TABLE(of, pg_sram_uio_of_match);
+MODULE_DEVICE_TABLE(of, pg_bootcounter_of_match);
 
-static struct platform_driver pg_sram_uio_driver = {
-    .probe = pg_sram_uio_probe,
-    .remove = pg_sram_uio_remove,
+static struct platform_driver pg_bootcounter_driver = {
+    .probe = pg_bootcounter_probe,
+    .remove = pg_bootcounter_remove,
     .driver = {
         .name = DRIVER_NAME,
         .owner = THIS_MODULE,
-        .of_match_table = of_match_ptr(pg_sram_uio_of_match),
+        .of_match_table = of_match_ptr(pg_bootcounter_of_match),
     },
 };
 
-module_platform_driver(pg_sram_uio_driver);
+module_platform_driver(pg_bootcounter_driver);
 
 MODULE_AUTHOR("Christian Leeb");
-MODULE_DESCRIPTION("UIO driver for accessing Hitachi cpm/rtu530cpm0x sram");
+MODULE_DESCRIPTION("Driver for accessing Hitachi pg boot counter");
 MODULE_LICENSE("GPL v2");

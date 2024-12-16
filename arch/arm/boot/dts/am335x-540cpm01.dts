@@ -64,6 +64,12 @@
 			default-state = "on";
 		};
 	};
+	
+	pg_bootcounter@0 {
+			compatible = "hitachi,pg-bootcounter";
+			base = <0x4030B7F0>;
+			maxboot = <3>;
+	};	
 };
 
 &am33xx_pinmux {

@@ -607,9 +607,10 @@
 };
 
 / {
-	uio_pg_sram@0 {
-			compatible = "hitachi,uio-pg-sram";
-			reg = <0 0x01000000 0 0x200000>; /* 2MB */
+	pg_bootcounter@0 {
+			compatible = "hitachi,pg-bootcounter";
+			base = <0x011FFFF0>;
+			maxboot = <3>;
 	};
 };
 
