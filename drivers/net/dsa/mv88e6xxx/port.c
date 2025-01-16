@@ -791,8 +791,6 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 
 	switch (state) {
 	case BR_STATE_DISABLED:
-		state = MV88E6XXX_PORT_CTL0_STATE_DISABLED;
-		break;
 	case BR_STATE_BLOCKING:
 	case BR_STATE_LISTENING:
 		state = MV88E6XXX_PORT_CTL0_STATE_BLOCKING;
