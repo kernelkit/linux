@@ -412,8 +412,13 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 		skb->csum_start += HSR_HLEN;
 
 	/* If this SKB has been expanded before just fill the HSR tag. */
+	/* 
+	* Task(24324) : HSR: ping with single node connected during boot
+	* If skb already has tag then skip filling the tag
+	* Roopak@cit - 12-February-2025
+	*/
 	if (skb->is_hsr)
-		goto fill_tag;
+		goto skip_fill_tag;
 
 	movelen = ETH_HLEN;
 	if (frame->is_vlan)
@@ -424,26 +429,24 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 	memmove(dst, src, movelen);
 	skb_reset_mac_header(skb);
 
-fill_tag:
+	/* 
+	* Task(24324) : HSR: ping with single node connected during boot
+	* HSR tag was being corrupted for Packet with less than minimum size
+	* (arp packet is less than minimum) when only pru21 connected 
+	* as we were skipping the fill tag for pru21
+	* Removed checks to skip filling of tag for pru21 or PTP, what ever may be 
+	* the port or packet type If tag is not present then we need to expand 
+	* and add tag to the skb 
+	* below code is to fill the tag in the expanded skb
+	* Roopak@cit - 12-February-2025
+	* Previous Task(22863)-HSR: pru21 lane not receiving the packets when pru20 down
+	* Rajendar@cit - 12-Feb-2024
+	*/
+	skb = hsr_fill_tag(skb, frame, port, port->hsr->prot_version);
+	if (!skb)
+		return NULL;
 
-    /* Task(22863)-HSR: pru21 lane not receiving the packets when pru20 down
-     * HSR tag has been inserted into source skb buffer in HSR_PT_SLAVE_A 
-     * iteration and below change is required to avoid reinserting/updating
-     * HSR tag for HSR_PT_SLAVE_B/Duplicate packet.
-        
-     * hsr_fill_tag() will be bypassed based on following conditions
-        
-     *  Directed packet    !(HSR_PT_SLAVE_B)
-     *       0                  !(1)          Bypass adding/updating HSR tag
-     *       0                  !(0)          Add/update HSR tag in skb      
-     *       1                    X           Add/update HSR tag in skb
-     * Rajendar@cit - 12-Feb-2024
-     */
-    if ((port->type != HSR_PT_SLAVE_B) || (REDINFO_T(skb_o) == DIRECTED_TX))  {
-		skb = hsr_fill_tag(skb, frame, port, port->hsr->prot_version);
-		if (!skb)
-			return NULL;
-	}
+skip_fill_tag:
 
 	skb->is_hsr = 1;
 	/* PTP Sync fix - Code was returning skb without executing ptp related code
