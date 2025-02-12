@@ -3106,6 +3106,7 @@ static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 				      struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+	unsigned int lagid;
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
@@ -3113,6 +3114,13 @@ static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	err = mv88e6xxx_bridge_map(chip, bridge);
 	if (err)
 		goto unlock;
+
+	if ((lagid = dsa_port_lag_id_get(dsa_to_port(ds, port)))) {
+		/* DSA LAG IDs are one-based */
+		err = mv88e6xxx_port_set_trunk(chip, port, true, lagid - 1);
+		if (err)
+			goto unlock;
+	}
 
 	err = mv88e6xxx_port_set_map_da(chip, port, true);
 	if (err)
@@ -3157,6 +3165,14 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 		dev_err(ds->dev,
 			"port %d failed to restore map-DA: %pe\n",
 			port, ERR_PTR(err));
+
+	if (dsa_port_lag_id_get(dsa_to_port(ds, port))) {
+		err = mv88e6xxx_port_set_trunk(chip, port, false, 0);
+		if (err)
+			dev_err(ds->dev,
+				"port %d failed to disable trunking: %pe\n",
+				port, ERR_PTR(err));
+	}
 
 	err = mv88e6xxx_port_commit_pvid(chip, port);
 	if (err)
@@ -7066,30 +7082,13 @@ static int mv88e6xxx_port_lag_join(struct dsa_switch *ds, int port,
 				   struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int err, id;
+	int err;
 
 	if (!mv88e6xxx_lag_can_offload(ds, lag, info, extack))
 		return -EOPNOTSUPP;
 
-	/* DSA LAG IDs are one-based */
-	id = lag.id - 1;
-
 	mv88e6xxx_reg_lock(chip);
-
-	err = mv88e6xxx_port_set_trunk(chip, port, true, id);
-	if (err)
-		goto err_unlock;
-
 	err = mv88e6xxx_lag_sync_masks_map(ds, lag);
-	if (err)
-		goto err_clear_trunk;
-
-	mv88e6xxx_reg_unlock(chip);
-	return 0;
-
-err_clear_trunk:
-	mv88e6xxx_port_set_trunk(chip, port, false, 0);
-err_unlock:
 	mv88e6xxx_reg_unlock(chip);
 	return err;
 }
@@ -7098,13 +7097,12 @@ static int mv88e6xxx_port_lag_leave(struct dsa_switch *ds, int port,
 				    struct dsa_lag lag)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int err_sync, err_trunk;
+	int err;
 
 	mv88e6xxx_reg_lock(chip);
-	err_sync = mv88e6xxx_lag_sync_masks_map(ds, lag);
-	err_trunk = mv88e6xxx_port_set_trunk(chip, port, false, 0);
+	err = mv88e6xxx_lag_sync_masks_map(ds, lag);
 	mv88e6xxx_reg_unlock(chip);
-	return err_sync ? : err_trunk;
+	return err;
 }
 
 static int mv88e6xxx_crosschip_lag_change(struct dsa_switch *ds, int sw_index,
