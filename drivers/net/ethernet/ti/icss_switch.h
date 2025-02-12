@@ -199,6 +199,14 @@
 /* 4 bytes ? */
 #define STP_INVALID_STATE_OFFSET        (STATISTICS_OFFSET + STAT_SIZE + 33)
 
+/* 
+* Task(24211) : Host queue overflow ethtool stat
+* macros for Host and Fwd Queue overflow counters
+* Roopak@cit - 24-January-2025
+*/
+#define RX_HOST_QUEUE_OVERFLOW_FRAMES_OFFSET    (STATISTICS_OFFSET + STAT_SIZE + 64)	//4 bytes
+#define RX_FWD_QUEUE_OVERFLOW_FRAMES_OFFSET     (STATISTICS_OFFSET + STAT_SIZE + 68)	//4 bytes
+
 /* DRAM1 Offsets for Switch */
 /* 4 queue descriptors for port 0 (host receive) */
  /* Task(22173) - EMAC/RSTP Tx Queues re-design 

@@ -245,6 +245,14 @@ struct port_statistics {
 
 	u32 vlan_dropped;
 	u32 multicast_dropped;
+
+	/* 
+	* Task(24211) : Host queue overflow ethtool stat
+	* Variable for Host & Fwd Queue overflow
+	* Roopak@cit - 24-January-2025
+	*/
+	u32 Host_Queue_Overflow;
+	u32 Fwd_Queue_Overflow;
 } __packed;
 
 /* In switch mode there are 3 real ports i.e. 3 mac addrs.

@@ -2007,6 +2007,16 @@ static void emac_get_stats(struct prueth_emac *emac,
 		readl(dram + ICSS_EMAC_FW_VLAN_FILTER_DROP_CNT_OFFSET);
 	pstats->multicast_dropped =
 		readl(dram + ICSS_EMAC_FW_MULTICAST_FILTER_DROP_CNT_OFFSET);
+	/* 
+	* Task(24211) : Host queue overflow ethtool stat
+	* Read the Host queue overflow counter value from DMEM+0x1FD8 offset
+	* Read the Fwd queue overflow counter value from DMEM+0x1FDC offset
+	* Roopak@cit - 24-January-2025
+	*/
+	pstats->Host_Queue_Overflow = 
+		readl(dram + RX_HOST_QUEUE_OVERFLOW_FRAMES_OFFSET);
+	pstats->Fwd_Queue_Overflow = 
+		readl(dram + RX_FWD_QUEUE_OVERFLOW_FRAMES_OFFSET);
 }
 
 /* set PRU firmware statistics */
@@ -3371,6 +3381,13 @@ static const struct {
 	{"txHWQUnderFlow", PRUETH_STAT_OFFSET(tx_hwq_underflow)},
 	{"vlanDropped", PRUETH_STAT_OFFSET(vlan_dropped)},
 	{"multicastDropped", PRUETH_STAT_OFFSET(multicast_dropped)},
+	/* 
+	* Task(24211) : Host queue overflow ethtool stat
+	* As per Hitachi requirement included Host & Fwd queue overflow counters in ethtool stats. 
+	* Roopak@cit - 24-January-2025
+	*/
+	{"HostQueueOverflow", PRUETH_STAT_OFFSET(Host_Queue_Overflow)},
+	{"FwdQueueOverflow", PRUETH_STAT_OFFSET(Fwd_Queue_Overflow)},
 };
 
 static int emac_get_sset_count(struct net_device *ndev, int stringset)
