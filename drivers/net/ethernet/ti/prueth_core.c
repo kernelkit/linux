@@ -1587,7 +1587,7 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	void *ocmc_ram = (__force void *)emac->prueth->mem[PRUETH_MEM_OCMC].va;
 	struct skb_shared_hwtstamps *ssh;
 	unsigned int actual_pkt_len;
-	u16 start_offset = 0, type;
+	u16	type;
 	u8 offset = 0, *ptr;
 	u64 ts;
 	int ret;
@@ -1606,10 +1606,7 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		}
 	}
 
-	if (PRUETH_IS_HSR(prueth))
-		start_offset = (pkt_info.start_offset ?
-				ICSS_LRE_TAG_RCT_SIZE : 0);
-	else if (PRUETH_IS_PRP(prueth) && pkt_info.start_offset)
+	if (PRUETH_IS_PRP(prueth) && pkt_info.start_offset)
 		prp_rct = true;
 
 	/* the PRU firmware deals mostly in pointers already
@@ -1653,7 +1650,7 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	}
 
 	/* Pkt len w/ HSR tag removed, If applicable */
-	actual_pkt_len = pkt_info.length - start_offset;
+	actual_pkt_len = pkt_info.length;
 
 	/* Below code was added for HSR RX optimization
 	 *  basharath@CIT - 08-Sep-2023
@@ -1663,7 +1660,13 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		 * HSR TAG Removal Handling - Packet is sent with HSR TAG to Driver
 		 * basharath@CIT - 08-Sep-2023
 		 */
-		if(!start_offset && !pkt_info.timestamp)
+		/* 
+		* Task(24385) : HSR: Ping working with corrupted HSR tag
+		* If 0th bit in the BD is set then remove HSR tag
+		* Below code changes is subtract packet length with tag length
+		* Roopak@cit - 12-February-2025
+		*/
+		if(pkt_info.start_offset && !pkt_info.timestamp)
 		{
 			actual_pkt_len -= ICSS_LRE_TAG_RCT_SIZE;
 		}
@@ -1690,7 +1693,6 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	src_addr = ocmc_ram + rxqueue->buffer_offset +
 			   (read_block * ICSS_BLOCK_SIZE);
 	
-	src_addr += start_offset;
 
 
 			/* Below code was added for HSR RX optimization
@@ -1727,7 +1729,14 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 			 * basharath@CIT - 08-Sep-2023
 			 */
 	if (PRUETH_IS_HSR(prueth)){
-		if(!start_offset && !pkt_info.timestamp)
+		/* 
+		* Task(24385) : HSR: Ping working with corrupted HSR tag
+		* If 0th bit in the BD is set then remove HSR tag
+		* Below code change is to pick the data after hsr tag, we will skip copying of HSR tag
+		* 6 bytes of DST + 6 bytes of SRC + 6 Bytes of HSR tag
+		* Roopak@cit - 12-February-2025
+		*/
+		if(pkt_info.start_offset && !pkt_info.timestamp)
 		{
 			src_addr += ICSS_LRE_TAG_RCT_SIZE;
 		}
@@ -1746,14 +1755,19 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 			bytes = pkt_info.length;
 
 		/* If applicable, account for the HSR tag removed */
-		bytes -= start_offset;
 
 			/* Below code was added for HSR RX optimization
 			 * HSR TAG Removal Handling - Packet is sent with HSR TAG to Driver
 			 * basharath@CIT - 08-Sep-2023
 			 */
 		if (PRUETH_IS_HSR(prueth)){
-			if(!start_offset && !pkt_info.timestamp)
+			/* 
+			* Task(24385) : HSR: Ping working with corrupted HSR tag
+			* If 0th bit in the BD is set then remove HSR tag
+			* Below code changes is subtract no:of bytes with tag length
+			* Roopak@cit - 12-February-2025
+			*/
+			if(pkt_info.start_offset && !pkt_info.timestamp)
 			{
 				bytes -= ICSS_LRE_TAG_RCT_SIZE;
 			}
