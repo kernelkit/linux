@@ -1106,8 +1106,9 @@ struct mvpp2 {
 	/* Global TX Flow Control config */
 	bool global_tx_fc;
 
-	/* Spinlocks for CM3 shared memory configuration */
+	/* Spinlocks for shared packet processor functional units */
 	spinlock_t mss_spinlock;
+	spinlock_t prs_spinlock;
 };
 
 struct mvpp2_pcpu_stats {
