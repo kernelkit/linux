@@ -337,6 +337,16 @@ stop_handle:
 	EXT4_I(inode)->i_dtime	= (__u32)ktime_get_real_seconds();
 
 	/*
+	 * Avoid low-dtime check to trigger in fsck. Do not use the
+	 * problematic overloaded lower i_dtime values when deleting inodes.
+	 * The sb->s_inodes_count is the number of inodes in the fs, and it is
+	 * the maximum value we can use.
+	 */
+	if (EXT4_I(inode)->i_dtime <= EXT4_SB(inode->i_sb)->s_es->s_inodes_count) {
+		EXT4_I(inode)->i_dtime = EXT4_SB(inode->i_sb)->s_es->s_inodes_count + 1;
+	}
+
+	/*
 	 * One subtle ordering requirement: if anything has gone wrong
 	 * (transaction abort, IO errors, whatever), then we can still
 	 * do these next steps (the fs will already have been marked as
