@@ -1595,17 +1595,6 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	int adjust_for_dummy_hsr_tag = 0;
 	u8 *check_vlan_ptr;
 
-	/*
-	If ndev->ifindex exists in the blockedPorts array, then the packet from the queue will be ignored.
-	This will result in overflows in the RX-path (since we do not empty the queues we will see overflows occurring)
-	*/
-	int i;
-	for (i = 0; i < (sizeof(blockedPorts)/sizeof(blockedPorts[0])); i++) {
-		if (blockedPorts[i] == ndev->ifindex) {
-			return 0;
-		}
-	}
-
 	if (PRUETH_IS_PRP(prueth) && pkt_info.start_offset)
 		prp_rct = true;
 
@@ -1635,6 +1624,29 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 
 	/* calculate new pointer in ram */
 	*bd_rd_ptr = rxqueue->buffer_desc_offset + (update_block * BD_SIZE);
+
+	/*
+	If ndev->ifindex exists in the blockedPorts array, then the packet from the queue will be ignored.
+	This will result in overflows in the RX-path (since we do not empty the queues we will see overflows occurring)
+	*/
+	/*
+	* CIT(24650) - IED is going to unstable state when turn OFF the HSR configured port
+	*
+	* Description of the fix:
+	* - Moved the port-blocking logic after fetching the updated read pointer (*bd_rd_ptr).
+	* - This change ensures we obtain the correct (latest) read pointer even when the port is blocked.
+	* - Effectively, this acts as a dummy update to the read pointer post-blocking.
+	* - Without this update, the system would continuously loop inside `emac_rx_packet`,
+	*   as the read and write pointers would remain out of sync.
+	*
+	* Roopak@CIT - 17-April-2025
+	*/
+	int i;
+	for (i = 0; i < (sizeof(blockedPorts)/sizeof(blockedPorts[0])); i++) {
+		if (blockedPorts[i] == ndev->ifindex) {
+			return 0;
+		}
+	}
 
 	/* Below code was added for HSR RX optimization
 	 * If the packet is invalid of HOST, 
