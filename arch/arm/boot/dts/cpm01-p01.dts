@@ -1451,12 +1451,12 @@
 };
 
 &gpio7 {
-/*                    0  1  2  3  4  5  6  7  8  9  10 11               12 13  14      15             16*/
-    gpio-line-names = "","","","","","","","","","","","GPIO_TRANSC_OE","","", "SID3", "INT_FAULT_N", "INT_FAULT_SET";
+/*                    0  1  2  3  4  5  6  7  8  9  10 11               12 13  14      15             16                17                  18 19 20 21 22 23 24 25 26 27 28 29  30*/
+    gpio-line-names = "","","","","","","","","","","","GPIO_TRANSC_OE","","", "SID3", "INT_FAULT_N", "INT_FAULT_SET", "ETH1_SFP_TX_FAULT", "","","","","","","","","","","","","ETH2_SFP_TX_FAULT";
 };
 
 &gpioex {
-/*                    0  1  2  3                    4                 5  */
+/*                    0  1  2   3                   4                  5  6                   7                 8   9                   10                11  12                  13 */
     gpio-line-names = "","","","ETH10_SFP_DISABLE","ETH10_SFP_DETECT","","ETH11_SFP_DISABLE","ETH11_SFP_DETECT","","ETH20_SFP_DISABLE","ETH20_SFP_DETECT","","ETH21_SFP_DISABLE","ETH21_SFP_DETECT";
 };
 
