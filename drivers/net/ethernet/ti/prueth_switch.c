@@ -34,17 +34,6 @@ struct prueth_sw_fdb_work {
 	int event;
 };
 
-static inline
-u8 prueth_sw_port_get_stp_state(struct prueth *prueth, enum prueth_port port)
-{
-	struct fdb_tbl *t = prueth->fdb_tbl;
-	u8 state;
-
-	state = readb(port - 1 ?
-		      &t->port2_stp_cfg->state : &t->port1_stp_cfg->state);
-	return state;
-}
-
 const struct prueth_queue_info sw_queue_infos[][NUM_QUEUES] = {
 	[PRUETH_PORT_QUEUE_HOST] = {
 		[PRUETH_QUEUE1] = {

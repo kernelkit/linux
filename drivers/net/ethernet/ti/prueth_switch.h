@@ -31,6 +31,17 @@ static inline enum prueth_port other_port_id(enum prueth_port port_id)
 }
 
 static inline
+u8 prueth_sw_port_get_stp_state(struct prueth *prueth, enum prueth_port port)
+{
+	struct fdb_tbl *t = prueth->fdb_tbl;
+	u8 state;
+
+	state = readb(port - 1 ?
+		      &t->port2_stp_cfg->state : &t->port1_stp_cfg->state);
+	return state;
+}
+
+static inline
 void prueth_sw_port_set_stp_state(struct prueth *prueth,
 				  enum prueth_port port, u8 state)
 {

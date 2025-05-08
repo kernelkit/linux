@@ -56,6 +56,12 @@ enum pruss_ethtype {
 
 #define PRUETH_REG_DUMP_VER		1
 
+/* Added for RSTP PTP Enhancement
+*  MAC address used for checking non link local packets.
+*/
+static const u8 ptp_non_link_local_addr[ETH_ALEN] __aligned(2) =
+{ 0x01, 0x1b, 0x19, 0x00, 0x00, 0x00 };
+
 /* Encoding: 32-16: Reserved, 16-8: Reg dump version, 8-0: Ethertype  */
 #define PRUETH_REG_DUMP_GET_VER(x)	((PRUETH_REG_DUMP_VER << 8) | ((x)->eth_type))
 

@@ -2614,6 +2614,7 @@ __be16 eth_packet_type(struct sk_buff *skb)
 static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
 	int ret = 0;
 	u16 qid;
 	__be16 packet_type;
@@ -2621,7 +2622,7 @@ static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	*  Parvathi@CIT - 23-Sep-2022
 	*/
 	void *lock_queue;
-
+	
 	/*
 	If ndev->ifindex exists in the blockedPorts array, then the packet will not be sent.
 	*/
@@ -2646,6 +2647,25 @@ static int emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	if(packet_type == htons(ETH_P_1588)) //check for PTP packet 
 	{
+		/* Added for RSTP PTP Enhancement
+		*  Check for PTP non link local messages like Announce, Sync and fup
+		*  Drop them without sending out on that port if the port state is in
+		*  Blocking or Discarding if we are in Switch mode.
+		*/
+		if(PRUETH_IS_SWITCH(prueth))
+		{
+			struct ethhdr *eth;
+			bool non_link_local_addr;
+			u8 port_state;
+
+			eth = eth_hdr(skb);
+			non_link_local_addr = ether_addr_equal(eth_hdr(skb)->h_dest, ptp_non_link_local_addr);
+			port_state = prueth_sw_port_get_stp_state(prueth, emac->port_id);
+			if((port_state == BR_STATE_BLOCKING) && non_link_local_addr ){
+				dev_kfree_skb_any(skb);
+				return NETDEV_TX_OK;
+			}
+		}
 		qid = PRUETH_QUEUE5;
 		ret = prueth_tx_enqueue(emac, skb, qid);
 	}
