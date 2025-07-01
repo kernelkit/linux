@@ -265,6 +265,13 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto drop;
 
+	/* PTP4l is modified to listen on raw socket with type ETH_P_1588
+	 * In order to pass the skb via type_specific socket
+	 * we have to return from this API without being consumed.
+	 */
+	if (skb->protocol == htons(ETH_P_1588))
+		return RX_HANDLER_PASS;
+
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		return RX_HANDLER_CONSUMED;
