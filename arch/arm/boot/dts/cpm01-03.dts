@@ -562,6 +562,11 @@
 			base = <0x011FFFF0>;
 			maxboot = <3>;
 	};
+
+	pg_atecccounter@0 {
+			compatible = "hitachi,pg-atecccounter";
+			base = <0x011FFFE0>;
+	};
 };
 
 /* I2C for backplane: touch screen */

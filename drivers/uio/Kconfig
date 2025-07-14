@@ -181,4 +181,10 @@ config PG_BOOTCOUNTER
 	help
 	  Driver for Hitachi bootcounter CPM and RTU530/RTU560.
 	  Sysfs access to Hitachi bootcounter
+
+config PG_ATECCCOUNTER
+	tristate "Userspace I/O driver for Hitachi ATECC counter"
+	help
+	  Driver for Hitachi ATECC counter for CPM.
+	  Sysfs access to Hitachi ATECC counter
 endif
