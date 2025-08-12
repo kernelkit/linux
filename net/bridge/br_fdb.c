@@ -24,6 +24,16 @@
 #include <trace/events/bridge.h>
 #include "br_private.h"
 
+/*
+* CIT(25001) - RSTP: IED Operational disabled and HW Modules fail was observed 
+* 
+* Max Bridge Dynamic FDB entries are 256 as PRU FDB entries are 256
+*  
+* Roopak@CIT - 04-Aug-2025
+*/
++#define MAX_BRIDGE_DYNAMIC_ENTRIES	256 // Maximum No:of Bridge Dynamic entries
++uint32_t	Num_bridge_dynamic_entries; // No:of Bridge Dynamic entries learnt from incoming traffic 
+
 static const struct rhashtable_params br_fdb_rht_params = {
 	.head_offset = offsetof(struct net_bridge_fdb_entry, rhnode),
 	.key_offset = offsetof(struct net_bridge_fdb_entry, key),
@@ -199,6 +209,17 @@ static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f,
 
 	if (f->is_static)
 		fdb_del_hw_addr(br, f->key.addr.addr);
+	
+	/*
+	* CIT(25001) - RSTP: IED Operational disabled and HW Modules fail was observed 
+	*
+	* Decrement the dynamic FDB entry count only for entries learned 
+ 	* via incoming traffic (i.e., not static, not external learn, and not user-added).
+ 	*
+ 	* Roopak@CIT - 04-Aug-2025
+ 	*/
+	if((!(f->is_static) && !(f->added_by_external_learn) && !(f->added_by_user)) && (Num_bridge_dynamic_entries!=0))
+		Num_bridge_dynamic_entries--;
 
 	hlist_del_init_rcu(&f->fdb_node);
 	rhashtable_remove_fast(&br->fdb_hash_tbl, &f->rhnode,
@@ -596,20 +617,34 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb_notify(br, fdb, RTM_NEWNEIGH, true);
 			}
 		}
-	} else {
-		spin_lock(&br->hash_lock);
-		fdb = fdb_create(br, source, addr, vid, 0, 0);
-		if (fdb) {
-			if (unlikely(added_by_user))
-				fdb->added_by_user = 1;
-			trace_br_fdb_update(br, source, addr, vid,
-					    added_by_user);
-			fdb_notify(br, fdb, RTM_NEWNEIGH, true);
+	} else {		
+		/*
+		* CIT(25001) - RSTP: IED Operational disabled and HW Modules fail was observed 
+		*
+		* Bridge FDB has no entry limits, leading to memory exhaustion when many dynamic MAC entries are learned.
+		* This caused the kernel to crash during memory allocation for new FDB entrie in Bridge FDB table.
+		* limiting the Bridge FDB Entries to 256 (MAX_BRIDGE_DYNAMIC_ENTRIES)
+		* Removed notification of dynamic entries to the PRU driver, as entries learned from incoming traffic
+		* are first created in the PRU FDB.
+		* Since these dynamic entries already exist in the PRU FDB, explicit notification is no longer required.
+		*
+		* Roopak@CIT - 04-August-2025
+		*/
+		if(Num_bridge_dynamic_entries < MAX_BRIDGE_DYNAMIC_ENTRIES)
+		{
+			spin_lock(&br->hash_lock);
+			fdb = fdb_create(br, source, addr, vid, 0, 0);
+			if (fdb) {
+				if (unlikely(added_by_user))
+					fdb->added_by_user = 1;
+				trace_br_fdb_update(br, source, addr, vid,
+							added_by_user);
+			}
+			/* else  we lose race and someone else inserts
+			* it first, don't bother updating
+			*/
+			spin_unlock(&br->hash_lock);
 		}
-		/* else  we lose race and someone else inserts
-		 * it first, don't bother updating
-		 */
-		spin_unlock(&br->hash_lock);
 	}
 }
 

@@ -1574,6 +1574,7 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 {
 	struct net_device *ndev = emac->ndev;
 	struct prueth *prueth = emac->prueth;
+	struct fdb_tbl *fdb = prueth->fdb_tbl;
 	const struct prueth_private_data *fw_data = prueth->fw_data;
 	int read_block, update_block, pkt_block_size;
 	bool buffer_wrapped = false, prp_rct = false;
@@ -1856,8 +1857,19 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 
 		if (PRUETH_IS_SWITCH(emac->prueth)) {
 			skb->offload_fwd_mark = emac->offload_fwd_mark;
-			if (!pkt_info.lookup_success)
-				prueth_sw_learn_fdb(emac, skb->data + ETH_ALEN);
+			/*
+			* CIT(25001) - RSTP: IED Operational disabled and HW Modules fail was observed 
+			* 
+			* Issue: When the PRU FDB is full, the system continued attempting to learn new MAC addresses,
+			* leading to unnecessary worker thread creations. This resulted in memory exhaustion and system crashes.
+			*
+			* Fix: Skip learning new entries when the PRU FDB is full, thereby preventing the creation of
+			* worker threads.
+			*
+			* Roopak@CIT - 04-Aug-2025
+			*/
+			if (!pkt_info.lookup_success && (fdb->total_entries<FDB_MAC_TBL_MAX_ENTRIES)) 
+					prueth_sw_learn_fdb(emac, skb->data + ETH_ALEN);
 		}
 
 		if (prueth_ptp_rx_ts_is_enabled(emac) && pkt_info.timestamp) {
