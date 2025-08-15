@@ -31,8 +31,8 @@
 *  
 * Roopak@CIT - 04-Aug-2025
 */
-+#define MAX_BRIDGE_DYNAMIC_ENTRIES	256 // Maximum No:of Bridge Dynamic entries
-+uint32_t	Num_bridge_dynamic_entries; // No:of Bridge Dynamic entries learnt from incoming traffic 
+#define MAX_BRIDGE_DYNAMIC_ENTRIES	256 // Maximum No:of Bridge Dynamic entries
+uint32_t	Num_bridge_dynamic_entries; // No:of Bridge Dynamic entries learnt from incoming traffic 
 
 static const struct rhashtable_params br_fdb_rht_params = {
 	.head_offset = offsetof(struct net_bridge_fdb_entry, rhnode),
