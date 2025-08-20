@@ -391,7 +391,8 @@ static int panel_simple_get_modes(struct drm_panel *panel,
 	 * TODO: Remove once all drm drivers call
 	 * drm_connector_set_orientation_from_panel()
 	 */
-	drm_connector_set_panel_orientation(connector, p->orientation);
+	/* RPI Hack */
+	//drm_connector_set_panel_orientation(connector, p->orientation);
 
 	return num;
 }
@@ -3829,6 +3830,31 @@ static const struct panel_desc qishenglong_gopher2b_lcd = {
 	.connector_type = DRM_MODE_CONNECTOR_DPI,
 };
 
+static const struct drm_display_mode raspberrypi_7inch_mode = {
+       .clock = 30000,
+       .hdisplay = 800,
+       .hsync_start = 800 + 131,
+       .hsync_end = 800 + 131 + 2,
+       .htotal = 800 + 131 + 2 + 45,
+       .vdisplay = 480,
+       .vsync_start = 480 + 7,
+       .vsync_end = 480 + 7 + 2,
+       .vtotal = 480 + 7 + 2 + 22,
+       .flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc raspberrypi_7inch = {
+       .modes = &raspberrypi_7inch_mode,
+       .num_modes = 1,
+       .bpc = 8,
+       .size = {
+               .width = 154,
+               .height = 86,
+       },
+       .bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+       .connector_type = DRM_MODE_CONNECTOR_DSI,
+};
+
 static const struct display_timing rocktech_rk043fn48h_timing = {
 	.pixelclock = { 6000000, 9000000, 12000000 },
 	.hactive = { 480, 480, 480 },
@@ -4977,6 +5003,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "qishenglong,gopher2b-lcd",
 		.data = &qishenglong_gopher2b_lcd,
 	}, {
+               .compatible = "raspberrypi,7inch-dsi",
+               .data = &raspberrypi_7inch,
+        }, {
 		.compatible = "rocktech,rk043fn48h",
 		.data = &rocktech_rk043fn48h,
 	}, {
