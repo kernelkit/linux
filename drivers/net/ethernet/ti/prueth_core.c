@@ -57,6 +57,11 @@
 #define NOT_INITIALIZED -1
 #define UNBLOCK_ALL_PORTS -1
 
+/* Added for enabling multiple qdisc
+ * Parvathi@CIT - 28-Jul-2025
+ */
+#define EMAC_MAX_TX_QUEUES 2
+
 /* TX Minimum Inter packet gap */
 #define TX_MIN_IPG		0xb8
 
@@ -2229,6 +2234,15 @@ static int emac_ndo_open(struct net_device *ndev)
 
 	netif_carrier_off(ndev);
 
+	/* Added for enabling multiple qdisc
+	 * Parvathi@CIT - 28-Jul-2025
+	 */
+        ret = netif_set_real_num_tx_queues(ndev, emac->tx_num_q);
+        if (ret) {
+                dev_err(prueth->dev, "cannot set real number of tx queues\n");
+                return ret;
+        }
+
 	mutex_lock(&prueth->mlock);
 	if (!prueth->emac_configured)
 		prueth_init_ethernet_mode(prueth);
@@ -3603,6 +3617,52 @@ static int emac_set_coalesce(struct net_device *ndev,
 				  coal->rx_coalesce_usecs);
 }
 
+/* Added for enabling multiple qdisc
+ * Parvathi@CIT - 28-Jul-2025
+ */
+static void emac_get_channels(struct net_device *ndev,
+                              struct ethtool_channels *ch)
+{
+        struct prueth_emac *emac = netdev_priv(ndev);
+
+	/* Supports max 1 Rx channel and
+	 * EMAC_MAX_TX_QUEUES Tx channels
+	 */
+	ch->max_rx = 1;
+	ch->max_tx = EMAC_MAX_TX_QUEUES;
+
+	/* Driver uses 1 Rx channel */
+	ch->rx_count = 1;
+
+	/* Driver uses configured
+	 * Tx queues (<= EMAC_MAX_TX_QUEUES)
+	 */
+	ch->tx_count = emac->tx_num_q;
+}
+
+/* Added for enabling multiple qdisc
+ * Parvathi@CIT - 28-Jul-2025
+ */
+static int emac_set_channels(struct net_device *ndev,
+                             struct ethtool_channels *ch)
+{
+        struct prueth_emac *emac = netdev_priv(ndev);
+
+        /* verify we have at least one channel in each direction */
+        if (!ch->rx_count || !ch->tx_count)
+                return -EINVAL;
+
+        /* Check if interface is up. Can change the num queues when
+         * the interface is down.
+         */
+        if (netif_running(emac->ndev))
+                return -EBUSY;
+
+        emac->tx_num_q = ch->tx_count;
+
+	return 0;
+}
+
 /* Ethtool support for EMAC adapter */
 static const struct ethtool_ops emac_ethtool_ops = {
 	.get_drvinfo = emac_get_drvinfo,
@@ -3617,6 +3677,8 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_regs_len = emac_get_regs_len,
 	.get_coalesce = emac_get_coalesce,
 	.set_coalesce = emac_set_coalesce,
+        .get_channels = emac_get_channels,
+        .set_channels = emac_set_channels,
 };
 
 /* get emac_port corresponding to eth_node name */
@@ -3660,13 +3722,22 @@ static int prueth_netdev_init(struct prueth *prueth,
 	if (mac < 0)
 		return -EINVAL;
 
-	ndev = devm_alloc_etherdev(prueth->dev, sizeof(*emac));
-	if (!ndev)
-		return -ENOMEM;
+	/* Added for enabling multiple qdisc
+	 * Parvathi@CIT - 28-Jul-2025
+	 */
+	ndev = alloc_etherdev_mq(sizeof(*emac), EMAC_MAX_TX_QUEUES);
+        if (!ndev)
+                return -ENOMEM;
 
 	SET_NETDEV_DEV(ndev, prueth->dev);
 	emac = netdev_priv(ndev);
 	prueth->emac[mac] = emac;
+
+	/* Added for enabling multiple qdisc
+	 * Parvathi@CIT - 28-Jul-2025
+	 */
+	emac->tx_num_q = 1;
+
 	emac->prueth = prueth;
 	emac->ndev = ndev;
 	emac->port_id = port;

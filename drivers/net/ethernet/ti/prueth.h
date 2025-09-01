@@ -429,6 +429,11 @@ struct prueth_emac {
 	*  Parvathi@CIT - 23-Sep-2022
 	*/
 	raw_spinlock_t host_queue_lock[4];
+
+	/* Added for enabling multiple qdisc
+	 * Parvathi@CIT - 28-Jul-2025
+	 */
+	int tx_num_q;
 };
 
 struct prueth_ndev_priority {
