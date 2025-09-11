@@ -719,6 +719,12 @@ static void prueth_port_enable(struct prueth_emac *emac, bool enable)
 	/* HSR/PRP firmware use a different memory and offset
 	 * for VLAN filter control
 	 */
+	/*
+	 * CIT(25217) - REF650: SV and GOOSE messages are not functioning correctly with VLAN ID within the RSTP network
+	 * Disabled Firmware vlan filtering by default
+	 * Roopak@CIT - 03-September-2025
+	 */	
+	enable = false;
 	if (PRUETH_IS_LRE(prueth))
 		ram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
 	vlan_ctrl = ram + vlan_ctrl_offset;
@@ -3852,8 +3858,17 @@ static int prueth_netdev_init(struct prueth *prueth,
 
 	phy_remove_link_mode(emac->phydev, ETHTOOL_LINK_MODE_Pause_BIT);
 	phy_remove_link_mode(emac->phydev, ETHTOOL_LINK_MODE_Asym_Pause_BIT);
+	/*
+	 * CIT(25217) - REF650: SV and GOOSE messages are not functioning correctly with VLAN ID within the RSTP network
+	 * NETIF_F_HW_VLAN_CTAG_FILTER is a feature flag in the Linux networking 
+	 * stack that indicates whether a network device (NIC/driver) supports 
+	 * hardware VLAN filtering, disabling NETIF_F_HW_VLAN_CTAG_FILTER
+	 * with this change emac_ndo_vlan_rx_add_vid / emac_ndo_vlan_rx_del_vid function wont be invoked and we dont update firmware vlan table
+	 * Roopak@CIT - 03-September-2025
+	 */	
+	ndev->features |= NETIF_F_HW_TC;                 // enable TC
+	ndev->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;  // disable Hardware VLAN filter
 
-	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
 	if (fw_data->support_switch || prueth->support_lre)
 		ndev->features |= NETIF_F_HW_L2FW_DOFFLOAD;
 
@@ -3872,8 +3887,15 @@ static int prueth_netdev_init(struct prueth *prueth,
 				      NETIF_F_HW_L2FW_DOFFLOAD);
 	if (fw_data->support_switch)
 		ndev->hw_features |= NETIF_F_HW_L2FW_DOFFLOAD;
-
-	ndev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	/*
+	 * CIT(25217) - REF650: SV and GOOSE messages are not functioning correctly with VLAN ID within the RSTP network
+	 * NETIF_F_HW_VLAN_CTAG_FILTER is a feature flag in the Linux networking 
+	 * stack that indicates whether a network device (NIC/driver) supports 
+	 * hardware VLAN filtering, disabling NETIF_F_HW_VLAN_CTAG_FILTER
+	 * with this change emac_ndo_vlan_rx_add_vid / emac_ndo_vlan_rx_del_vid function wont be invoked and we dont update firmware vlan table
+	 * Roopak@CIT - 03-September-2025
+	 */
+	ndev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	ndev->netdev_ops = &emac_netdev_ops;
 	ndev->ethtool_ops = &emac_ethtool_ops;
