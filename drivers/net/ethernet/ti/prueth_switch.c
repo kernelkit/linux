@@ -776,105 +776,114 @@ static int prueth_lre_port_config(struct prueth *prueth,
 	void __iomem *dram, *dram_base, *dram_mac;
 	struct prueth_emac *emac;
 	void __iomem *dram1_base = prueth->mem[PRUETH_MEM_DRAM1].va;
+	uint8_t port;
 	/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
  	 * Roopak@CIT - 02-June-2023
  	 */
 	u32 ocmcaddr2 = (u32)prueth->mem[PRUETH_MEM_OCMC].pa + SZ_64K; // Second 64kb block of ocmc
+	/*
+	* CIT(25222) - SV and PTP is not stable in HSR network with maximum devices
+	* In HSR-PRP we have common queues so initialize for both the ports
+	* Roopak@CIT - 23-September-2025
+	*/
+	for(port=PRUETH_PORT_MII0; port<=PRUETH_PORT_MII1; port++)
+	{
+		port_id = port;
+		emac = prueth->emac[port_id - 1];
+		switch (port_id) {
+		case PRUETH_PORT_MII0:
+			tx_context_ofs_addr     = TX_CONTEXT_P1_Q1_OFFSET_ADDR;
+			rx_context_ofs          = P1_Q1_RX_CONTEXT_OFFSET;
+			queue_desc_ofs          = P1_QUEUE_DESC_OFFSET;
 
-	emac = prueth->emac[port_id - 1];
-	switch (port_id) {
-	case PRUETH_PORT_MII0:
-		tx_context_ofs_addr     = TX_CONTEXT_P1_Q1_OFFSET_ADDR;
-		rx_context_ofs          = P1_Q1_RX_CONTEXT_OFFSET;
-		queue_desc_ofs          = P1_QUEUE_DESC_OFFSET;
+			/* for switch PORT MII0 mac addr is in DRAM0. */
+			dram_mac = prueth->mem[PRUETH_MEM_DRAM0].va;
+			break;
+		case PRUETH_PORT_MII1:
+			tx_context_ofs_addr     = TX_CONTEXT_P2_Q1_OFFSET_ADDR;
+			rx_context_ofs          = P2_Q1_RX_CONTEXT_OFFSET;
+			queue_desc_ofs          = P2_QUEUE_DESC_OFFSET;
 
-		/* for switch PORT MII0 mac addr is in DRAM0. */
-		dram_mac = prueth->mem[PRUETH_MEM_DRAM0].va;
-		break;
-	case PRUETH_PORT_MII1:
-		tx_context_ofs_addr     = TX_CONTEXT_P2_Q1_OFFSET_ADDR;
-		rx_context_ofs          = P2_Q1_RX_CONTEXT_OFFSET;
-		queue_desc_ofs          = P2_QUEUE_DESC_OFFSET;
+			/* for switch PORT MII1 mac addr is in DRAM1. */
+			dram_mac = prueth->mem[PRUETH_MEM_DRAM1].va;
+			break;
+		default:
+			netdev_err(emac->ndev, "invalid port\n");
+			return -EINVAL;
+		}
 
-		/* for switch PORT MII1 mac addr is in DRAM1. */
-		dram_mac = prueth->mem[PRUETH_MEM_DRAM1].va;
-		break;
-	default:
-		netdev_err(emac->ndev, "invalid port\n");
-		return -EINVAL;
+		/* setup mac address */
+		memcpy_toio(dram_mac + PORT_MAC_ADDR, emac->mac_addr, 6);
+
+		/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
+ 		 * Roopak@CIT - 02-June-2023
+ 		 */
+		writel(ocmcaddr2, (dram_mac + SECOND_64KB_BLOCK_OCMC_OFFSET)); // Store second 64kb of ocmc offset in dram
+
+
+		
+		/* Remaining switch port configs are in DRAM1 */
+		dram_base = prueth->mem[PRUETH_MEM_DRAM1].va;
+
+		/* queue information table */
+		memcpy_toio(dram_base + tx_context_ofs_addr,
+			    lre_queue_infos[port_id],
+			    sizeof(lre_queue_infos[port_id]));
+
+		memcpy_toio(dram_base + rx_context_ofs,
+			    lre_rx_queue_infos[port_id],
+			    sizeof(lre_rx_queue_infos[port_id]));
+
+		/* buffer descriptor offset table*/
+		dram = dram_base + QUEUE_DESCRIPTOR_OFFSET_ADDR +
+		       (port_id * RX_NUM_QUEUES * sizeof(u16));
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE1].buffer_desc_offset, dram);
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE2].buffer_desc_offset,
+		       dram + 2);
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE3].buffer_desc_offset,
+		       dram + 4);
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE4].buffer_desc_offset,
+		       dram + 6);
+
+		/* buffer offset table */
+		dram = dram_base + QUEUE_OFFSET_ADDR +
+		       port_id * RX_NUM_QUEUES * sizeof(u16);
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE1].buffer_offset, dram);
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE2].buffer_offset,
+		       dram + 2);
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE3].buffer_offset,
+		       dram + 4);
+		writew(lre_queue_infos[port_id][PRUETH_QUEUE4].buffer_offset,
+		       dram + 6);
+		/* Below code was added for HSR RX optimization
+		 * Merge HOST & PORT Queue - Same HOST queue size are used for PORT Queues.
+		 * basharath@CIT - 08-Sep-2023
+		 */
+		/* queue size lookup table */
+		dram = dram_base + QUEUE_SIZE_ADDR +
+		       port_id * RX_NUM_QUEUES * sizeof(u16);
+		writew(HOST_QUEUE_1_SIZE, dram);
+		writew(HOST_QUEUE_2_SIZE, dram + 2);
+		writew(QUEUE_3_SIZE, dram + 4);
+		writew(QUEUE_4_SIZE, dram + 6);
+		/* queue table */
+		memcpy_toio(dram_base + queue_desc_ofs,
+			    &hsr_prp_txopt_queue_descs[port_id][0],
+			    NUM_QUEUES * sizeof(hsr_prp_txopt_queue_descs[port_id][0]));
+
+		emac->rx_queue_descs = dram1_base + P0_QUEUE_DESC_OFFSET;
+		emac->tx_queue_descs = dram1_base +
+			lre_rx_queue_infos[port_id][PRUETH_QUEUE1].queue_desc_offset;
+
+		if (port_id == 1) {
+    	            emac->tx_queue_descs_other_port = dram1_base +
+    	                    lre_rx_queue_infos[port_id+1][PRUETH_QUEUE1].queue_desc_offset;
+    	    }
+    	    else if(port_id == 2) {
+    	            emac->tx_queue_descs_other_port = dram1_base +
+    	                    lre_rx_queue_infos[port_id-1][PRUETH_QUEUE1].queue_desc_offset;
+    	    }
 	}
-
-	/* setup mac address */
-	memcpy_toio(dram_mac + PORT_MAC_ADDR, emac->mac_addr, 6);
-	
-	/* Below code change is for HSR/PRP Updated queue structure ( Dedicated queues for PTP, SV and GOOSE )
- 	 * Roopak@CIT - 02-June-2023
- 	 */
-	writel(ocmcaddr2, (dram_mac + SECOND_64KB_BLOCK_OCMC_OFFSET)); // Store second 64kb of ocmc offset in dram
-
-
-
-	/* Remaining switch port configs are in DRAM1 */
-	dram_base = prueth->mem[PRUETH_MEM_DRAM1].va;
-
-	/* queue information table */
-	memcpy_toio(dram_base + tx_context_ofs_addr,
-		    lre_queue_infos[port_id],
-		    sizeof(lre_queue_infos[port_id]));
-
-	memcpy_toio(dram_base + rx_context_ofs,
-		    lre_rx_queue_infos[port_id],
-		    sizeof(lre_rx_queue_infos[port_id]));
-
-	/* buffer descriptor offset table*/
-	dram = dram_base + QUEUE_DESCRIPTOR_OFFSET_ADDR +
-	       (port_id * RX_NUM_QUEUES * sizeof(u16));
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE1].buffer_desc_offset, dram);
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE2].buffer_desc_offset,
-	       dram + 2);
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE3].buffer_desc_offset,
-	       dram + 4);
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE4].buffer_desc_offset,
-	       dram + 6);
-
-	/* buffer offset table */
-	dram = dram_base + QUEUE_OFFSET_ADDR +
-	       port_id * RX_NUM_QUEUES * sizeof(u16);
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE1].buffer_offset, dram);
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE2].buffer_offset,
-	       dram + 2);
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE3].buffer_offset,
-	       dram + 4);
-	writew(lre_queue_infos[port_id][PRUETH_QUEUE4].buffer_offset,
-	       dram + 6);
-	/* Below code was added for HSR RX optimization
-	 * Merge HOST & PORT Queue - Same HOST queue size are used for PORT Queues.
-	 * basharath@CIT - 08-Sep-2023
-	 */
-	/* queue size lookup table */
-	dram = dram_base + QUEUE_SIZE_ADDR +
-	       port_id * RX_NUM_QUEUES * sizeof(u16);
-	writew(HOST_QUEUE_1_SIZE, dram);
-	writew(HOST_QUEUE_2_SIZE, dram + 2);
-	writew(QUEUE_3_SIZE, dram + 4);
-	writew(QUEUE_4_SIZE, dram + 6);
-	/* queue table */
-	memcpy_toio(dram_base + queue_desc_ofs,
-		    &hsr_prp_txopt_queue_descs[port_id][0],
-		    NUM_QUEUES * sizeof(hsr_prp_txopt_queue_descs[port_id][0]));
-
-	emac->rx_queue_descs = dram1_base + P0_QUEUE_DESC_OFFSET;
-	emac->tx_queue_descs = dram1_base +
-		lre_rx_queue_infos[port_id][PRUETH_QUEUE1].queue_desc_offset;
-
-	if (port_id == 1) {
-                emac->tx_queue_descs_other_port = dram1_base +
-                        lre_rx_queue_infos[port_id+1][PRUETH_QUEUE1].queue_desc_offset;
-        }
-        else if(port_id == 2) {
-                emac->tx_queue_descs_other_port = dram1_base +
-                        lre_rx_queue_infos[port_id-1][PRUETH_QUEUE1].queue_desc_offset;
-        }
 
 	return 0;
 }
@@ -887,6 +896,12 @@ int prueth_sw_emac_config(struct prueth_emac *emac)
 	u32 sharedramaddr = ICSS_LOCAL_SHARED_RAM;
 	/* PRU needs real global OCMC address for C30*/
 	u32 ocmcaddr = (u32)prueth->mem[PRUETH_MEM_OCMC].pa;
+	/*
+	* CIT(25222) - SV and PTP is not stable in HSR network with maximum devices
+	* PRU needs DMEM address to update the mac-id in the offset 
+	* Roopak@CIT - 23-September-2025
+	*/
+	void __iomem *dram = emac->prueth->mem[emac->dram].va;
 	int ret;
 
 	if (prueth->emac_configured & BIT(emac->port_id))
@@ -895,8 +910,20 @@ int prueth_sw_emac_config(struct prueth_emac *emac)
 	/* Added new functionality for HSR/PRP TX optimization
 	*  Parvathi@CIT - 19-Aug-2022
 	*/
-	if (PRUETH_IS_LRE(prueth))
-		ret = prueth_lre_port_config(prueth, emac->port_id);
+	/*
+	* CIT(25222) - SV and PTP is not stable in HSR network with maximum devices
+	* Initialize only once, as we are initializing for both the ports in one go
+	* After initialization, the port MAC ID must be updated if this 
+	* function is invoked for a different port. 
+	* Without updating, the old/stale MAC ID will be used.
+	* Roopak@CIT - 23-September-2025
+	*/	
+	if (PRUETH_IS_LRE(prueth)){
+		if(!prueth->emac_configured)
+			ret = prueth_lre_port_config(prueth, emac->port_id);
+		else
+			memcpy_toio(dram + PORT_MAC_ADDR, emac->mac_addr, 6);
+	}
 	else
 		ret = prueth_sw_port_config(prueth, emac->port_id);
 	if (ret)
