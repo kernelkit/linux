@@ -472,6 +472,57 @@ const struct prueth_queue_desc hsr_prp_txopt_queue_descs[][NUM_QUEUES] = {
 				{ .rd_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, .wr_ptr = HSRP1_TXOPT_Q7_BD_OFFSET, },
         }
 };
+/*
+* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+* Seperate hrtimer to monitor rx fifo lock up condition for both the ports
+* If Rx fifo lockup condition is detected then trigger worker queue to reset the phy 
+* Roopak@CIT - 27-October-2025
+*/
+static enum hrtimer_restart prueth_timer_fifo_lock_up(struct hrtimer *timer)
+{
+	struct prueth *prueth = container_of(timer, struct prueth,
+					     fifo_lock_up_check_timer );
+	struct prueth_emac *emac0 = prueth->emac[PRUETH_MAC0];
+    struct prueth_emac *emac1 = prueth->emac[PRUETH_MAC1];
+	void __iomem *dram0 = prueth->mem[PRUETH_MEM_DRAM0].va;
+	void __iomem *dram1 = prueth->mem[PRUETH_MEM_DRAM1].va;
+	uint32_t pru0_num_fifo_zero=0, pru1_num_fifo_zero=0;
+	unsigned int timeout = PRUETH_TIMER_MS;
+	
+	hrtimer_forward_now(timer, ms_to_ktime(timeout));
+
+	if(emac0 && emac0->phydev) 
+	{ 
+		if(!emac0->phy_reset_lock) //Untill and unless we reset the phy( complete phy reset work) no need to check for fifo lockup
+		{
+			pru0_num_fifo_zero = readl(dram0 + RX_FIFO_LOCKUP_DMEM_OFFSET);
+			if(pru0_num_fifo_zero != 0) // If fifo lock up detected then schedule the phy reset work
+			{
+				emac0->phy_reset_lock = true; // Acquire the lock 
+				schedule_work(&prueth->phy_restart_work0); // Schedule the prueth_restart_phy0 work to reset the phy
+			}
+		}
+	} 
+	else 
+		pr_info("Timer: MII0 not ready (phydev NULL)\n");
+	
+	if(emac1 && emac1->phydev) 
+	{ 
+		if(!emac1->phy_reset_lock) //Untill and unless we reset the phy( complete phy reset work) no need to check for fifo lockup
+		{
+			pru1_num_fifo_zero = readl(dram1 + RX_FIFO_LOCKUP_DMEM_OFFSET);
+			if(pru1_num_fifo_zero != 0) // If fifo lock up detected then schedule the phy reset work
+			{
+				emac1->phy_reset_lock = true; // Acquire the lock 
+				schedule_work(&prueth->phy_restart_work1); // Schedule the prueth_restart_phy1 work to reset the phy
+			}
+		}
+	} 
+	else
+		pr_info("Timer: MII1 not ready (phydev NULL)\n");
+	return HRTIMER_RESTART;
+
+}
 
 static enum hrtimer_restart prueth_timer(struct hrtimer *timer)
 {
@@ -488,22 +539,68 @@ static enum hrtimer_restart prueth_timer(struct hrtimer *timer)
 
 	return HRTIMER_RESTART;
 }
+/*
+* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+* Worker functions to reset the phy
+* Roopak@CIT - 27-October-2025
+*/
+static void prueth_restart_phy0(struct work_struct *work)
+{
+    struct prueth *prueth = container_of(work, struct prueth, phy_restart_work0);
+    struct prueth_emac *emac0 = prueth->emac[PRUETH_MAC0];
 
+    if (emac0 && emac0->phydev) {
+        phy_stop(emac0->phydev);
+        msleep(500); //ToDo - Identify and update smallest possible delay bw restart
+        phy_start(emac0->phydev);
+    }
+}
+static void prueth_restart_phy1(struct work_struct *work)
+{
+    struct prueth *prueth = container_of(work, struct prueth, phy_restart_work1);
+    struct prueth_emac *emac1 = prueth->emac[PRUETH_MAC1];
+
+    if (emac1 && emac1->phydev) {
+        phy_stop(emac1->phydev);
+        msleep(500); //ToDo - Identify and update smallest possible delay bw restart
+        phy_start(emac1->phydev);
+    }
+}
 static void prueth_init_timer(struct prueth *prueth)
 {
 	hrtimer_init(&prueth->tbl_check_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
+			HRTIMER_MODE_REL);
 	prueth->tbl_check_timer.function = prueth_timer;
+
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Initialize the hrtimer
+	* Roopak@CIT - 27-October-2025
+	*/
+	hrtimer_init(&prueth->fifo_lock_up_check_timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL);
+	prueth->fifo_lock_up_check_timer.function = prueth_timer_fifo_lock_up;
 }
 
 static void prueth_start_timer(struct prueth_emac *emac)
 {
+	struct prueth *prueth = emac->prueth;
 	unsigned int timeout = PRUETH_TIMER_MS;
-
-	if (hrtimer_active(&emac->prueth->tbl_check_timer))
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* tbl_check_timer is only needed for HSR-PRP to monitor tables ( Host, port duplicate and node tables)
+	* Seperate hrtimer to monitor rx fifo lock up condition
+	* Roopak@CIT - 27-October-2025
+	*/
+	if (PRUETH_IS_LRE(prueth)){
+		if (hrtimer_active(&emac->prueth->tbl_check_timer))
+			return;
+		hrtimer_start(&emac->prueth->tbl_check_timer, ms_to_ktime(timeout),
+				HRTIMER_MODE_REL);
+	}
+	if (hrtimer_active(&emac->prueth->fifo_lock_up_check_timer))
 		return;
-
-	hrtimer_start(&emac->prueth->tbl_check_timer, ms_to_ktime(timeout),
+	hrtimer_start(&emac->prueth->fifo_lock_up_check_timer, ms_to_ktime(timeout),
 		      HRTIMER_MODE_REL);
 }
 
@@ -813,6 +910,16 @@ static void emac_update_phystatus(struct prueth_emac *emac)
 	if (emac->link)
 		port_status |= PORT_LINK_MASK;
 	writeb(port_status, prueth->mem[region].va + PORT_STATUS_OFFSET);
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Once the PHY restart sequence (stop and start) is complete and the port is up, release the phy_reset_lock and clear the Rx FIFO lockup counter.
+	* Roopak@CIT - 27-October-2025
+	*/
+	if(port_status)
+	{
+		emac->phy_reset_lock=false;	// Release the lock
+		writel(0, prueth->mem[region].va + RX_FIFO_LOCKUP_DMEM_OFFSET);
+	}
 }
 
 /* called back by PHY layer if there is change in link state of hw port*/
@@ -2327,9 +2434,7 @@ static int emac_ndo_open(struct net_device *ndev)
 	/* enable the port and vlan */
 	prueth_port_enable(emac, true);
 
-	/* timer used for HSR/PRP */
-	if (PRUETH_IS_LRE(prueth))
-		prueth_start_timer(emac);
+	prueth_start_timer(emac);
 
 	prueth->emac_configured |= BIT(emac->port_id);
 	mutex_unlock(&prueth->mlock);
@@ -2380,6 +2485,19 @@ static int emac_ndo_stop(struct net_device *ndev)
 
 	/* inform the upper layers. */
 	netif_stop_queue(ndev);
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Seperate hrtimer to monitor rx fifo lock up condition
+	* Cancel respective worker queue and if emac is not configured cancel the timer
+	* Roopak@CIT - 27-October-2025
+	*/
+	if(emac->port_id == PRUETH_PORT_MII0)
+		cancel_work_sync(&prueth->phy_restart_work0);
+	else if(emac->port_id == PRUETH_PORT_MII1)
+		cancel_work_sync(&prueth->phy_restart_work1);
+	if (!prueth->emac_configured)
+		hrtimer_cancel(&prueth->fifo_lock_up_check_timer);
+	
 	if (!PRUETH_IS_EMAC(prueth) && !PRUETH_IS_SWITCH(prueth)) {
 		/* HSR/PRP. Disable NAPI when last port is down */
 		if (!prueth->emac_configured) {
@@ -4354,6 +4472,13 @@ static int prueth_probe(struct platform_device *pdev)
 	}
 
 	prueth_init_timer(prueth);
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Seperate worker queues for port 1 and port 2
+	* Roopak@CIT - 27-October-2025
+	*/
+	INIT_WORK(&prueth->phy_restart_work0, prueth_restart_phy0);
+    INIT_WORK(&prueth->phy_restart_work1, prueth_restart_phy1);
 
 	ret = prueth_register_notifiers(prueth);
 	if (ret) {
@@ -4426,6 +4551,12 @@ static int prueth_remove(struct platform_device *pdev)
 	int i;
 
 	hrtimer_cancel(&prueth->tbl_check_timer);
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* cancel a running or pending high-resolution timer
+	* Roopak@CIT - 27-October-2025
+	*/
+	hrtimer_cancel(&prueth->fifo_lock_up_check_timer);
 	unregister_netdevice_notifier(&prueth->prueth_ndev_nb);
 	prueth_sw_unregister_notifiers(prueth);
 
