@@ -30,17 +30,18 @@
 
 /* default timer for HSR/PRP */
 #define PRUETH_TIMER_MS		(10)
+/*
+* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+* check phy error registers for every 1 second
+* Roopak@CIT - 05-November-2025
+*/
+#define PRUETH_TIMER_MS_1SEC		(1000)
 /* NSP counter refresh every 100 msec */
 #define PRUETH_NSP_TIMER_MS    (100)
 /* Task(22173) - EMAC/RSTP Tx Queues re-design 
  * Roopak@cit - 15-September-2023
  */
 #define SECOND_64KB_BLOCK_OCMC_OFFSET	0x0060
-/*
-* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
-* Roopak@CIT - 17-October-2025
-*/
-#define RX_FIFO_LOCKUP_DMEM_OFFSET					0x0064 // USING 4 BYTES
 
 /* PRU Ethernet Type - Ethernet functionality (protocol
  * implemented) provided by the PRU firmware being loaded.
@@ -443,7 +444,8 @@ struct prueth_emac {
 	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
 	* Roopak@CIT - 17-October-2025
 	*/
-	bool phy_reset_lock;
+	spinlock_t lock_phy_reg_access;	/* serialize access */
+	int sfp_disable_gpio;
 };
 
 struct prueth_ndev_priority {
@@ -478,9 +480,9 @@ struct prueth_ndev_priority {
  * @br_members: bit mask indicating ports that are part of the bridge
  * @eth_type: flag indicate firmware mode (Dual emac vs Switch etc)
  * @base_mac: random mac used as physical ID for each port of a switch
- * @fifo_lock_up_check_timer: HR timer for checking Rx FIFO lockup condition in firmware
- * @phy_restart_work0: Worker structure for pru0
- * @phy_restart_work1: Worker structure for pru1
+ * @phy_reg_check_timer: HR timer for checking Rx FIFO lockup condition in firmware
+ * @pru0_phy_work: Worker structure for pru0
+ * @pru1_phy_work: Worker structure for pru1
  */
 struct prueth {
 	struct device *dev;
@@ -545,9 +547,9 @@ struct prueth {
 	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
 	* Roopak@CIT - 17-October-2025
 	*/
-	struct hrtimer fifo_lock_up_check_timer;
-	struct work_struct phy_restart_work0;
-    struct work_struct phy_restart_work1;
+	struct hrtimer phy_reg_check_timer;
+	struct work_struct pru0_phy_work;
+    struct work_struct pru1_phy_work;
 
 };
 

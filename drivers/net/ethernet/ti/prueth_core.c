@@ -27,6 +27,11 @@
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
 #include <net/pkt_cls.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/platform_device.h>
 
 #include "prueth.h"
 #include "icss_mii_rt.h"
@@ -90,6 +95,15 @@
 				 NETIF_MSG_PKTDATA | \
 				 NETIF_MSG_HW | \
 				 NETIF_MSG_WOL)
+
+/*
+* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+* Phy Regsiter offsets
+* Roopak@CIT - 21-November-2025
+*/
+#define 	MII_MISR1_REG_OFFSET	0x12
+#define		MII_FCSCR_REG_OFFSET	0x14
+#define		MII_RECR_REG_OFFSET		0x15
 
 static int debug_level = -1;
 module_param(debug_level, int, 0444);
@@ -474,50 +488,26 @@ const struct prueth_queue_desc hsr_prp_txopt_queue_descs[][NUM_QUEUES] = {
 };
 /*
 * CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
-* Seperate hrtimer to monitor rx fifo lock up condition for both the ports
-* If Rx fifo lockup condition is detected then trigger worker queue to reset the phy 
+* Seperate hrtimer to monitor phy errors
 * Roopak@CIT - 27-October-2025
 */
-static enum hrtimer_restart prueth_timer_fifo_lock_up(struct hrtimer *timer)
+static enum hrtimer_restart prueth_timer_phy_reg_monitor(struct hrtimer *timer)
 {
 	struct prueth *prueth = container_of(timer, struct prueth,
-					     fifo_lock_up_check_timer );
+					     phy_reg_check_timer );
 	struct prueth_emac *emac0 = prueth->emac[PRUETH_MAC0];
     struct prueth_emac *emac1 = prueth->emac[PRUETH_MAC1];
-	void __iomem *dram0 = prueth->mem[PRUETH_MEM_DRAM0].va;
-	void __iomem *dram1 = prueth->mem[PRUETH_MEM_DRAM1].va;
-	uint32_t pru0_num_fifo_zero=0, pru1_num_fifo_zero=0;
-	unsigned int timeout = PRUETH_TIMER_MS;
+	unsigned int timeout = PRUETH_TIMER_MS_1SEC;
 	
 	hrtimer_forward_now(timer, ms_to_ktime(timeout));
-
+	/* Schedule the pru0_clear_phy_error_counters_bits work to clear phy error counters and bits for pru0 */
 	if(emac0 && emac0->phydev) 
-	{ 
-		if(!emac0->phy_reset_lock) //Untill and unless we reset the phy( complete phy reset work) no need to check for fifo lockup
-		{
-			pru0_num_fifo_zero = readl(dram0 + RX_FIFO_LOCKUP_DMEM_OFFSET);
-			if(pru0_num_fifo_zero != 0) // If fifo lock up detected then schedule the phy reset work
-			{
-				emac0->phy_reset_lock = true; // Acquire the lock 
-				schedule_work(&prueth->phy_restart_work0); // Schedule the prueth_restart_phy0 work to reset the phy
-			}
-		}
-	} 
+		schedule_work(&prueth->pru0_phy_work); 
 	else 
 		pr_info("Timer: MII0 not ready (phydev NULL)\n");
-	
+	/* Schedule the pru1_clear_phy_error_counters_bits work to clear phy error counters and bits for pru1*/
 	if(emac1 && emac1->phydev) 
-	{ 
-		if(!emac1->phy_reset_lock) //Untill and unless we reset the phy( complete phy reset work) no need to check for fifo lockup
-		{
-			pru1_num_fifo_zero = readl(dram1 + RX_FIFO_LOCKUP_DMEM_OFFSET);
-			if(pru1_num_fifo_zero != 0) // If fifo lock up detected then schedule the phy reset work
-			{
-				emac1->phy_reset_lock = true; // Acquire the lock 
-				schedule_work(&prueth->phy_restart_work1); // Schedule the prueth_restart_phy1 work to reset the phy
-			}
-		}
-	} 
+		schedule_work(&prueth->pru1_phy_work);
 	else
 		pr_info("Timer: MII1 not ready (phydev NULL)\n");
 	return HRTIMER_RESTART;
@@ -539,32 +529,48 @@ static enum hrtimer_restart prueth_timer(struct hrtimer *timer)
 
 	return HRTIMER_RESTART;
 }
+
 /*
 * CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
-* Worker functions to reset the phy
+* Worker functions to check and clear the error registers and counters
+* MISR1 interupts bits, fcscr and recr are self cleared on read
 * Roopak@CIT - 27-October-2025
 */
-static void prueth_restart_phy0(struct work_struct *work)
+static void pru0_clear_phy_error_counters_bits(struct work_struct *work)
 {
-    struct prueth *prueth = container_of(work, struct prueth, phy_restart_work0);
-    struct prueth_emac *emac0 = prueth->emac[PRUETH_MAC0];
+    struct prueth *prueth = container_of(work, struct prueth, pru0_phy_work);
+    struct prueth_emac *emac = prueth->emac[PRUETH_MAC0];
+	struct phy_device *phydev = emac->phydev;
+	unsigned long flags;
+	uint16_t misr1_bits=0,recr_err_cnt=0, fcscr_err_cnt=0;
 
-    if (emac0 && emac0->phydev) {
-        phy_stop(emac0->phydev);
-        msleep(500); //ToDo - Identify and update smallest possible delay bw restart
-        phy_start(emac0->phydev);
+    if (emac && phydev) 
+	{
+		spin_lock_irqsave(&emac->lock_phy_reg_access, flags);
+		fcscr_err_cnt = phy_read(phydev, MII_FCSCR_REG_OFFSET);
+		recr_err_cnt = phy_read(phydev, MII_RECR_REG_OFFSET);
+		if(fcscr_err_cnt | recr_err_cnt)
+			misr1_bits = phy_read(phydev, MII_MISR1_REG_OFFSET);
+		spin_unlock_irqrestore(&emac->lock_phy_reg_access, flags);
     }
 }
-static void prueth_restart_phy1(struct work_struct *work)
+static void pru1_clear_phy_error_counters_bits(struct work_struct *work)
 {
-    struct prueth *prueth = container_of(work, struct prueth, phy_restart_work1);
-    struct prueth_emac *emac1 = prueth->emac[PRUETH_MAC1];
+    struct prueth *prueth = container_of(work, struct prueth, pru1_phy_work);
+    struct prueth_emac *emac = prueth->emac[PRUETH_MAC1];
+	struct phy_device *phydev = emac->phydev;
+	unsigned long flags;
+	uint16_t misr1_bits=0,recr_err_cnt=0, fcscr_err_cnt=0;
 
-    if (emac1 && emac1->phydev) {
-        phy_stop(emac1->phydev);
-        msleep(500); //ToDo - Identify and update smallest possible delay bw restart
-        phy_start(emac1->phydev);
-    }
+    if (emac && phydev) 
+	{
+		spin_lock_irqsave(&emac->lock_phy_reg_access, flags);
+		fcscr_err_cnt = phy_read(phydev, MII_FCSCR_REG_OFFSET);
+		recr_err_cnt = phy_read(phydev, MII_RECR_REG_OFFSET);
+		if(fcscr_err_cnt | recr_err_cnt)
+			misr1_bits = phy_read(phydev, MII_MISR1_REG_OFFSET);
+		spin_unlock_irqrestore(&emac->lock_phy_reg_access, flags);	
+	}
 }
 static void prueth_init_timer(struct prueth *prueth)
 {
@@ -577,19 +583,19 @@ static void prueth_init_timer(struct prueth *prueth)
 	* Initialize the hrtimer
 	* Roopak@CIT - 27-October-2025
 	*/
-	hrtimer_init(&prueth->fifo_lock_up_check_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&prueth->phy_reg_check_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL);
-	prueth->fifo_lock_up_check_timer.function = prueth_timer_fifo_lock_up;
+	prueth->phy_reg_check_timer.function = prueth_timer_phy_reg_monitor;
 }
 
 static void prueth_start_timer(struct prueth_emac *emac)
 {
 	struct prueth *prueth = emac->prueth;
-	unsigned int timeout = PRUETH_TIMER_MS;
+	unsigned int timeout = PRUETH_TIMER_MS, timeout_1s = PRUETH_TIMER_MS_1SEC;
 	/*
 	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
 	* tbl_check_timer is only needed for HSR-PRP to monitor tables ( Host, port duplicate and node tables)
-	* Seperate hrtimer to monitor rx fifo lock up condition
+	* Seperate hrtimer to monitor phy error registers
 	* Roopak@CIT - 27-October-2025
 	*/
 	if (PRUETH_IS_LRE(prueth)){
@@ -598,9 +604,9 @@ static void prueth_start_timer(struct prueth_emac *emac)
 		hrtimer_start(&emac->prueth->tbl_check_timer, ms_to_ktime(timeout),
 				HRTIMER_MODE_REL);
 	}
-	if (hrtimer_active(&emac->prueth->fifo_lock_up_check_timer))
+	if (hrtimer_active(&emac->prueth->phy_reg_check_timer))
 		return;
-	hrtimer_start(&emac->prueth->fifo_lock_up_check_timer, ms_to_ktime(timeout),
+	hrtimer_start(&emac->prueth->phy_reg_check_timer, ms_to_ktime(timeout_1s),
 		      HRTIMER_MODE_REL);
 }
 
@@ -910,16 +916,6 @@ static void emac_update_phystatus(struct prueth_emac *emac)
 	if (emac->link)
 		port_status |= PORT_LINK_MASK;
 	writeb(port_status, prueth->mem[region].va + PORT_STATUS_OFFSET);
-	/*
-	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
-	* Once the PHY restart sequence (stop and start) is complete and the port is up, release the phy_reset_lock and clear the Rx FIFO lockup counter.
-	* Roopak@CIT - 27-October-2025
-	*/
-	if(port_status)
-	{
-		emac->phy_reset_lock=false;	// Release the lock
-		writel(0, prueth->mem[region].va + RX_FIFO_LOCKUP_DMEM_OFFSET);
-	}
 }
 
 /* called back by PHY layer if there is change in link state of hw port*/
@@ -2431,6 +2427,14 @@ static int emac_ndo_open(struct net_device *ndev)
 	/* start PHY */
 	phy_start(emac->phydev);
 
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Enable the SFP by setting the GPIO SFP_DISABLE pin low
+	* Roopak@CIT - 21-November-2025
+	*/
+    if(emac->sfp_disable_gpio)
+		gpio_set_value_cansleep(emac->sfp_disable_gpio, 0);
+
 	/* enable the port and vlan */
 	prueth_port_enable(emac, true);
 
@@ -2479,6 +2483,13 @@ static int emac_ndo_stop(struct net_device *ndev)
 
 	/* disable the mac port */
 	prueth_port_enable(emac, false);
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Disable the SFP by setting the GPIO SFP_DISABLE pin high
+	* Roopak@CIT - 21-November-2025
+	*/
+    if(emac->sfp_disable_gpio)
+		gpio_set_value_cansleep(emac->sfp_disable_gpio, 1);
 
 	/* stop PHY */
 	phy_stop(emac->phydev);
@@ -2492,11 +2503,11 @@ static int emac_ndo_stop(struct net_device *ndev)
 	* Roopak@CIT - 27-October-2025
 	*/
 	if(emac->port_id == PRUETH_PORT_MII0)
-		cancel_work_sync(&prueth->phy_restart_work0);
+		cancel_work_sync(&prueth->pru0_phy_work);
 	else if(emac->port_id == PRUETH_PORT_MII1)
-		cancel_work_sync(&prueth->phy_restart_work1);
+		cancel_work_sync(&prueth->pru1_phy_work);
 	if (!prueth->emac_configured)
-		hrtimer_cancel(&prueth->fifo_lock_up_check_timer);
+		hrtimer_cancel(&prueth->phy_reg_check_timer);
 	
 	if (!PRUETH_IS_EMAC(prueth) && !PRUETH_IS_SWITCH(prueth)) {
 		/* HSR/PRP. Disable NAPI when last port is down */
@@ -3920,6 +3931,11 @@ static int prueth_netdev_init(struct prueth *prueth,
 
 	emac->msg_enable = netif_msg_init(debug_level, PRUETH_EMAC_DEBUG);
 	spin_lock_init(&emac->lock);
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Roopak@CIT - 04-November-2025
+	*/
+	spin_lock_init(&emac->lock_phy_reg_access);
 	spin_lock_init(&emac->addr_lock);
 	spin_lock_init(&emac->ptp_skb_lock);
 	/* Added for HSR/PRP TX OPT
@@ -4201,7 +4217,8 @@ static int prueth_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	bool has_lre = false;
 	struct pruss *pruss;
-	int i, ret;
+	int i, ret, gpio_num;
+    bool is_icss1, is_icss2;
 
 	if (!np)
 		return -ENODEV;	/* we don't support non DT */
@@ -4477,8 +4494,48 @@ static int prueth_probe(struct platform_device *pdev)
 	* Seperate worker queues for port 1 and port 2
 	* Roopak@CIT - 27-October-2025
 	*/
-	INIT_WORK(&prueth->phy_restart_work0, prueth_restart_phy0);
-    INIT_WORK(&prueth->phy_restart_work1, prueth_restart_phy1);
+	INIT_WORK(&prueth->pru0_phy_work, pru0_clear_phy_error_counters_bits);
+    INIT_WORK(&prueth->pru1_phy_work, pru1_clear_phy_error_counters_bits);
+	/*
+	* CIT(25322) - SV and PTP is not stable in HSR network with maximum devices
+	* Identify ICSS1 or ICSS2 
+	* Get the SFP GPIO numbers for respective pru ports 
+	* Roopak@CIT - 21-November-2025
+	*/
+	is_icss1 = of_node_name_eq(np, "pruss1_eth");
+	is_icss2 = of_node_name_eq(np, "pruss2_eth");
+	if (is_icss1)
+	{
+		gpio_num = of_get_named_gpio(np, "pruss1-gpios", PRUETH_MAC0); 
+		if (!gpio_is_valid(gpio_num)) {
+			dev_dbg(&pdev->dev, "pru10 - failed to parse pruss1-gpios\n");
+			goto netdev_unregister;
+		}
+		prueth->emac[PRUETH_MAC0]->sfp_disable_gpio = gpio_num;
+		
+		gpio_num = of_get_named_gpio(np, "pruss1-gpios", PRUETH_MAC1); 
+		if (!gpio_is_valid(gpio_num)) {
+			dev_dbg(&pdev->dev, "pru11 - failed to parse pruss1-gpios\n");
+			goto netdev_unregister;
+		}
+		prueth->emac[PRUETH_MAC1]->sfp_disable_gpio = gpio_num;
+	}
+	if(is_icss2)
+	{
+		gpio_num = of_get_named_gpio(np, "pruss2-gpios", PRUETH_MAC0); 
+		if (!gpio_is_valid(gpio_num)) {
+			dev_dbg(&pdev->dev, "pru20 - failed to parse pruss2-gpios\n");
+			goto netdev_unregister;
+		}
+		prueth->emac[PRUETH_MAC0]->sfp_disable_gpio = gpio_num;
+		
+		gpio_num = of_get_named_gpio(np, "pruss2-gpios", PRUETH_MAC1);
+		if (!gpio_is_valid(gpio_num)) {
+			dev_dbg(&pdev->dev, "pru21 - failed to parse pruss2-gpios\n");
+			goto netdev_unregister;
+		}
+		prueth->emac[PRUETH_MAC1]->sfp_disable_gpio = gpio_num;
+	}
 
 	ret = prueth_register_notifiers(prueth);
 	if (ret) {
@@ -4556,7 +4613,7 @@ static int prueth_remove(struct platform_device *pdev)
 	* cancel a running or pending high-resolution timer
 	* Roopak@CIT - 27-October-2025
 	*/
-	hrtimer_cancel(&prueth->fifo_lock_up_check_timer);
+	hrtimer_cancel(&prueth->phy_reg_check_timer);
 	unregister_netdevice_notifier(&prueth->prueth_ndev_nb);
 	prueth_sw_unregister_notifiers(prueth);
 
