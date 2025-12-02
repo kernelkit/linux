@@ -1701,7 +1701,7 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 	/* OCMC RAM is not cached and read order is not important */
 	void *ocmc_ram = (__force void *)emac->prueth->mem[PRUETH_MEM_OCMC].va;
 	struct skb_shared_hwtstamps *ssh;
-	unsigned int actual_pkt_len;
+	unsigned int actual_pkt_len, ll_pkt_len;
 	u16	type;
 	u8 offset = 0, *ptr;
 	u64 ts;
@@ -1799,13 +1799,16 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		}
 	}	
 
+    /* CIT: actual packet length can not be updated else we may run into wraparound issues */
+	ll_pkt_len = actual_pkt_len;
+
 	/* Need to add dummy hsr tag for PTP LL packets */
 	if(pkt_info.ll_has_no_hsrTag){
-		actual_pkt_len += ICSS_LRE_TAG_RCT_SIZE;
+		ll_pkt_len = actual_pkt_len + ICSS_LRE_TAG_RCT_SIZE;
 	}
 
 	/* Allocate a socket buffer for this packet */
-	skb = netdev_alloc_skb_ip_align(ndev, actual_pkt_len);
+	skb = netdev_alloc_skb_ip_align(ndev, ll_pkt_len);
 	if (!skb) {
 		if (netif_msg_rx_err(emac) && net_ratelimit())
 			netdev_err(ndev, "failed rx buffer alloc\n");
@@ -1967,7 +1970,7 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		actual_pkt_len -= ICSS_LRE_TAG_RCT_SIZE;
 
 	if (!pkt_info.sv_frame) {
-		skb_put(skb, actual_pkt_len);
+		skb_put(skb, ll_pkt_len);
 
 		if (PRUETH_IS_SWITCH(emac->prueth)) {
 			skb->offload_fwd_mark = emac->offload_fwd_mark;
@@ -2008,7 +2011,7 @@ int emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 out:
 
 	/* update stats */
-	ndev->stats.rx_bytes += actual_pkt_len;
+	ndev->stats.rx_bytes += ll_pkt_len;
 	ndev->stats.rx_packets++;
 
 	return 0;
