@@ -5706,6 +5706,7 @@ static const struct mv88e6xxx_ops mv88e6191x_ops = {
 	.port_disable_pri_override = mv88e6xxx_port_disable_pri_override,
 	.port_get_cmode = mv88e6352_port_get_cmode,
 	.port_set_cmode = mv88e6393x_port_set_cmode,
+	.port_setup_leds = mv88e6393x_port_setup_leds,
 	.port_setup_message_port = mv88e6xxx_setup_message_port,
 	.port_set_upstream_port = mv88e6393x_port_set_upstream_port,
 	.port_enable_tcam = mv88e6xxx_port_enable_tcam,
