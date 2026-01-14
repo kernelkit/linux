@@ -102,6 +102,58 @@ struct mv88e6xxx_led_hwconfig {
 	u16 selector;
 };
 
+/* 6393X LED mode flags */
+#define MV88E6393X_FLAG_ACT      (BIT(TRIGGER_NETDEV_RX) | BIT(TRIGGER_NETDEV_TX))
+#define MV88E6393X_FLAG_LINK     BIT(TRIGGER_NETDEV_LINK)
+#define MV88E6393X_FLAG_LINK_10  BIT(TRIGGER_NETDEV_LINK_10)
+#define MV88E6393X_FLAG_LINK_100 BIT(TRIGGER_NETDEV_LINK_100)
+#define MV88E6393X_FLAG_LINK_1G  BIT(TRIGGER_NETDEV_LINK_1000)
+#define MV88E6393X_FLAG_FULL     BIT(TRIGGER_NETDEV_FULL_DUPLEX)
+
+/* 6393X LED modes */
+#define MV88E6393X_LED_MODE_BLINK 0xd
+#define MV88E6393X_LED_MODE_OFF   0xe
+#define MV88E6393X_LED_MODE_ON    0xf
+#define MV88E6393X_LED_MODES      0x10
+
+/* 6393X LED mode to flags mapping for ports 1-8 */
+static const unsigned long mv88e6393x_led_map_p1_p8[2][MV88E6393X_LED_MODES] = {
+	[0] = {
+		[0x1] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK_100 | MV88E6393X_FLAG_LINK_1G,
+		[0x2] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK_1G,
+		[0x3] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK,
+		[0x6] = MV88E6393X_FLAG_FULL,
+		[0x7] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK_10 | MV88E6393X_FLAG_LINK_1G,
+		[0x8] = MV88E6393X_FLAG_LINK,
+		[0x9] = MV88E6393X_FLAG_LINK_10,
+		[0xa] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK_10,
+		[0xb] = MV88E6393X_FLAG_LINK_100 | MV88E6393X_FLAG_LINK_1G,
+	},
+	[1] = {
+		[0x1] = MV88E6393X_FLAG_ACT,
+		[0x2] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK_10 | MV88E6393X_FLAG_LINK_100,
+		[0x3] = MV88E6393X_FLAG_LINK_1G,
+		[0x5] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK,
+		[0x6] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK_10 | MV88E6393X_FLAG_LINK_1G,
+		[0x7] = MV88E6393X_FLAG_LINK_10 | MV88E6393X_FLAG_LINK_1G,
+		[0x9] = MV88E6393X_FLAG_LINK_100,
+		[0xa] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK_100,
+		[0xb] = MV88E6393X_FLAG_LINK_10 | MV88E6393X_FLAG_LINK_100,
+	}
+};
+
+/* 6393X LED mode to flags mapping for ports 9-10 */
+static const unsigned long mv88e6393x_led_map_p9_p10[2][MV88E6393X_LED_MODES] = {
+	[0] = {
+		[0x1] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK,
+	},
+	[1] = {
+		[0x6] = MV88E6393X_FLAG_FULL,
+		[0x7] = MV88E6393X_FLAG_ACT | MV88E6393X_FLAG_LINK,
+		[0x8] = MV88E6393X_FLAG_LINK,
+	}
+};
+
 /* The following is a lookup table to check what rules we can support on a
  * certain LED given restrictions such as that some rules only work with fiber
  * (SFP) connections and some blink on activity by default.
@@ -815,6 +867,357 @@ int mv88e6xxx_port_setup_leds(struct mv88e6xxx_chip *chip, int port)
 			l->hw_control_is_supported = mv88e6xxx_led1_hw_control_is_supported;
 			l->hw_control_set = mv88e6xxx_led1_hw_control_set;
 			l->hw_control_get = mv88e6xxx_led1_hw_control_get;
+			l->hw_control_get_device = mv88e6xxx_led1_hw_control_get_device;
+		}
+		l->hw_control_trigger = "netdev";
+
+		init_data.default_label = ":port";
+		init_data.fwnode = led;
+		init_data.devname_mandatory = true;
+		init_data.devicename = kasprintf(GFP_KERNEL, "%s:0%d:0%d", chip->info->name,
+						 port, led_num);
+		if (!init_data.devicename) {
+			ret = -ENOMEM;
+			goto err_put_led;
+		}
+
+		ret = devm_led_classdev_register_ext(dev, l, &init_data);
+		kfree(init_data.devicename);
+
+		if (ret) {
+			dev_err(dev, "Failed to init LED %d for port %d", led_num, port);
+			goto err_put_led;
+		}
+	}
+
+	fwnode_handle_put(leds);
+	return 0;
+
+err_put_led:
+	fwnode_handle_put(led);
+	fwnode_handle_put(leds);
+	return ret;
+}
+
+/* 6393X LED support */
+
+static const unsigned long *mv88e6393x_led_map(int port, int led)
+{
+	if (port >= 1 && port <= 8)
+		return mv88e6393x_led_map_p1_p8[led];
+	if (port >= 9 && port <= 10)
+		return mv88e6393x_led_map_p9_p10[led];
+	return NULL;
+}
+
+static int mv88e6393x_led_flags_to_mode(int port, int led, unsigned long flags)
+{
+	const unsigned long *map = mv88e6393x_led_map(port, led);
+	int i;
+
+	if (!map)
+		return -ENODEV;
+
+	if (!flags)
+		return MV88E6393X_LED_MODE_OFF;
+
+	for (i = 0; i < MV88E6393X_LED_MODES; i++) {
+		if (map[i] == flags)
+			return i;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int mv88e6393x_led_mode_to_flags(int port, int led, u8 mode,
+					unsigned long *flags)
+{
+	const unsigned long *map = mv88e6393x_led_map(port, led);
+
+	if (!map)
+		return -ENODEV;
+
+	if (mode == MV88E6393X_LED_MODE_OFF) {
+		*flags = 0;
+		return 0;
+	}
+
+	if (mode < MV88E6393X_LED_MODES && map[mode]) {
+		*flags = map[mode];
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int mv88e6393x_led_set_mode(struct mv88e6xxx_port *p, int led, int mode)
+{
+	u16 ctrl;
+	int err;
+
+	if (mode < 0)
+		return mode;
+
+	err = mv88e6393x_port_led_read(p->chip, p->port, 0, &ctrl);
+	if (err)
+		return err;
+
+	if (led == 0) {
+		ctrl &= ~0x0f;
+		ctrl |= mode;
+	} else {
+		ctrl &= ~0xf0;
+		ctrl |= mode << 4;
+	}
+
+	return mv88e6393x_port_led_write(p->chip, p->port, 0, ctrl);
+}
+
+static int mv88e6393x_led_get_mode(struct mv88e6xxx_port *p, int led)
+{
+	u16 ctrl;
+	int err;
+
+	err = mv88e6393x_port_led_read(p->chip, p->port, 0, &ctrl);
+	if (err)
+		return err;
+
+	if (led == 0)
+		return ctrl & 0xf;
+	else
+		return (ctrl >> 4) & 0xf;
+}
+
+static int mv88e6393x_led_brightness_set(struct mv88e6xxx_port *p, int led,
+					 int brightness)
+{
+	if (brightness == LED_OFF)
+		return mv88e6393x_led_set_mode(p, led, MV88E6393X_LED_MODE_OFF);
+
+	return mv88e6393x_led_set_mode(p, led, MV88E6393X_LED_MODE_ON);
+}
+
+static int mv88e6393x_led0_brightness_set_blocking(struct led_classdev *ldev,
+						   enum led_brightness brightness)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led0);
+	int err;
+
+	mv88e6xxx_reg_lock(p->chip);
+	err = mv88e6393x_led_brightness_set(p, 0, brightness);
+	mv88e6xxx_reg_unlock(p->chip);
+
+	return err;
+}
+
+static int mv88e6393x_led1_brightness_set_blocking(struct led_classdev *ldev,
+						   enum led_brightness brightness)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led1);
+	int err;
+
+	mv88e6xxx_reg_lock(p->chip);
+	err = mv88e6393x_led_brightness_set(p, 1, brightness);
+	mv88e6xxx_reg_unlock(p->chip);
+
+	return err;
+}
+
+static int mv88e6393x_led_blink_set(struct mv88e6xxx_port *p, int led,
+				    unsigned long *delay_on,
+				    unsigned long *delay_off)
+{
+	int err;
+
+	/* Defer anything other than 50% duty cycles to software */
+	if (*delay_on != *delay_off)
+		return -EINVAL;
+
+	/* Reject values outside ~20% of our default rate (84ms) */
+	if (*delay_on && ((*delay_on < 30) || (*delay_on > 50)))
+		return -EINVAL;
+
+	mv88e6xxx_reg_lock(p->chip);
+	err = mv88e6393x_led_set_mode(p, led, MV88E6393X_LED_MODE_BLINK);
+	mv88e6xxx_reg_unlock(p->chip);
+	if (!err)
+		*delay_on = *delay_off = 42;
+
+	return err;
+}
+
+static int mv88e6393x_led0_blink_set(struct led_classdev *ldev,
+				     unsigned long *delay_on,
+				     unsigned long *delay_off)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led0);
+
+	return mv88e6393x_led_blink_set(p, 0, delay_on, delay_off);
+}
+
+static int mv88e6393x_led1_blink_set(struct led_classdev *ldev,
+				     unsigned long *delay_on,
+				     unsigned long *delay_off)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led1);
+
+	return mv88e6393x_led_blink_set(p, 1, delay_on, delay_off);
+}
+
+static int
+mv88e6393x_led0_hw_control_is_supported(struct led_classdev *ldev, unsigned long rules)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led0);
+	int mode = mv88e6393x_led_flags_to_mode(p->port, 0, rules);
+
+	return (mode < 0) ? mode : 0;
+}
+
+static int
+mv88e6393x_led1_hw_control_is_supported(struct led_classdev *ldev, unsigned long rules)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led1);
+	int mode = mv88e6393x_led_flags_to_mode(p->port, 1, rules);
+
+	return (mode < 0) ? mode : 0;
+}
+
+static int mv88e6393x_led_hw_control_set(struct mv88e6xxx_port *p,
+					 int led, unsigned long rules)
+{
+	int mode = mv88e6393x_led_flags_to_mode(p->port, led, rules);
+
+	if (mode < 0)
+		return mode;
+
+	return mv88e6393x_led_set_mode(p, led, mode);
+}
+
+static int
+mv88e6393x_led0_hw_control_set(struct led_classdev *ldev, unsigned long rules)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led0);
+	int err;
+
+	mv88e6xxx_reg_lock(p->chip);
+	err = mv88e6393x_led_hw_control_set(p, 0, rules);
+	mv88e6xxx_reg_unlock(p->chip);
+
+	return err;
+}
+
+static int
+mv88e6393x_led1_hw_control_set(struct led_classdev *ldev, unsigned long rules)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led1);
+	int err;
+
+	mv88e6xxx_reg_lock(p->chip);
+	err = mv88e6393x_led_hw_control_set(p, 1, rules);
+	mv88e6xxx_reg_unlock(p->chip);
+
+	return err;
+}
+
+static int
+mv88e6393x_led_hw_control_get(struct mv88e6xxx_port *p, int led, unsigned long *rules)
+{
+	int mode;
+
+	mv88e6xxx_reg_lock(p->chip);
+	mode = mv88e6393x_led_get_mode(p, led);
+	mv88e6xxx_reg_unlock(p->chip);
+	if (mode < 0)
+		return mode;
+
+	return mv88e6393x_led_mode_to_flags(p->port, led, mode, rules);
+}
+
+static int
+mv88e6393x_led0_hw_control_get(struct led_classdev *ldev, unsigned long *rules)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led0);
+
+	return mv88e6393x_led_hw_control_get(p, 0, rules);
+}
+
+static int
+mv88e6393x_led1_hw_control_get(struct led_classdev *ldev, unsigned long *rules)
+{
+	struct mv88e6xxx_port *p = container_of(ldev, struct mv88e6xxx_port, led1);
+
+	return mv88e6393x_led_hw_control_get(p, 1, rules);
+}
+
+int mv88e6393x_port_setup_leds(struct mv88e6xxx_chip *chip, int port)
+{
+	struct fwnode_handle *led = NULL, *leds = NULL;
+	struct led_init_data init_data = { };
+	enum led_default_state state;
+	struct mv88e6xxx_port *p;
+	struct led_classdev *l;
+	struct device *dev;
+	u32 led_num;
+	int ret;
+
+	/* 6393X has LEDs on ports 1-10 */
+	if (port < 1 || port > 10)
+		return -EOPNOTSUPP;
+
+	p = &chip->ports[port];
+	if (!p->fwnode)
+		return 0;
+
+	dev = chip->dev;
+
+	leds = fwnode_get_named_child_node(p->fwnode, "leds");
+	if (!leds) {
+		dev_dbg(dev, "No Leds node specified in device tree for port %d!\n",
+			port);
+		return 0;
+	}
+
+	fwnode_for_each_child_node(leds, led) {
+		if (fwnode_property_read_u32(led, "reg", &led_num))
+			continue;
+		if (led_num > 1) {
+			dev_err(dev, "invalid LED specified port %d\n", port);
+			ret = -EINVAL;
+			goto err_put_led;
+		}
+
+		if (led_num == 0)
+			l = &p->led0;
+		else
+			l = &p->led1;
+
+		state = led_init_default_state_get(led);
+		switch (state) {
+		case LEDS_DEFSTATE_ON:
+			l->brightness = 1;
+			mv88e6393x_led_brightness_set(p, led_num, 1);
+			break;
+		case LEDS_DEFSTATE_KEEP:
+			break;
+		default:
+			l->brightness = 0;
+			mv88e6393x_led_brightness_set(p, led_num, 0);
+		}
+
+		l->max_brightness = 1;
+		if (led_num == 0) {
+			l->brightness_set_blocking = mv88e6393x_led0_brightness_set_blocking;
+			l->blink_set = mv88e6393x_led0_blink_set;
+			l->hw_control_is_supported = mv88e6393x_led0_hw_control_is_supported;
+			l->hw_control_set = mv88e6393x_led0_hw_control_set;
+			l->hw_control_get = mv88e6393x_led0_hw_control_get;
+			l->hw_control_get_device = mv88e6xxx_led0_hw_control_get_device;
+		} else {
+			l->brightness_set_blocking = mv88e6393x_led1_brightness_set_blocking;
+			l->blink_set = mv88e6393x_led1_blink_set;
+			l->hw_control_is_supported = mv88e6393x_led1_hw_control_is_supported;
+			l->hw_control_set = mv88e6393x_led1_hw_control_set;
+			l->hw_control_get = mv88e6393x_led1_hw_control_get;
 			l->hw_control_get_device = mv88e6xxx_led1_hw_control_get_device;
 		}
 		l->hw_control_trigger = "netdev";
