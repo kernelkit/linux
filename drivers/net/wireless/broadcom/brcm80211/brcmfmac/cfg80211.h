@@ -433,7 +433,9 @@ static inline struct brcmf_cfg80211_vif *wdev_to_vif(struct wireless_dev *wdev)
 static inline
 struct net_device *cfg_to_ndev(struct brcmf_cfg80211_info *cfg)
 {
-	return brcmf_get_ifp(cfg->pub, 0)->ndev;
+	struct brcmf_if *ifp = brcmf_get_ifp(cfg->pub, 0);
+
+	return ifp ? ifp->ndev : NULL;
 }
 
 static inline struct brcmf_cfg80211_info *ndev_to_cfg(struct net_device *ndev)
