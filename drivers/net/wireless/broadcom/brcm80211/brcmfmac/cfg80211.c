@@ -3303,6 +3303,11 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 	if (brcmf_is_ibssmode(ifp->vif))
 		return brcmf_cfg80211_get_station_ibss(ifp, sinfo);
 
+	/* In station mode, we can only get station info when connected */
+	if (!brcmf_is_apmode(ifp->vif) &&
+	    !test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
+		return -ENOENT;
+
 	memset(&sta_info_le, 0, sizeof(sta_info_le));
 	memcpy(&sta_info_le, mac, ETH_ALEN);
 	err = brcmf_fil_iovar_data_get(ifp, "tdls_sta_info",
