@@ -8283,7 +8283,12 @@ brcmf_set_channel(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 	if (chspec != INVCHANSPEC) {
 		err = brcmf_fil_iovar_int_set(ifp, "chanspec", chspec);
 		if (err) {
-			brcmf_err("set chanspec 0x%04x fail, reason %d\n", chspec, err);
+			/* -52 (EBADE) is expected for regulatory-restricted
+			 * channels, don't spam the log for these.
+			 */
+			if (err != -EBADE)
+				brcmf_err("set chanspec 0x%04x fail, reason %d\n",
+					  chspec, err);
 			err = -EINVAL;
 		}
 	} else {
