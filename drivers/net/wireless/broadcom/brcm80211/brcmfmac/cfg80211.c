@@ -1130,13 +1130,15 @@ static void brcmf_scan_config_mpc(struct brcmf_if *ifp, int mpc)
 
 void brcmf_set_mpc(struct brcmf_if *ifp, int mpc)
 {
-	struct brcmf_pub *drvr = ifp->drvr;
 	s32 err = 0;
 
 	if (check_vif_up(ifp->vif)) {
 		err = brcmf_fil_iovar_int_set(ifp, "mpc", mpc);
 		if (err) {
-			bphy_err(drvr, "fail to set mpc\n");
+			/* MPC setting can fail during mode transitions,
+			 * this is not critical.
+			 */
+			brcmf_dbg(INFO, "fail to set mpc to %d: %d\n", mpc, err);
 			return;
 		}
 		brcmf_dbg(INFO, "MPC : %d\n", mpc);
@@ -5558,8 +5560,11 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev,
 		memset(&join_params, 0, sizeof(join_params));
 		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
 					     &join_params, sizeof(join_params));
-		if (err < 0)
-			bphy_err(drvr, "SET SSID error (%d)\n", err);
+		if (err < 0) {
+			/* -ERESTARTSYS is expected if hostapd was killed */
+			if (err != -ERESTARTSYS)
+				bphy_err(drvr, "SET SSID error (%d)\n", err);
+		}
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_DOWN, 1);
 		if (err < 0)
 			bphy_err(drvr, "BRCMF_C_DOWN error %d\n", err);
