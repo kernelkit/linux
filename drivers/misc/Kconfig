@@ -583,6 +583,12 @@ config TC9564_PCI
 	  quirk causes the ranges property in the endpoint's devicetree
 	  node to be updated dynamically.
 
+config SPARX5_SYMREG
+	tristate "Microchip Sparx5 Ethernet Switch Symreg Support"
+	depends on DEBUG_FS
+	help
+	  This enables the support for symbolic register access on Microchip Ethernet switches
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
