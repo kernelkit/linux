@@ -1571,6 +1571,12 @@ static void an8811hb_remove(struct phy_device *phydev)
 	}
 }
 
+static const struct of_device_id en8811h_of_match[] = {
+	{ .compatible = "ethernet-phy-id03a2.a411" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, en8811h_of_match);
+
 static struct phy_driver en8811h_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(EN8811H_PHY_ID),
