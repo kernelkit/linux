@@ -22,6 +22,7 @@
 #include <linux/pinctrl/devinfo.h>
 #include <linux/phylink.h>
 #include <linux/pcs/pcs-mtk-lynxi.h>
+#include <linux/pcs/pcs-standalone.h>
 #include <linux/jhash.h>
 #include <linux/bitfield.h>
 #include <net/dsa.h>
@@ -522,6 +523,17 @@ static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
 	struct mtk_eth *eth = mac->hw;
 	unsigned int sid;
 
+	if (mtk_is_netsys_v3_or_greater(eth)) {
+		switch (interface) {
+		case PHY_INTERFACE_MODE_USXGMII:
+		case PHY_INTERFACE_MODE_10GBASER:
+		case PHY_INTERFACE_MODE_5GBASER:
+			return mac->usxgmii_pcs;
+		default:
+			return NULL;
+		}
+	}
+
 	if (interface == PHY_INTERFACE_MODE_SGMII ||
 	    phy_interface_mode_is_8023z(interface)) {
 		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
@@ -601,6 +613,15 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					goto init_err;
 			}
 			break;
+		case PHY_INTERFACE_MODE_USXGMII:
+		case PHY_INTERFACE_MODE_10GBASER:
+		case PHY_INTERFACE_MODE_5GBASER:
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_USXGMII)) {
+				err = mtk_gmac_usxgmii_path_setup(eth, mac->id);
+				if (err)
+					goto init_err;
+			}
+			break;
 		default:
 			goto err_phy;
 		}
@@ -664,7 +685,8 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 
 		/* Save the syscfg0 value for mac_finish */
 		mac->syscfg0 = val;
-	} else if (phylink_autoneg_inband(mode)) {
+	} else if (phylink_autoneg_inband(mode) &&
+		   !mtk_interface_mode_is_xgmii(eth, state->interface)) {
 		dev_err(eth->dev,
 			"In-band mode not supported in non SGMII mode!\n");
 		return;
@@ -4910,6 +4932,28 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 		phy_interface_zero(mac->phylink_config.supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  mac->phylink_config.supported_interfaces);
+	}
+
+	if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_USXGMII)) {
+		struct phylink_pcs *pcs;
+
+		pcs = devm_of_pcs_get(eth->dev, np, 0);
+		if (IS_ERR(pcs)) {
+			if (PTR_ERR(pcs) == -ENODEV)
+				return dev_err_probe(eth->dev, -EPROBE_DEFER,
+						     "waiting for USXGMII PCS\n");
+			/* No pcs-handle property — USXGMII not wired for this MAC */
+		} else if (pcs) {
+			mac->usxgmii_pcs = pcs;
+			mac->phylink_config.mac_capabilities |= MAC_5000FD |
+								MAC_10000FD;
+			__set_bit(PHY_INTERFACE_MODE_USXGMII,
+				  mac->phylink_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_10GBASER,
+				  mac->phylink_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_5GBASER,
+				  mac->phylink_config.supported_interfaces);
+		}
 	}
 
 	phylink = phylink_create(&mac->phylink_config,
