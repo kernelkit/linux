@@ -567,6 +567,7 @@
 #define SYSCFG0_SGMII_GMAC2    ((3 << 8) & SYSCFG0_SGMII_MASK)
 #define SYSCFG0_SGMII_GMAC1_V2 BIT(9)
 #define SYSCFG0_SGMII_GMAC2_V2 BIT(8)
+#define SYSCFG0_SGMII_GMAC3_V2 BIT(7)
 
 
 /* ethernet subsystem clock register */
@@ -1012,6 +1013,13 @@ enum mkt_eth_capabilities {
 	MTK_ETH_PATH_GMAC2_2P5GPHY_BIT,
 	MTK_ETH_PATH_GMAC2_GEPHY_BIT,
 	MTK_ETH_PATH_GDM1_ESW_BIT,
+
+	/* USXGMII capability and path bits */
+	MTK_USXGMII_BIT,
+	MTK_ETH_MUX_GMAC123_TO_USXGMII_BIT,
+	MTK_ETH_PATH_GMAC1_USXGMII_BIT,
+	MTK_ETH_PATH_GMAC2_USXGMII_BIT,
+	MTK_ETH_PATH_GMAC3_USXGMII_BIT,
 };
 
 /* Supported hardware group on SoCs */
@@ -1092,6 +1100,23 @@ enum mkt_eth_capabilities {
 #define MTK_MUX_GMAC12_TO_GEPHY_SGMII   \
 	(MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII | MTK_MUX)
 
+/* USXGMII support */
+#define MTK_USXGMII		BIT_ULL(MTK_USXGMII_BIT)
+
+#define MTK_ETH_MUX_GMAC123_TO_USXGMII		\
+	BIT_ULL(MTK_ETH_MUX_GMAC123_TO_USXGMII_BIT)
+
+#define MTK_ETH_PATH_GMAC1_USXGMII	BIT_ULL(MTK_ETH_PATH_GMAC1_USXGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_USXGMII	BIT_ULL(MTK_ETH_PATH_GMAC2_USXGMII_BIT)
+#define MTK_ETH_PATH_GMAC3_USXGMII	BIT_ULL(MTK_ETH_PATH_GMAC3_USXGMII_BIT)
+
+#define MTK_GMAC1_USXGMII	(MTK_ETH_PATH_GMAC1_USXGMII | MTK_USXGMII)
+#define MTK_GMAC2_USXGMII	(MTK_ETH_PATH_GMAC2_USXGMII | MTK_USXGMII)
+#define MTK_GMAC3_USXGMII	(MTK_ETH_PATH_GMAC3_USXGMII | MTK_USXGMII)
+
+#define MTK_MUX_GMAC123_TO_USXGMII	\
+	(MTK_ETH_MUX_GMAC123_TO_USXGMII | MTK_MUX | MTK_INFRA)
+
 #define MTK_HAS_CAPS(caps, _x)		(((caps) & (_x)) == (_x))
 
 #define MT7621_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | \
@@ -1124,8 +1149,9 @@ enum mkt_eth_capabilities {
 		      MTK_RSTCTRL_PPE1 | MTK_SRAM)
 
 #define MT7988_CAPS  (MTK_36BIT_DMA | MTK_GDM1_ESW | MTK_GMAC2_2P5GPHY | \
-		      MTK_MUX_GMAC2_TO_2P5GPHY | MTK_QDMA | MTK_RSTCTRL_PPE1 | \
-		      MTK_RSTCTRL_PPE2 | MTK_SRAM)
+		      MTK_GMAC2_USXGMII | MTK_GMAC3_USXGMII | \
+		      MTK_MUX_GMAC2_TO_2P5GPHY | MTK_MUX_GMAC123_TO_USXGMII | \
+		      MTK_QDMA | MTK_RSTCTRL_PPE1 | MTK_RSTCTRL_PPE2 | MTK_SRAM)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
@@ -1372,6 +1398,7 @@ struct mtk_mac {
 	struct device_node		*of_node;
 	struct phylink			*phylink;
 	struct phylink_config		phylink_config;
+	struct phylink_pcs		*usxgmii_pcs;
 	struct mtk_eth			*hw;
 	struct mtk_hw_stats		*hw_stats;
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
@@ -1506,6 +1533,7 @@ int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_2p5gphy_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
+int mtk_gmac_usxgmii_path_setup(struct mtk_eth *eth, int mac_id);
 
 int mtk_eth_offload_init(struct mtk_eth *eth, u8 id);
 int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
