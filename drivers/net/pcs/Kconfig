@@ -29,6 +29,16 @@ config PCS_MTK_LYNXI
 	  This module provides helpers to phylink for managing the LynxI PCS
 	  which is part of MediaTek's SoC and Ethernet switch ICs.
 
+config PCS_MTK_USXGMII
+	tristate "MediaTek USXGMII PCS"
+	select PCS_STANDALONE
+	select PHY_MTK_XFI_TPHY
+	select PHYLINK
+	help
+	  This module provides a driver for MediaTek's USXGMII PCS found in
+	  the MT7988 SoC, supporting USXGMII, 10GBase-R and 5GBase-R interface
+	  modes.
+
 config PCS_RZN1_MIIC
 	tristate "Renesas RZ/N1, RZ/N2H, RZ/T2H MII converter"
 	depends on OF
