@@ -451,6 +451,16 @@ static void sfp_fixup_rollball_cc(struct sfp *sfp)
 	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SFI;
 }
 
+static void sfp_fixup_xfi_cc(struct sfp *sfp)
+{
+	/* Module has zeroed extended compliance code but uses a plain XFI
+	 * (10GBASER) host interface and does not support the Rollball MDIO
+	 * protocol.  Only fix the compliance code so the driver picks 10GBASER;
+	 * skipping Rollball avoids a ~7 minute PHY probe retry delay on boot.
+	 */
+	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SFI;
+}
+
 static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
 				struct sfp_module_caps *caps)
 {
@@ -564,6 +574,7 @@ static const struct sfp_quirk sfp_quirks[] = {
 	SFP_QUIRK_F("OEM", "SFP-GE-T", sfp_fixup_ignore_tx_fault),
 
 	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
+	SFP_QUIRK_F("OEM", "SFP-10G-T-I", sfp_fixup_xfi_cc),
 	SFP_QUIRK_S("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
 	SFP_QUIRK_S("OEM", "SFP-2.5G-BX10-D", sfp_quirk_2500basex),
 	SFP_QUIRK_S("OEM", "SFP-2.5G-BX10-U", sfp_quirk_2500basex),
