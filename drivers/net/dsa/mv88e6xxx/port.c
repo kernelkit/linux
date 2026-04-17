@@ -1484,6 +1484,16 @@ int mv88e6393x_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6393x_port_policy_write(chip, port, ptr, data);
 }
 
+int mv88e6393x_port_set_ptp_port(struct mv88e6xxx_chip *chip, int port,
+				 int upstream_port)
+{
+	u16 ptr = MV88E6393X_PORT_POLICY_MGMT_CTL_PTR_PTP_DEST;
+	u8 data = MV88E6393X_PORT_POLICY_MGMT_CTL_CPU_DEST_MGMTPRI |
+		  upstream_port;
+
+	return mv88e6393x_port_policy_write(chip, port, ptr, data);
+}
+
 int mv88e6393x_port_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 {
 	u16 ptr;
