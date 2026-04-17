@@ -283,6 +283,8 @@
 #define MV88E6393X_PORT_POLICY_MGMT_CTL_PTR_INGRESS_DEST	0x3000
 #define MV88E6393X_PORT_POLICY_MGMT_CTL_PTR_CPU_DEST		0x3800
 #define MV88E6393X_PORT_POLICY_MGMT_CTL_CPU_DEST_MGMTPRI	0x00e0
+#define MV88E6393X_PORT_POLICY_MGMT_CTL_CPU_DEST_DISABLED	0x001f
+#define MV88E6393X_PORT_POLICY_MGMT_CTL_PTR_PTP_DEST		0x3f00
 
 /* Offset 0x0F: Port Special Ether Type */
 #define MV88E6XXX_PORT_ETH_TYPE		0x0f
@@ -577,6 +579,8 @@ int mv88e6393x_set_egress_port(struct mv88e6xxx_chip *chip,
 			       int port);
 int mv88e6393x_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 				      int upstream_port);
+int mv88e6393x_port_set_ptp_port(struct mv88e6xxx_chip *chip, int port,
+				 int upstream_port);
 int mv88e6393x_port_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
 				    bool message_port);

@@ -13,6 +13,7 @@
 #include "chip.h"
 #include "global2.h"
 #include "hwtstamp.h"
+#include "port.h"
 #include "ptp.h"
 #include <linux/ptp_classify.h>
 
@@ -531,6 +532,31 @@ int mv88e6352_hwtstamp_port_enable(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_port_ptp_write(chip, port, MV88E6XXX_PORT_PTP_CFG0,
 					MV88E6XXX_PORT_PTP_CFG0_DISABLE_TSPEC_MATCH);
+}
+
+int mv88e6393x_hwtstamp_port_disable(struct mv88e6xxx_chip *chip, int port)
+{
+	int upstream = MV88E6393X_PORT_POLICY_MGMT_CTL_CPU_DEST_DISABLED;
+	int err;
+
+
+	err = mv88e6352_hwtstamp_port_disable(chip, port);
+	if (err)
+		return err;
+
+	return mv88e6393x_port_set_ptp_port(chip, port, upstream);
+}
+
+int mv88e6393x_hwtstamp_port_enable(struct mv88e6xxx_chip *chip, int port)
+{
+	int upstream = dsa_upstream_port(chip->ds, port);
+	int err;
+
+	err = mv88e6393x_port_set_ptp_port(chip, port, upstream);
+	if (err)
+		return err;
+
+	return mv88e6352_hwtstamp_port_enable(chip, port);
 }
 
 static int mv88e6xxx_hwtstamp_port_setup(struct mv88e6xxx_chip *chip, int port)
