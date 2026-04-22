@@ -479,16 +479,35 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 		writel_relaxed(val, pcie->base + PCIE_RST_CTRL_REG);
 
 		/*
-		 * Described in PCIe CEM specification revision 6.0.
+		 * Backport of upstream commit b6e0223ab75e ("PCI: mediatek-gen3:
+		 * Fix PERST# control timing during system startup").
 		 *
-		 * The deassertion of PERST# should be delayed 100ms (TPVPERL)
-		 * for the power and clock to become stable.
+		 * Some MediaTek Gen3 PCIe controllers (mt7986 amongst them) gate
+		 * REFCLK off while PCIE_PHY_RSTB is asserted. If we hold PHY/BRG
+		 * in reset for the full TPVPERL window before releasing PERST#,
+		 * the endpoint never sees a stable reference clock and the link
+		 * stays in detect.quiet. The correct sequence is:
+		 *
+		 *   assert all → wait BRG ready (~10ms) → release MAC/PHY/BRG
+		 *   (REFCLK starts) → wait TPVPERL (100ms) → release PERST#.
+		 *
+		 * PCIE_BRG_RSTB also requires a short settle window before the
+		 * PCIe internal registers are accessible again.
+		 */
+		msleep(10);
+
+		/* De-assert MAC/PHY/BRG so REFCLK starts running */
+		val &= ~(PCIE_MAC_RSTB | PCIE_PHY_RSTB | PCIE_BRG_RSTB);
+		writel_relaxed(val, pcie->base + PCIE_RST_CTRL_REG);
+
+		/*
+		 * PCIe CEM revision 6.0 TPVPERL: 100ms with stable power and
+		 * REFCLK before PERST# is de-asserted.
 		 */
 		msleep(PCIE_T_PVPERL_MS);
 
-		/* De-assert reset signals */
-		val &= ~(PCIE_MAC_RSTB | PCIE_PHY_RSTB | PCIE_BRG_RSTB |
-			 PCIE_PE_RSTB);
+		/* De-assert PERST# */
+		val &= ~PCIE_PE_RSTB;
 		writel_relaxed(val, pcie->base + PCIE_RST_CTRL_REG);
 	}
 
