@@ -56,6 +56,7 @@ static const struct of_device_id mt7622_wmac_of_match[] = {
 	{ .compatible = "mediatek,mt7622-wmac" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mt7622_wmac_of_match);
 
 struct platform_driver mt7622_wmac_driver = {
 	.driver = {
