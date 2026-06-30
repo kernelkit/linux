@@ -8124,11 +8124,11 @@ exit:
 }
 
 static s32
-brcmf_set_channel(struct brcmf_cfg80211_info *cfg, struct ieee80211_channel *chan)
+brcmf_set_channel(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
+		  struct ieee80211_channel *chan)
 {
 	u16 chspec = 0;
 	int err = 0;
-	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 
 	if (chan->flags & IEEE80211_CHAN_DISABLED)
 		return -EINVAL;
@@ -8159,7 +8159,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 			   int idx, struct survey_info *info)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_dump_survey survey = {};
 	struct ieee80211_supported_band *band;
 	enum nl80211_band band_id;
@@ -8190,18 +8190,20 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 	if (band_id == NUM_NL80211_BANDS)
 		return -ENOENT;
 
-	/* Setting current channel to the requested channel */
-	info->filled = 0;
-	if (brcmf_set_channel(cfg, info->channel))
-		return 0;
-
 	/* Disable mpc */
 	brcmf_set_mpc(ifp, 0);
 
-	/* Set interface up, explicitly. */
+	/* Set interface up before any channel operations. */
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
 	if (err) {
 		brcmf_err("set interface up failed, err = %d\n", err);
+		goto exit;
+	}
+
+	/* Setting current channel to the requested channel */
+	info->filled = 0;
+	if (brcmf_set_channel(cfg, ifp, info->channel)) {
+		err = 0;
 		goto exit;
 	}
 
