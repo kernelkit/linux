@@ -2115,8 +2115,12 @@ static int brcmf_p2p_disable_p2p_if(struct brcmf_cfg80211_vif *vif)
 {
 	struct brcmf_cfg80211_info *cfg = wdev_to_cfg(&vif->wdev);
 	struct net_device *pri_ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(pri_ndev);
 	const u8 *addr = vif->wdev.netdev->dev_addr;
+	struct brcmf_if *ifp;
+
+	if (!pri_ndev)
+		return -ENODEV;
+	ifp = netdev_priv(pri_ndev);
 
 	return brcmf_fil_iovar_data_set(ifp, "p2p_ifdis", addr, ETH_ALEN);
 }
@@ -2125,8 +2129,12 @@ static int brcmf_p2p_release_p2p_if(struct brcmf_cfg80211_vif *vif)
 {
 	struct brcmf_cfg80211_info *cfg = wdev_to_cfg(&vif->wdev);
 	struct net_device *pri_ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(pri_ndev);
 	const u8 *addr = vif->wdev.netdev->dev_addr;
+	struct brcmf_if *ifp;
+
+	if (!pri_ndev)
+		return -ENODEV;
+	ifp = netdev_priv(pri_ndev);
 
 	return brcmf_fil_iovar_data_set(ifp, "p2p_ifdel", addr, ETH_ALEN);
 }
@@ -2222,8 +2230,13 @@ fail:
 static int brcmf_p2p_get_conn_idx(struct brcmf_cfg80211_info *cfg)
 {
 	int i;
-	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+	struct net_device *ndev = cfg_to_ndev(cfg);
+	struct brcmf_if *ifp;
 
+	if (!ndev)
+		return -ENODEV;
+
+	ifp = netdev_priv(ndev);
 	if (!ifp)
 		return -ENODEV;
 
@@ -2255,13 +2268,20 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 				       struct vif_params *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+	struct net_device *ndev = cfg_to_ndev(cfg);
 	struct brcmf_pub *drvr = cfg->pub;
 	struct brcmf_cfg80211_vif *vif;
 	enum brcmf_fil_p2p_if_types iftype;
+	struct brcmf_if *ifp;
 	int err = 0;
 	int connidx;
 	u8 *p2p_intf_addr;
+
+	if (!ndev) {
+		bphy_err(drvr, "primary interface not available\n");
+		return ERR_PTR(-ENODEV);
+	}
+	ifp = netdev_priv(ndev);
 
 	if (brcmf_cfg80211_vif_event_armed(cfg))
 		return ERR_PTR(-EBUSY);

@@ -1026,8 +1026,11 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 	ret = brcmf_fil_iovar_int_get(ifp, "arp_version", &val);
 	if (ret)
 		val = 1;
-	if (val == 1)
+	if (val == 1) {
 		ifp = drvr->iflist[0];
+		if (!ifp)
+			return NOTIFY_DONE;
+	}
 
 	/* retrieve the table from firmware */
 	ret = brcmf_fil_iovar_data_get(ifp, "arp_hostip", addr_table,
