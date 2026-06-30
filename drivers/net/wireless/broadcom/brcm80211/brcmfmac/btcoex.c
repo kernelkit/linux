@@ -141,6 +141,9 @@ static void brcmf_btcoex_boost_wifi(struct brcmf_btcoex_info *btci,
 {
 	struct brcmf_if *ifp = brcmf_get_ifp(btci->cfg->pub, 0);
 
+	if (!ifp)
+		return;
+
 	if (trump_sco && !btci->saved_regs_part2) {
 		/* this should reduce eSCO agressive
 		 * retransmit w/o breaking it
@@ -453,6 +456,9 @@ int brcmf_btcoex_set_mode(struct brcmf_cfg80211_vif *vif,
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(vif->wdev.wiphy);
 	struct brcmf_btcoex_info *btci = cfg->btcoex;
 	struct brcmf_if *ifp = brcmf_get_ifp(cfg->pub, 0);
+
+	if (!ifp)
+		return -ENODEV;
 
 	switch (mode) {
 	case BRCMF_BTCOEX_DISABLED:
