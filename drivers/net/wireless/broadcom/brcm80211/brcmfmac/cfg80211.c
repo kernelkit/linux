@@ -822,10 +822,17 @@ struct wireless_dev *brcmf_apsta_add_vif(struct wiphy *wiphy, const char *name,
 					 enum nl80211_iftype type)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+	struct net_device *ndev = cfg_to_ndev(cfg);
 	struct brcmf_pub *drvr = cfg->pub;
 	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_if *ifp;
 	int err;
+
+	if (!ndev) {
+		bphy_err(drvr, "primary interface not available\n");
+		return ERR_PTR(-ENODEV);
+	}
+	ifp = netdev_priv(ndev);
 
 	if (type != NL80211_IFTYPE_STATION && type != NL80211_IFTYPE_AP)
 		return ERR_PTR(-EINVAL);
@@ -1644,10 +1651,13 @@ static s32 brcmf_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx,
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_if *ifp;
 	s32 err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
+	if (!ndev)
+		return -ENODEV;
+	ifp = netdev_priv(ndev);
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
@@ -2653,13 +2663,18 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = cfg->pub;
+	struct brcmf_if *ifp;
 	s32 err;
 	s32 disable;
 	u32 qdbm = 127;
 
 	brcmf_dbg(TRACE, "Enter %d %d\n", type, mbm);
+	if (!ndev) {
+		bphy_err(drvr, "primary interface not available\n");
+		return -ENODEV;
+	}
+	ifp = netdev_priv(ndev);
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
@@ -4173,9 +4188,14 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_if *ifp;
 
 	brcmf_dbg(TRACE, "Enter\n");
+
+	/* Nothing to restore if the primary interface has been removed. */
+	if (!ndev)
+		return 0;
+	ifp = netdev_priv(ndev);
 
 	if (cfg->wowl.active) {
 		brcmf_report_wowl_wakeind(wiphy, ifp);
@@ -4276,10 +4296,15 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_if *ifp;
 
 	brcmf_dbg(TRACE, "Enter\n");
+
+	/* Nothing to configure if the primary interface has been removed. */
+	if (!ndev)
+		return 0;
+	ifp = netdev_priv(ndev);
 
 	/* if the primary net_device is not READY there is nothing
 	 * we can do but pray resume goes smoothly.
@@ -7787,21 +7812,17 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	return 0;
 }
 
-static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
+static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg,
+			       struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = cfg->pub;
-	struct net_device *ndev;
-	struct wireless_dev *wdev;
-	struct brcmf_if *ifp;
+	struct net_device *ndev = ifp->ndev;
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	s32 power_mode;
 	s32 err = 0;
 
 	if (cfg->dongle_up)
 		return err;
-
-	ndev = cfg_to_ndev(cfg);
-	wdev = ndev->ieee80211_ptr;
-	ifp = netdev_priv(ndev);
 
 	/* make sure RF is ready for work */
 	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
@@ -7842,7 +7863,7 @@ static s32 __brcmf_cfg80211_up(struct brcmf_if *ifp)
 {
 	set_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state);
 
-	return brcmf_config_dongle(ifp->drvr->config);
+	return brcmf_config_dongle(ifp->drvr->config, ifp);
 }
 
 static s32 __brcmf_cfg80211_down(struct brcmf_if *ifp)
@@ -8276,6 +8297,12 @@ static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 
 	brcmf_dbg(TRACE, "Enter: initiator=%d, alpha=%c%c\n", req->initiator,
 		  req->alpha2[0], req->alpha2[1]);
+
+	/* The country iovar is issued on the primary interface. */
+	if (!ifp) {
+		bphy_err(drvr, "primary interface not available\n");
+		return;
+	}
 
 	err = brcmf_fil_iovar_data_get(ifp, "country", &ccreq, sizeof(ccreq));
 	if (err) {
