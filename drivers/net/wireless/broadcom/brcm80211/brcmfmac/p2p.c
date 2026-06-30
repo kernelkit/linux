@@ -1156,6 +1156,8 @@ static s32 brcmf_p2p_af_searching_channel(struct brcmf_p2p_info *p2p)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	pri_vif = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
+	if (!pri_vif)
+		return P2P_INVALID_CHANNEL;
 
 	reinit_completion(&afx_hdl->act_frm_scan);
 	set_bit(BRCMF_P2P_STATUS_FINDING_COMMON_CHANNEL, &p2p->status);
@@ -1299,8 +1301,14 @@ static void
 brcmf_p2p_stop_wait_next_action_frame(struct brcmf_cfg80211_info *cfg)
 {
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
-	struct brcmf_if *ifp = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->ifp;
+	struct brcmf_cfg80211_vif *pri_vif;
+	struct brcmf_if *ifp;
 	s32 err;
+
+	pri_vif = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
+	if (!pri_vif)
+		return;
+	ifp = pri_vif->ifp;
 
 	if (test_bit(BRCMF_P2P_STATUS_SENDING_ACT_FRAME, &p2p->status) &&
 	    (test_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status) ||
@@ -1716,6 +1724,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_if *ifp,
 	struct brcmf_config_af_params config_af_params;
 	struct afx_hdl *afx_hdl = &p2p->afx_hdl;
 	struct brcmf_pub *drvr = cfg->pub;
+	struct brcmf_cfg80211_vif *pri_vif;
 	u16 action_frame_len;
 	bool ack = false;
 	u8 category;
@@ -1792,8 +1801,9 @@ bool brcmf_p2p_send_action_frame(struct brcmf_if *ifp,
 	/* if connecting on primary iface, sleep for a while before sending
 	 * af tx for VSDB
 	 */
-	if (test_bit(BRCMF_VIF_STATUS_CONNECTING,
-		     &p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->sme_state))
+	pri_vif = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif;
+	if (pri_vif &&
+	    test_bit(BRCMF_VIF_STATUS_CONNECTING, &pri_vif->sme_state))
 		msleep(50);
 
 	/* if scan is ongoing, abort current scan. */
