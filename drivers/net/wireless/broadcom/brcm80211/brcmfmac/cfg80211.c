@@ -124,6 +124,9 @@ struct cca_msrmnt_query {
 	u32 time_req;
 };
 
+static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg,
+			       struct brcmf_if *ifp);
+
 static bool check_vif_up(struct brcmf_cfg80211_vif *vif)
 {
 	if (!test_bit(BRCMF_VIF_STATUS_READY, &vif->sme_state)) {
@@ -875,6 +878,13 @@ struct wireless_dev *brcmf_apsta_add_vif(struct wiphy *wiphy, const char *name,
 		goto fail;
 	}
 
+	/*
+	 * Bring the firmware interface up. When firmware reuses a bsscfgidx
+	 * from a previously deleted interface it may retain stale state that
+	 * affects channel operations; bringing it up ensures proper init.
+	 */
+	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
+
 	strscpy(ifp->ndev->name, name, sizeof(ifp->ndev->name));
 	err = brcmf_net_attach(ifp, true);
 	if (err) {
@@ -981,6 +991,94 @@ static int brcmf_mon_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	return 0;
 }
 
+/**
+ * brcmf_cfg80211_add_primary_iface() - recreate the primary interface
+ *
+ * @wiphy: wiphy device of new interface.
+ * @name: name of the new interface.
+ * @type: interface type (STATION or AP).
+ * @params: interface parameters, only the MAC address is used.
+ *
+ * The primary interface (bsscfgidx 0) always exists in firmware and cannot
+ * be created there. This rebuilds the local driver structures after the
+ * primary interface was removed by brcmf_cfg80211_del_primary_iface().
+ *
+ * Return: pointer to new wdev on success, ERR_PTR(-errno) on failure.
+ */
+static struct wireless_dev *brcmf_cfg80211_add_primary_iface(struct wiphy *wiphy,
+							     const char *name,
+							     enum nl80211_iftype type,
+							     struct vif_params *params)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_pub *drvr = cfg->pub;
+	struct brcmf_cfg80211_vif *vif;
+	u8 *mac = drvr->mac;
+	struct brcmf_if *ifp;
+	int err;
+
+	brcmf_dbg(INFO, "Recreating primary interface \"%s\" at bsscfgidx 0\n",
+		  name);
+
+	if (params && !is_zero_ether_addr(params->macaddr))
+		mac = params->macaddr;
+
+	ifp = brcmf_add_if(drvr, 0, 0, false, name, mac);
+	if (IS_ERR(ifp))
+		return ERR_CAST(ifp);
+
+	brcmf_proto_add_if(drvr, ifp);
+
+	vif = brcmf_alloc_vif(cfg, type);
+	if (IS_ERR(vif)) {
+		err = PTR_ERR(vif);
+		goto fail_if;
+	}
+
+	vif->ifp = ifp;
+	vif->wdev.netdev = ifp->ndev;
+	ifp->ndev->ieee80211_ptr = &vif->wdev;
+	SET_NETDEV_DEV(ifp->ndev, wiphy_dev(cfg->wiphy));
+	ifp->vif = vif;
+
+	err = brcmf_net_attach(ifp, true);
+	if (err) {
+		bphy_err(drvr, "Registering netdevice failed\n");
+		/*
+		 * brcmf_net_attach() failure leaves iflist[0] cleared and the
+		 * netdev unregistered, so brcmf_remove_interface() would not
+		 * find it. Free the netdev and the vif directly instead.
+		 */
+		free_netdev(ifp->ndev);
+		brcmf_free_vif(vif);
+		return ERR_PTR(err);
+	}
+
+	/* The p2p code and brcmf_cfg80211_connect() key off this vif. */
+	cfg->p2p.bss_idx[P2PAPI_BSSCFG_PRIMARY].vif = vif;
+
+	/*
+	 * Bringing bsscfgidx 0 up and (re)configuring the dongle would
+	 * normally happen on ndo_open via brcmf_cfg80211_up(). Operations
+	 * such as channel survey may run before the interface is opened, and
+	 * dongle_up was cleared if the primary interface was the last one
+	 * removed, so configure the dongle here. The firmware keeps the
+	 * address it was last given, so program the one this netdev uses.
+	 */
+	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
+	brcmf_c_set_cur_etheraddr(ifp, ifp->mac_addr);
+	set_bit(BRCMF_VIF_STATUS_READY, &vif->sme_state);
+	err = brcmf_config_dongle(cfg, ifp);
+	if (err)
+		bphy_err(drvr, "dongle configuration failed: %d\n", err);
+
+	return &vif->wdev;
+
+fail_if:
+	brcmf_remove_interface(ifp, true);
+	return ERR_PTR(err);
+}
+
 static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 						     const char *name,
 						     unsigned char name_assign_type,
@@ -1008,7 +1106,12 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 		return brcmf_mon_add_vif(wiphy, name);
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_AP:
-		wdev = brcmf_apsta_add_vif(wiphy, name, params, type);
+		/* Recreate the primary interface if its slot is free. */
+		if (!drvr->iflist[0])
+			wdev = brcmf_cfg80211_add_primary_iface(wiphy, name,
+								type, params);
+		else
+			wdev = brcmf_apsta_add_vif(wiphy, name, params, type);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
@@ -1303,14 +1406,64 @@ err_unarm:
 	return err;
 }
 
+static int brcmf_cfg80211_del_primary_iface(struct wiphy *wiphy,
+					    struct wireless_dev *wdev)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct net_device *ndev = wdev->netdev;
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_pub *drvr = cfg->pub;
+	bool last = true;
+	int i;
+
+	/*
+	 * The p2p code operates through the primary interface, so refuse
+	 * to remove it while any p2p interface exists.
+	 */
+	for (i = P2PAPI_BSSCFG_DEVICE; i < P2PAPI_BSSCFG_MAX; i++) {
+		if (cfg->p2p.bss_idx[i].vif) {
+			bphy_err(drvr, "p2p interface(s) still present\n");
+			return -EBUSY;
+		}
+	}
+
+	for (i = 1; i < BRCMF_MAX_IFS; i++) {
+		if (drvr->iflist[i]) {
+			last = false;
+			break;
+		}
+	}
+
+	/*
+	 * The primary interface (bsscfgidx 0) cannot be removed from
+	 * firmware, but the local interface structures can be torn down so
+	 * it can be recreated later via add_virtual_intf(). Make sure the
+	 * escan timeout worker cannot run against the freed interface.
+	 *
+	 * BRCMF_C_DOWN clears leftover firmware state, but it affects the
+	 * whole dongle, so only send it when no other interface remains, and
+	 * then let brcmf_config_dongle() reinitialise the firmware when the
+	 * primary interface is recreated.
+	 */
+	brcmf_abort_scanning(cfg);
+	cancel_work_sync(&cfg->escan_timeout_work);
+	if (last) {
+		brcmf_fil_cmd_int_set(ifp, BRCMF_C_DOWN, 1);
+		cfg->dongle_up = false;
+	}
+
+	cfg->p2p.bss_idx[P2PAPI_BSSCFG_PRIMARY].vif = NULL;
+	brcmf_remove_interface(ifp, true);
+
+	return 0;
+}
+
 static
 int brcmf_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = wdev->netdev;
-
-	if (ndev && ndev == cfg_to_ndev(cfg))
-		return -ENOTSUPP;
+	bool is_primary = ndev && ndev == cfg_to_ndev(cfg);
 
 	/* vif event pending in firmware */
 	if (brcmf_cfg80211_vif_event_armed(cfg))
@@ -1324,6 +1477,10 @@ int brcmf_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 		brcmf_fil_iovar_int_set(netdev_priv(ndev), "mpc", 1);
 	}
+
+	/* The primary interface is handled the same whatever its type. */
+	if (is_primary)
+		return brcmf_cfg80211_del_primary_iface(wiphy, wdev);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_ADHOC:
