@@ -874,8 +874,8 @@ int mv88e6xxx_port_setup_leds(struct mv88e6xxx_chip *chip, int port)
 		init_data.default_label = ":port";
 		init_data.fwnode = led;
 		init_data.devname_mandatory = true;
-		init_data.devicename = kasprintf(GFP_KERNEL, "%s:0%d:0%d", chip->info->name,
-						 port, led_num);
+		init_data.devicename = kasprintf(GFP_KERNEL, "%s.%d:%d",
+						 dev_name(chip->dev), port, led_num);
 		if (!init_data.devicename) {
 			ret = -ENOMEM;
 			goto err_put_led;
