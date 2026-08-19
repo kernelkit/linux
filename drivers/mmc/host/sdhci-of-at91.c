@@ -25,6 +25,7 @@
 
 #define SDMMC_MC1R	0x204
 #define		SDMMC_MC1R_DDR		BIT(3)
+#define		SDMMC_MC1R_RSTN		BIT(6)
 #define		SDMMC_MC1R_FCD		BIT(7)
 #define SDMMC_CACR	0x230
 #define		SDMMC_CACR_CAPWREN	BIT(0)
@@ -42,6 +43,7 @@ struct sdhci_at91_soc_data {
 	unsigned int max_sdr104_clk;
 	bool hs200_broken;
 	bool pm_runtime_disable_clks;
+	bool reset_on_probe;
 };
 
 struct sdhci_at91_priv {
@@ -103,7 +105,13 @@ static void sdhci_at91_set_clock(struct sdhci_host *host, unsigned int clock)
 static void sdhci_at91_set_uhs_signaling(struct sdhci_host *host,
 					 unsigned int timing)
 {
+	u16 clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	u8 mc1r;
+
+	/* SDCLK must be disabled while changing the mode */
+	if (clk & SDHCI_CLOCK_CARD_EN)
+		sdhci_writew(host, clk & ~SDHCI_CLOCK_CARD_EN,
+			     SDHCI_CLOCK_CONTROL);
 
 	if (timing == MMC_TIMING_MMC_DDR52) {
 		mc1r = sdhci_readb(host, SDMMC_MC1R);
@@ -111,15 +119,33 @@ static void sdhci_at91_set_uhs_signaling(struct sdhci_host *host,
 		sdhci_writeb(host, mc1r, SDMMC_MC1R);
 	}
 	sdhci_set_uhs_signaling(host, timing);
+
+	if (clk & SDHCI_CLOCK_CARD_EN) {
+		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+		sdhci_writew(host, clk | SDHCI_CLOCK_CARD_EN,
+			     SDHCI_CLOCK_CONTROL);
+	}
 }
 
 static void sdhci_at91_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_at91_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	u16 clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	unsigned int tmp;
 
+	/* SDCLK must be disabled while resetting the HW block */
+	if (clk & SDHCI_CLOCK_CARD_EN)
+		sdhci_writew(host, clk & ~SDHCI_CLOCK_CARD_EN,
+			     SDHCI_CLOCK_CONTROL);
+
 	sdhci_reset(host, mask);
+
+	if (clk & SDHCI_CLOCK_CARD_EN) {
+		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+		sdhci_writew(host, clk | SDHCI_CLOCK_CARD_EN,
+			     SDHCI_CLOCK_CONTROL);
+	}
 
 	if ((host->mmc->caps & MMC_CAP_NONREMOVABLE)
 	    || mmc_gpio_get_cd(host->mmc) >= 0)
@@ -137,12 +163,30 @@ static void sdhci_at91_reset(struct sdhci_host *host, u8 mask)
 	}
 }
 
+static void sdhci_at91_hw_reset(struct sdhci_host *host)
+{
+	u8 mc1r;
+
+	mc1r = readb(host->ioaddr + SDMMC_MC1R);
+	mc1r |= SDMMC_MC1R_RSTN;
+	writeb(mc1r, host->ioaddr + SDMMC_MC1R);
+
+	udelay(10);
+
+	mc1r &= ~SDMMC_MC1R_RSTN;
+	writeb(mc1r, host->ioaddr + SDMMC_MC1R);
+
+	/* JEDEC specifies a minimum of 200us for tRSCA (reset to command) */
+	usleep_range(200, 500);
+}
+
 static const struct sdhci_ops sdhci_at91_sama5d2_ops = {
 	.set_clock		= sdhci_at91_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_at91_reset,
 	.set_uhs_signaling	= sdhci_at91_set_uhs_signaling,
 	.set_power		= sdhci_set_power_and_bus_voltage,
+	.hw_reset		= sdhci_at91_hw_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_sama5d2_pdata = {
@@ -171,6 +215,7 @@ static const struct sdhci_at91_soc_data soc_data_lan969x = {
 	.baseclk_is_generated_internally = true,
 	.divider_for_baseclk = 2,
 	.max_sdr104_clk = 100000000,
+	.reset_on_probe = true,
 };
 
 static const struct of_device_id sdhci_at91_dt_match[] = {
@@ -346,6 +391,11 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	priv = sdhci_pltfm_priv(pltfm_host);
 	priv->soc_data = soc_data;
+
+	if (soc_data->reset_on_probe) {
+		sdhci_at91_reset(host, SDHCI_RESET_ALL);
+		sdhci_at91_hw_reset(host);
+	}
 
 	priv->mainck = devm_clk_get(&pdev->dev, "baseclk");
 	if (IS_ERR(priv->mainck)) {
