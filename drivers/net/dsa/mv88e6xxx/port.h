@@ -490,6 +490,11 @@
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EN_DSCP		0x0040
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DSCP_MASK		0x003f
 
+/* Offset 0x19: Port Control 3 */
+#define MV88E6390_PORT_CTL3				0x19
+#define MV88E6390_PORT_CTL3_UPDATE_DSCP			0x0020
+#define MV88E6390_PORT_CTL3_UPDATE_DEI			0x0008
+
 /* Offset 0x18: Port IEEE Priority Remapping Registers (0-3) */
 #define MV88E6095_PORT_IEEE_PRIO_REMAP_0123	0x18
 
@@ -585,6 +590,14 @@ int mv88e6390_port_get_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 				u8 pcp, u8 dei);
 int mv88e6390_port_set_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 				u8 pcp, u8 dei, int prio);
+int mv88e6390_port_get_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
+				u8 prio, u8 *pcp);
+int mv88e6390_port_set_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
+				u8 prio, int pcp);
+int mv88e6390_port_get_dscp_rewr(struct mv88e6xxx_chip *chip, int port,
+				 u8 prio, u8 *dscp);
+int mv88e6390_port_set_dscp_rewr(struct mv88e6xxx_chip *chip, int port,
+				 u8 prio, int dscp);
 int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
 				   enum mv88e6xxx_egress_mode mode);
 int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
