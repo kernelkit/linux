@@ -211,6 +211,7 @@
 
 /* Offset 0x07: Default Port VLAN ID & Priority */
 #define MV88E6XXX_PORT_DEFAULT_VLAN		0x07
+#define MV88E6XXX_PORT_DEFAULT_VLAN_FPRI_MASK	0xe000
 #define MV88E6XXX_PORT_DEFAULT_VLAN_MASK	0x0fff
 
 /* Offset 0x08: Port Control 2 Register */
@@ -235,6 +236,7 @@
 #define MV88E6XXX_PORT_CTL2_EGRESS_MONITOR		0x0020
 #define MV88E6XXX_PORT_CTL2_INGRESS_MONITOR		0x0010
 #define MV88E6095_PORT_CTL2_CPU_PORT_MASK		0x000f
+#define MV88E6390_PORT_CTL2_DEFAULT_QPRI_MASK		0x0007
 
 /* Offset 0x09: Egress Rate Control */
 #define MV88E6XXX_PORT_EGRESS_RATE_CTL1		0x09
@@ -449,6 +451,17 @@
 /* Offset 0x16: LED Control (6393X family) */
 #define MV88E6393X_PORT_LED_CONTROL		0x16
 
+/* Offset 0x17: IP Priority Mapping Table */
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE			0x17
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_UPDATE			0x8000
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_PTR_MASK		0x7e00
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_DATA_MASK		0x01ff
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_YELLOW			0x0100
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_DIS_QPRI		0x0080
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_QPRI_MASK		0x0070
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_DIS_FPRI		0x0008
+#define MV88E6390_PORT_IP_PRIO_MAP_TABLE_FPRI_MASK		0x0007
+
 /* Offset 0x18: IEEE Priority Mapping Table */
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE			0x18
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_UPDATE		0x8000
@@ -457,11 +470,25 @@
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP	0x1000
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP	0x2000
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP	0x3000
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP_DEI	0x4000
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_DSCP	0x5000
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_DSCP	0x6000
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_DSCP	0x7000
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_PTR_MASK		0x0e00
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DATA_MASK		0x01ff
+/* Ingress PCP tables */
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_YELLOW		0x0100
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_QPRI		0x0080
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_QPRI_MASK		0x0070
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_FPRI		0x0008
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_FPRI_MASK		0x0007
+/* Egress PCP tables */
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_VID		0x0010
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_PCP		0x0008
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_PCP_MASK		0x0007
+/* Egress DSCP tables */
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EN_DSCP		0x0040
+#define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DSCP_MASK		0x003f
 
 /* Offset 0x18: Port IEEE Priority Remapping Registers (0-3) */
 #define MV88E6095_PORT_IEEE_PRIO_REMAP_0123	0x18
@@ -543,6 +570,21 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 				  u16 mode);
 int mv88e6095_port_tag_remap(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_port_tag_remap(struct mv88e6xxx_chip *chip, int port);
+int mv88e6xxx_port_set_apptrust(struct mv88e6xxx_chip *chip, int port,
+				const u8 *sel, int nsel);
+int mv88e6xxx_port_get_apptrust(struct mv88e6xxx_chip *chip, int port,
+				u8 *sel, int *nsel);
+int mv88e6390_port_get_default_prio(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_port_set_default_prio(struct mv88e6xxx_chip *chip, int port,
+				    u8 prio);
+int mv88e6390_port_get_dscp_prio(struct mv88e6xxx_chip *chip, int port,
+				 u8 dscp);
+int mv88e6390_port_set_dscp_prio(struct mv88e6xxx_chip *chip, int port,
+				 u8 dscp, int prio);
+int mv88e6390_port_get_pcp_prio(struct mv88e6xxx_chip *chip, int port,
+				u8 pcp, u8 dei);
+int mv88e6390_port_set_pcp_prio(struct mv88e6xxx_chip *chip, int port,
+				u8 pcp, u8 dei, int prio);
 int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
 				   enum mv88e6xxx_egress_mode mode);
 int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
