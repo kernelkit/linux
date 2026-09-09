@@ -4847,6 +4847,12 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_set_speed_duplex = mv88e6390_port_set_speed_duplex,
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_get_default_prio = mv88e6390_port_get_default_prio,
+	.port_set_default_prio = mv88e6390_port_set_default_prio,
+	.port_get_dscp_prio = mv88e6390_port_get_dscp_prio,
+	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
+	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
+	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -4907,6 +4913,12 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_set_speed_duplex = mv88e6390x_port_set_speed_duplex,
 	.port_max_speed_mode = mv88e6390x_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_get_default_prio = mv88e6390_port_get_default_prio,
+	.port_set_default_prio = mv88e6390_port_set_default_prio,
+	.port_get_dscp_prio = mv88e6390_port_get_dscp_prio,
+	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
+	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
+	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -4967,6 +4979,12 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.port_set_speed_duplex = mv88e6390_port_set_speed_duplex,
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_get_default_prio = mv88e6390_port_get_default_prio,
+	.port_set_default_prio = mv88e6390_port_set_default_prio,
+	.port_get_dscp_prio = mv88e6390_port_get_dscp_prio,
+	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
+	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
+	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
 	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
@@ -5131,6 +5149,12 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_set_speed_duplex = mv88e6390_port_set_speed_duplex,
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_get_default_prio = mv88e6390_port_get_default_prio,
+	.port_set_default_prio = mv88e6390_port_set_default_prio,
+	.port_get_dscp_prio = mv88e6390_port_get_dscp_prio,
+	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
+	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
+	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -5519,6 +5543,12 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_set_speed_duplex = mv88e6390_port_set_speed_duplex,
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_get_default_prio = mv88e6390_port_get_default_prio,
+	.port_set_default_prio = mv88e6390_port_set_default_prio,
+	.port_get_dscp_prio = mv88e6390_port_get_dscp_prio,
+	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
+	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
+	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -5583,6 +5613,12 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_set_speed_duplex = mv88e6390x_port_set_speed_duplex,
 	.port_max_speed_mode = mv88e6390x_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_get_default_prio = mv88e6390_port_get_default_prio,
+	.port_set_default_prio = mv88e6390_port_set_default_prio,
+	.port_get_dscp_prio = mv88e6390_port_get_dscp_prio,
+	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
+	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
+	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -5646,6 +5682,12 @@ static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	.port_set_speed_duplex = mv88e6393x_port_set_speed_duplex,
 	.port_max_speed_mode = mv88e6393x_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_get_default_prio = mv88e6390_port_get_default_prio,
+	.port_set_default_prio = mv88e6390_port_set_default_prio,
+	.port_get_dscp_prio = mv88e6390_port_get_dscp_prio,
+	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
+	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
+	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_set_policy = mv88e6393x_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -7155,6 +7197,171 @@ static int mv88e6xxx_crosschip_lag_leave(struct dsa_switch *ds, int sw_index,
 	return err_sync ? : err_pvt;
 }
 
+static int mv88e6xxx_port_get_default_prio(struct dsa_switch *ds, int port)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_get_default_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_get_default_prio(chip, port);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_set_default_prio(struct dsa_switch *ds, int port,
+					   u8 prio)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_default_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_default_prio(chip, port, prio);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_get_dscp_prio(struct dsa_switch *ds, int port,
+					u8 dscp)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_get_dscp_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_get_dscp_prio(chip, port, dscp);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_add_dscp_prio(struct dsa_switch *ds, int port,
+					u8 dscp, u8 prio)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_dscp_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_dscp_prio(chip, port, dscp, prio);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+/* Only clear the entry if it still holds the priority being deleted,
+ * another APP entry for the same code point may have taken it over.
+ */
+static int mv88e6xxx_port_del_dscp_prio(struct dsa_switch *ds, int port,
+					u8 dscp, u8 prio)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_dscp_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_get_dscp_prio(chip, port, dscp);
+	if (err == prio)
+		err = chip->info->ops->port_set_dscp_prio(chip, port, dscp, -1);
+	else if (err >= 0 || err == -EOPNOTSUPP)
+		err = 0;
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_get_pcp_prio(struct dsa_switch *ds, int port,
+				       u8 pcp, u8 dei)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_get_pcp_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_get_pcp_prio(chip, port, pcp, dei);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_add_pcp_prio(struct dsa_switch *ds, int port,
+				       u8 pcp, u8 dei, u8 prio)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_pcp_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_pcp_prio(chip, port, pcp, dei, prio);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_del_pcp_prio(struct dsa_switch *ds, int port,
+				       u8 pcp, u8 dei, u8 prio)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_pcp_prio)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_get_pcp_prio(chip, port, pcp, dei);
+	if (err == prio)
+		err = chip->info->ops->port_set_pcp_prio(chip, port, pcp, dei,
+							 -1);
+	else if (err >= 0 || err == -EOPNOTSUPP)
+		err = 0;
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_dcb_set_apptrust(struct dsa_switch *ds, int port,
+				      const u8 *sel, int nsel)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	mv88e6xxx_reg_lock(chip);
+	err = mv88e6xxx_port_set_apptrust(chip, port, sel, nsel);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_dcb_get_apptrust(struct dsa_switch *ds, int port,
+				      u8 *sel, int *nsel)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	mv88e6xxx_reg_lock(chip);
+	err = mv88e6xxx_port_get_apptrust(chip, port, sel, nsel);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
 static int mv88e6xxx_port_add_etype_prio(struct dsa_switch *ds, int port,
 					 u16 etype, u8 prio)
 {
@@ -7341,6 +7548,16 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.crosschip_lag_change	= mv88e6xxx_crosschip_lag_change,
 	.crosschip_lag_join	= mv88e6xxx_crosschip_lag_join,
 	.crosschip_lag_leave	= mv88e6xxx_crosschip_lag_leave,
+	.port_get_default_prio	= mv88e6xxx_port_get_default_prio,
+	.port_set_default_prio	= mv88e6xxx_port_set_default_prio,
+	.port_get_dscp_prio	= mv88e6xxx_port_get_dscp_prio,
+	.port_add_dscp_prio	= mv88e6xxx_port_add_dscp_prio,
+	.port_del_dscp_prio	= mv88e6xxx_port_del_dscp_prio,
+	.port_get_pcp_prio	= mv88e6xxx_port_get_pcp_prio,
+	.port_add_pcp_prio	= mv88e6xxx_port_add_pcp_prio,
+	.port_del_pcp_prio	= mv88e6xxx_port_del_pcp_prio,
+	.port_set_apptrust	= mv88e6xxx_dcb_set_apptrust,
+	.port_get_apptrust	= mv88e6xxx_dcb_get_apptrust,
 	.port_add_etype_prio	= mv88e6xxx_port_add_etype_prio,
 	.port_del_etype_prio	= mv88e6xxx_port_del_etype_prio,
 	.port_setup_tc		= mv88e6xxx_port_setup_tc,
