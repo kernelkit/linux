@@ -576,6 +576,21 @@ struct mv88e6xxx_ops {
 
 	int (*port_tag_remap)(struct mv88e6xxx_chip *chip, int port);
 
+	/* Per-port priority classification, a negative prio disables
+	 * the entry so the port default applies.
+	 */
+	int (*port_get_default_prio)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_set_default_prio)(struct mv88e6xxx_chip *chip, int port,
+				     u8 prio);
+	int (*port_get_dscp_prio)(struct mv88e6xxx_chip *chip, int port,
+				  u8 dscp);
+	int (*port_set_dscp_prio)(struct mv88e6xxx_chip *chip, int port,
+				  u8 dscp, int prio);
+	int (*port_get_pcp_prio)(struct mv88e6xxx_chip *chip, int port,
+				 u8 pcp, u8 dei);
+	int (*port_set_pcp_prio)(struct mv88e6xxx_chip *chip, int port,
+				 u8 pcp, u8 dei, int prio);
+
 	int (*port_set_policy)(struct mv88e6xxx_chip *chip, int port,
 			       enum mv88e6xxx_policy_mapping mapping,
 			       enum mv88e6xxx_policy_action action);
