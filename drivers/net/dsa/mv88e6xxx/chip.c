@@ -4853,6 +4853,10 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
+	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
+	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
+	.port_set_dscp_rewr = mv88e6390_port_set_dscp_rewr,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -4919,6 +4923,10 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
+	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
+	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
+	.port_set_dscp_rewr = mv88e6390_port_set_dscp_rewr,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -4985,6 +4993,10 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
+	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
+	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
+	.port_set_dscp_rewr = mv88e6390_port_set_dscp_rewr,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
 	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
@@ -5155,6 +5167,10 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
+	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
+	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
+	.port_set_dscp_rewr = mv88e6390_port_set_dscp_rewr,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -5549,6 +5565,10 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
+	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
+	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
+	.port_set_dscp_rewr = mv88e6390_port_set_dscp_rewr,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -5619,6 +5639,10 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
+	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
+	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
+	.port_set_dscp_rewr = mv88e6390_port_set_dscp_rewr,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -5688,6 +5712,10 @@ static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
+	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
+	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
+	.port_set_dscp_rewr = mv88e6390_port_set_dscp_rewr,
 	.port_set_policy = mv88e6393x_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
@@ -7336,6 +7364,112 @@ static int mv88e6xxx_port_del_pcp_prio(struct dsa_switch *ds, int port,
 	return err;
 }
 
+static int mv88e6xxx_port_get_pcp_rewr(struct dsa_switch *ds, int port,
+				       u8 prio, u8 *pcp, u8 *dei)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_get_pcp_rewr)
+		return -EOPNOTSUPP;
+
+	*dei = 0;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_get_pcp_rewr(chip, port, prio, pcp);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+/* The DEI of a remarked frame follows its color, it cannot be set from
+ * the table, so only the DEI 0 entries can be honored.
+ */
+static int mv88e6xxx_port_set_pcp_rewr(struct dsa_switch *ds, int port,
+				       u8 prio, u8 pcp, u8 dei)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_pcp_rewr)
+		return -EOPNOTSUPP;
+
+	if (dei) {
+		dev_err(chip->dev, "p%d: PCP rewrite cannot set DEI\n", port);
+		return -EINVAL;
+	}
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_pcp_rewr(chip, port, prio, pcp);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_del_pcp_rewr(struct dsa_switch *ds, int port,
+				       u8 prio)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_pcp_rewr)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_pcp_rewr(chip, port, prio, -1);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_get_dscp_rewr(struct dsa_switch *ds, int port,
+					u8 prio, u8 *dscp)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_get_dscp_rewr)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_get_dscp_rewr(chip, port, prio, dscp);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_set_dscp_rewr(struct dsa_switch *ds, int port,
+					u8 prio, u8 dscp)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_dscp_rewr)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_dscp_rewr(chip, port, prio, dscp);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_del_dscp_rewr(struct dsa_switch *ds, int port,
+					u8 prio)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_dscp_rewr)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_dscp_rewr(chip, port, prio, -1);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
 static int mv88e6xxx_dcb_set_apptrust(struct dsa_switch *ds, int port,
 				      const u8 *sel, int nsel)
 {
@@ -7558,6 +7692,12 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_del_pcp_prio	= mv88e6xxx_port_del_pcp_prio,
 	.port_set_apptrust	= mv88e6xxx_dcb_set_apptrust,
 	.port_get_apptrust	= mv88e6xxx_dcb_get_apptrust,
+	.port_get_pcp_rewr	= mv88e6xxx_port_get_pcp_rewr,
+	.port_set_pcp_rewr	= mv88e6xxx_port_set_pcp_rewr,
+	.port_del_pcp_rewr	= mv88e6xxx_port_del_pcp_rewr,
+	.port_get_dscp_rewr	= mv88e6xxx_port_get_dscp_rewr,
+	.port_set_dscp_rewr	= mv88e6xxx_port_set_dscp_rewr,
+	.port_del_dscp_rewr	= mv88e6xxx_port_del_dscp_rewr,
 	.port_add_etype_prio	= mv88e6xxx_port_add_etype_prio,
 	.port_del_etype_prio	= mv88e6xxx_port_del_etype_prio,
 	.port_setup_tc		= mv88e6xxx_port_setup_tc,
