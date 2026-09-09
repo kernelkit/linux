@@ -591,6 +591,18 @@ struct mv88e6xxx_ops {
 	int (*port_set_pcp_prio)(struct mv88e6xxx_chip *chip, int port,
 				 u8 pcp, u8 dei, int prio);
 
+	/* Egress remarking from the frame priority, a negative code
+	 * point disables it for that priority.
+	 */
+	int (*port_get_pcp_rewr)(struct mv88e6xxx_chip *chip, int port,
+				 u8 prio, u8 *pcp);
+	int (*port_set_pcp_rewr)(struct mv88e6xxx_chip *chip, int port,
+				 u8 prio, int pcp);
+	int (*port_get_dscp_rewr)(struct mv88e6xxx_chip *chip, int port,
+				  u8 prio, u8 *dscp);
+	int (*port_set_dscp_rewr)(struct mv88e6xxx_chip *chip, int port,
+				  u8 prio, int dscp);
+
 	int (*port_set_policy)(struct mv88e6xxx_chip *chip, int port,
 			       enum mv88e6xxx_policy_mapping mapping,
 			       enum mv88e6xxx_policy_action action);
