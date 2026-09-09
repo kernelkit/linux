@@ -1214,8 +1214,18 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid)
 	return 0;
 }
 
+/* Frames are queued by their queue priority (QPri), which the ingress
+ * tables assign alongside the frame priority (FPri).  The chip's queue
+ * map decides which queue a priority lands in; identity until one is
+ * set.
+ */
+static u8 mv88e6xxx_qpri(struct mv88e6xxx_chip *chip, u8 prio)
+{
+	return chip->qpri[prio & 0x7];
+}
+
 /* The default frame priority (FPri) lives here, the default queue
- * priority (QPri) in Port Control 2.  Both are set to the same value.
+ * priority (QPri) in Port Control 2.
  */
 int mv88e6390_port_get_default_prio(struct mv88e6xxx_chip *chip, int port)
 {
@@ -1254,7 +1264,8 @@ int mv88e6390_port_set_default_prio(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	reg &= ~MV88E6390_PORT_CTL2_DEFAULT_QPRI_MASK;
-	reg |= FIELD_PREP(MV88E6390_PORT_CTL2_DEFAULT_QPRI_MASK, prio);
+	reg |= FIELD_PREP(MV88E6390_PORT_CTL2_DEFAULT_QPRI_MASK,
+			  mv88e6xxx_qpri(chip, prio));
 
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
@@ -1838,7 +1849,8 @@ int mv88e6390_port_set_dscp_prio(struct mv88e6xxx_chip *chip, int port,
 		data = MV88E6390_PORT_IP_PRIO_MAP_TABLE_DIS_QPRI |
 			MV88E6390_PORT_IP_PRIO_MAP_TABLE_DIS_FPRI;
 	else
-		data = FIELD_PREP(MV88E6390_PORT_IP_PRIO_MAP_TABLE_QPRI_MASK, prio) |
+		data = FIELD_PREP(MV88E6390_PORT_IP_PRIO_MAP_TABLE_QPRI_MASK,
+				  mv88e6xxx_qpri(chip, prio)) |
 			FIELD_PREP(MV88E6390_PORT_IP_PRIO_MAP_TABLE_FPRI_MASK, prio);
 
 	return mv88e6390_port_ippmt_write(chip, port, dscp, data);
@@ -1968,12 +1980,58 @@ int mv88e6390_port_set_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 		data = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_QPRI |
 			MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_FPRI;
 	else
-		data = FIELD_PREP(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_QPRI_MASK, prio) |
+		data = FIELD_PREP(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_QPRI_MASK,
+				  mv88e6xxx_qpri(chip, prio)) |
 			FIELD_PREP(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_FPRI_MASK, prio);
 
 	return mv88e6xxx_port_ieeepmt_write(chip, port,
 					    mv88e6390_port_ingress_pcp_table(dei),
 					    pcp, data);
+}
+
+/* Rewrite the QPri of every enabled entry after the mqprio map changed */
+int mv88e6390_port_sync_qpri(struct mv88e6xxx_chip *chip, int port)
+{
+	int err, i, prio;
+	u16 table, data;
+
+	for (i = 0; i < 64; i++) {
+		err = mv88e6390_port_ippmt_read(chip, port, i, &data);
+		if (err)
+			return err;
+
+		if (data & MV88E6390_PORT_IP_PRIO_MAP_TABLE_DIS_FPRI)
+			continue;
+
+		prio = FIELD_GET(MV88E6390_PORT_IP_PRIO_MAP_TABLE_FPRI_MASK, data);
+		err = mv88e6390_port_set_dscp_prio(chip, port, i, prio);
+		if (err)
+			return err;
+	}
+
+	for (i = 0; i < 16; i++) {
+		table = mv88e6390_port_ingress_pcp_table(i >> 3);
+
+		err = mv88e6xxx_port_ieeepmt_read(chip, port, table, i & 0x7,
+						  &data);
+		if (err)
+			return err;
+
+		if (data & MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_FPRI)
+			continue;
+
+		prio = FIELD_GET(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_FPRI_MASK, data);
+		err = mv88e6390_port_set_pcp_prio(chip, port, i & 0x7, i >> 3,
+						  prio);
+		if (err)
+			return err;
+	}
+
+	err = mv88e6390_port_get_default_prio(chip, port);
+	if (err < 0)
+		return err;
+
+	return mv88e6390_port_set_default_prio(chip, port, err);
 }
 
 /* Egress remarking uses the frame priority assigned at ingress to look
