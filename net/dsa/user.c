@@ -2511,12 +2511,13 @@ static int dsa_user_dcbnl_init(struct net_device *dev)
 			.priority = prio,
 		};
 
-		if (prio < 0)
+		if (prio >= 0) {
+			err = dcb_ieee_setapp(dev, &app);
+			if (err)
+				return err;
+		} else if (prio != -EOPNOTSUPP) {
 			return prio;
-
-		err = dcb_ieee_setapp(dev, &app);
-		if (err)
-			return err;
+		}
 	}
 
 	if (ds->ops->port_get_dscp_prio) {
