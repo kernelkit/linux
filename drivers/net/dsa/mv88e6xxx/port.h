@@ -590,6 +590,7 @@ int mv88e6390_port_get_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 				u8 pcp, u8 dei);
 int mv88e6390_port_set_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 				u8 pcp, u8 dei, int prio);
+int mv88e6390_port_sync_qpri(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_port_get_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
 				u8 prio, u8 *pcp);
 int mv88e6390_port_set_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
