@@ -1976,6 +1976,131 @@ int mv88e6390_port_set_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 					    pcp, data);
 }
 
+/* Egress remarking uses the frame priority assigned at ingress to look
+ * up the PCP written to tagged frames and the DSCP written to IP frames.
+ * Green and yellow frames have separate tables, both are kept equal as
+ * the driver does not use the color.  The AVB tables are left alone.
+ */
+int mv88e6390_port_get_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
+				u8 prio, u8 *pcp)
+{
+	u16 data;
+	int err;
+
+	err = mv88e6xxx_port_ieeepmt_read(chip, port,
+					  MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP,
+					  prio, &data);
+	if (err)
+		return err;
+
+	if (data & MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_PCP)
+		return -ENOENT;
+
+	*pcp = FIELD_GET(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_PCP_MASK, data);
+
+	return 0;
+}
+
+int mv88e6390_port_set_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
+				u8 prio, int pcp)
+{
+	u16 data;
+	int err;
+
+	if (pcp < 0)
+		data = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DIS_PCP;
+	else
+		data = FIELD_PREP(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_PCP_MASK, pcp);
+
+	err = mv88e6xxx_port_ieeepmt_write(chip, port,
+					   MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP,
+					   prio, data);
+	if (err)
+		return err;
+
+	return mv88e6xxx_port_ieeepmt_write(chip, port,
+					    MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP,
+					    prio, data);
+}
+
+/* Port Control 3 gates DSCP marking for the whole port, keep it set as
+ * long as any priority has an enabled entry.
+ */
+static int mv88e6390_port_update_dscp(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_DSCP;
+	bool enable = false;
+	u16 data, reg;
+	int err, prio;
+
+	for (prio = 0; prio < 8 && !enable; prio++) {
+		err = mv88e6xxx_port_ieeepmt_read(chip, port, table, prio,
+						  &data);
+		if (err)
+			return err;
+
+		enable = data & MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EN_DSCP;
+	}
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6390_PORT_CTL3, &reg);
+	if (err)
+		return err;
+
+	if (enable)
+		reg |= MV88E6390_PORT_CTL3_UPDATE_DSCP;
+	else
+		reg &= ~MV88E6390_PORT_CTL3_UPDATE_DSCP;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6390_PORT_CTL3, reg);
+}
+
+int mv88e6390_port_get_dscp_rewr(struct mv88e6xxx_chip *chip, int port,
+				 u8 prio, u8 *dscp)
+{
+	u16 data;
+	int err;
+
+	err = mv88e6xxx_port_ieeepmt_read(chip, port,
+					  MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_DSCP,
+					  prio, &data);
+	if (err)
+		return err;
+
+	if (!(data & MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EN_DSCP))
+		return -ENOENT;
+
+	*dscp = FIELD_GET(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DSCP_MASK, data);
+
+	return 0;
+}
+
+int mv88e6390_port_set_dscp_rewr(struct mv88e6xxx_chip *chip, int port,
+				 u8 prio, int dscp)
+{
+	u16 data;
+	int err;
+
+	if (dscp < 0)
+		data = 0;
+	else
+		data = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EN_DSCP |
+			FIELD_PREP(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DSCP_MASK, dscp);
+
+	err = mv88e6xxx_port_ieeepmt_write(chip, port,
+					   MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_DSCP,
+					   prio, data);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_port_ieeepmt_write(chip, port,
+					   MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_DSCP,
+					   prio, data);
+	if (err)
+		return err;
+
+	return mv88e6390_port_update_dscp(chip, port);
+}
+
 /* Offset 0x0E: Policy Control Register */
 
 static int
