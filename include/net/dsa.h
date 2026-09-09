@@ -455,6 +455,10 @@ struct dsa_switch {
 	 */
 	u32			dscp_prio_mapping_is_global:1;
 
+	/* Same, for the PCP classification table. */
+	u32			pcp_prio_mapping_is_global:1;
+	u32			pcp_prio_mapping_ignores_dei:1;
+
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
 
@@ -986,6 +990,12 @@ struct dsa_switch_ops {
 				       u8 prio);
 	int	(*port_del_etype_prio)(struct dsa_switch *ds, int port, u16 etype,
 				       u8 prio);
+	int	(*port_get_pcp_prio)(struct dsa_switch *ds, int port, u8 pcp,
+				     u8 dei);
+	int	(*port_add_pcp_prio)(struct dsa_switch *ds, int port, u8 pcp,
+				     u8 dei, u8 prio);
+	int	(*port_del_pcp_prio)(struct dsa_switch *ds, int port, u8 pcp,
+				     u8 dei, u8 prio);
 
 	/*
 	 * Suspend and resume
