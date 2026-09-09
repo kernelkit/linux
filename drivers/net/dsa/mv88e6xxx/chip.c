@@ -1694,6 +1694,9 @@ static int mv88e6xxx_pot_setup(struct mv88e6xxx_chip *chip)
 	for (i = 0; i < ARRAY_SIZE(chip->qpri_po); i++)
 		refcount_set(&chip->qpri_po[i].refcnt, 0);
 
+	for (i = 0; i < ARRAY_SIZE(chip->qpri); i++)
+		chip->qpri[i] = i;
+
 	if (chip->info->ops->pot_clear)
 		return chip->info->ops->pot_clear(chip);
 
@@ -3398,7 +3401,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	struct fwnode_handle *port_fwnode;
 	struct dsa_switch *ds = chip->ds;
 	struct mv88e6xxx_port *p;
-	int err;
+	int err, i;
 	u16 reg;
 	u32 val;
 
@@ -3599,6 +3602,10 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		if (err)
 			return err;
 	}
+
+	for (i = 0; i < ARRAY_SIZE(chip->ports[port].qpri); i++)
+		chip->ports[port].qpri[i] = i;
+	chip->ports[port].qmap = false;
 
 	if (chip->info->ops->port_tag_remap) {
 		err = chip->info->ops->port_tag_remap(chip, port);
@@ -4853,6 +4860,7 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_sync_qpri = mv88e6390_port_sync_qpri,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -4923,6 +4931,7 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_sync_qpri = mv88e6390_port_sync_qpri,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -4993,6 +5002,7 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_sync_qpri = mv88e6390_port_sync_qpri,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5167,6 +5177,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_sync_qpri = mv88e6390_port_sync_qpri,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5565,6 +5576,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_sync_qpri = mv88e6390_port_sync_qpri,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5639,6 +5651,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_sync_qpri = mv88e6390_port_sync_qpri,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5712,6 +5725,7 @@ static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	.port_set_dscp_prio = mv88e6390_port_set_dscp_prio,
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
+	.port_sync_qpri = mv88e6390_port_sync_qpri,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -7551,12 +7565,96 @@ err:
 	return err;
 }
 
+/* Program @qpri into the tables of every user port, if it is news */
+static int mv88e6xxx_sync_qpri(struct mv88e6xxx_chip *chip, const u8 *qpri)
+{
+	int port, err;
+
+	if (!memcmp(qpri, chip->qpri, sizeof(chip->qpri)))
+		return 0;
+
+	memcpy(chip->qpri, qpri, sizeof(chip->qpri));
+
+	if (!chip->info->ops->port_sync_qpri)
+		return 0;
+
+	for (port = 0; port < mv88e6xxx_num_ports(chip); port++) {
+		if (!dsa_is_user_port(chip->ds, port))
+			continue;
+
+		err = chip->info->ops->port_sync_qpri(chip, port);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/* Whether the chip queues by the map this port's qdisc asked for */
+static bool mv88e6xxx_port_qpri_in_use(struct mv88e6xxx_chip *chip, int port)
+{
+	struct mv88e6xxx_port *mp = &chip->ports[port];
+
+	return mp->qmap && !memcmp(mp->qpri, chip->qpri, sizeof(mp->qpri));
+}
+
+/* Take the queue map a port's qdisc asks for, or drop it with NULL.  The
+ * queue is chosen where a frame enters, by that port's tables, so the
+ * chip has one map: the most recent request defines it, and a port
+ * whose request differs is no longer offloaded, see
+ * mv88e6xxx_port_qpri_in_use().  The identity map is restored when no
+ * port asks for one.
+ */
+static int mv88e6xxx_port_set_qpri(struct mv88e6xxx_chip *chip, int port,
+				   const u8 *qpri)
+{
+	struct mv88e6xxx_port *mp = &chip->ports[port];
+	int other, prio, err;
+	u8 map[8];
+
+	if (qpri) {
+		for (prio = 0; prio < ARRAY_SIZE(map); prio++)
+			map[prio] = min_t(u8, qpri[prio], 7);
+
+		for (other = 0; other < mv88e6xxx_num_ports(chip); other++) {
+			if (other != port && mv88e6xxx_port_qpri_in_use(chip, other) &&
+			    memcmp(map, chip->qpri, sizeof(map))) {
+				dev_info(chip->dev, "p%d: queue map replaces the one p%d asked for, the chip has one\n",
+					 port, other);
+				break;
+			}
+		}
+
+		memcpy(mp->qpri, map, sizeof(mp->qpri));
+		mp->qmap = true;
+	} else {
+		mp->qmap = false;
+
+		for (prio = 0; prio < ARRAY_SIZE(map); prio++)
+			map[prio] = prio;
+
+		for (other = 0; other < mv88e6xxx_num_ports(chip); other++) {
+			if (chip->ports[other].qmap) {
+				memcpy(map, chip->qpri, sizeof(map));
+				break;
+			}
+		}
+	}
+
+	mv88e6xxx_reg_lock(chip);
+	err = mv88e6xxx_sync_qpri(chip, map);
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
 static int mv88e6xxx_qos_port_mqprio(struct mv88e6xxx_chip *chip, int port,
 				     struct tc_mqprio_qopt_offload *mqprio)
 {
 	struct net_device *dev = dsa_to_port(chip->ds, port)->user;
 	struct tc_mqprio_qopt *qopt = &mqprio->qopt;
-	int tc, err = 0, num_txq = 0;
+	int tc, prio, err = 0, num_txq = 0;
+	u8 qpri[8];
 
 	if (!qopt->num_tc)
 		goto out_reset;
@@ -7577,10 +7675,15 @@ static int mv88e6xxx_qos_port_mqprio(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		goto out_reset;
 
-	return 0;
+	/* The first queue of the priority's traffic class */
+	for (prio = 0; prio < ARRAY_SIZE(qpri); prio++)
+		qpri[prio] = qopt->offset[qopt->prio_tc_map[prio]];
+
+	return mv88e6xxx_port_set_qpri(chip, port, qpri);
 
 out_reset:
 	netdev_reset_tc(dev);
+	mv88e6xxx_port_set_qpri(chip, port, NULL);
 	return err;
 
 }

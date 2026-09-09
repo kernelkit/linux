@@ -306,6 +306,12 @@ struct mv88e6xxx_port {
 		refcount_t refcnt;
 		u16 proto;
 	} etype;
+
+	/* Egress queue per frame priority this port's qdisc asked for,
+	 * meaningful while qmap is set
+	 */
+	bool qmap;
+	u8 qpri[8];
 };
 
 enum mv88e6xxx_region_id {
@@ -465,6 +471,13 @@ struct mv88e6xxx_chip {
 
 	/* Queue priority overrides */
 	struct mv88e6xxx_po qpri_po[16];
+
+	/* Egress queue per frame priority.  A frame's queue is chosen
+	 * where it enters, by that port's tables, so the map is one per
+	 * chip, programmed into every user port, and follows the port
+	 * that asked most recently.
+	 */
+	u8 qpri[8];
 };
 
 struct mv88e6xxx_bus_ops {
@@ -590,6 +603,7 @@ struct mv88e6xxx_ops {
 				 u8 pcp, u8 dei);
 	int (*port_set_pcp_prio)(struct mv88e6xxx_chip *chip, int port,
 				 u8 pcp, u8 dei, int prio);
+	int (*port_sync_qpri)(struct mv88e6xxx_chip *chip, int port);
 
 	/* Egress remarking from the frame priority, a negative code
 	 * point disables it for that priority.
