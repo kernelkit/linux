@@ -6705,6 +6705,23 @@ brcmf_bss_connect_done(struct brcmf_cfg80211_info *cfg,
 	return 0;
 }
 
+/* With the 4-way handshake offloaded to firmware no EAPOL frames reach the
+ * host, so once the firmware supplicant has completed the port has to be
+ * reported authorized explicitly or the supplicant keeps waiting for it.
+ */
+static void brcmf_report_port_authorized(struct brcmf_if *ifp)
+{
+	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
+
+	if (profile->use_fwsup != BRCMF_PROFILE_FWSUP_PSK &&
+	    profile->use_fwsup != BRCMF_PROFILE_FWSUP_SAE)
+		return;
+
+	cfg80211_port_authorized(ifp->ndev, profile->bssid, NULL, 0,
+				 GFP_KERNEL);
+	brcmf_dbg(CONN, "Report port authorized\n");
+}
+
 static s32
 brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 			       struct net_device *ndev,
@@ -6781,8 +6798,13 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 				  &ifp->vif->sme_state);
 			set_bit(BRCMF_VIF_STATUS_CONNECTED,
 				&ifp->vif->sme_state);
-		} else
+		} else {
+			/* For offloaded PSK/SAE brcmf_is_linkup() only fires
+			 * once the firmware supplicant has completed.
+			 */
 			brcmf_bss_connect_done(cfg, ndev, e, true);
+			brcmf_report_port_authorized(ifp);
+		}
 		brcmf_net_setcarrier(ifp, true);
 	} else if (brcmf_is_linkdown(ifp->vif, e)) {
 		brcmf_dbg(CONN, "Linkdown\n");
@@ -6814,6 +6836,14 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 				  &ifp->vif->sme_state);
 		else
 			brcmf_bss_connect_done(cfg, ndev, e, false);
+	} else if (e->event_code == BRCMF_E_PSK_SUP &&
+		   e->status == BRCMF_E_STATUS_FWSUP_COMPLETED &&
+		   test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state)) {
+		/* Handshake completed after a roam: brcmf_is_linkup() has
+		 * recorded EAP_SUCCESS without a matching ASSOC_SUCCESS.
+		 */
+		clear_bit(BRCMF_VIF_STATUS_EAP_SUCCESS, &ifp->vif->sme_state);
+		brcmf_report_port_authorized(ifp);
 	}
 
 	return err;
