@@ -276,6 +276,15 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 	if (!skb->dev)
 		return NULL;
 
+	/* Ideally we would have a way of configuring the mapping of PCP
+	 * bits to skb->priority on DSA ports (like ingress-qos-map for
+	 * vlan interfaces). For now, assume that a 1:1 mapping is more
+	 * useful than ignoring the priority altogether.  Read it before
+	 * the header is stripped below, which moves the MAC addresses
+	 * over these bytes.
+	 */
+	skb->priority = dsa_header[2] >> 5;
+
 	/* When using LAG offload, skb->dev is not a DSA user interface,
 	 * so we cannot call dsa_default_offload_fwd_mark and we need to
 	 * special-case it.
@@ -324,13 +333,6 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 		skb_pull_rcsum(skb, DSA_HLEN);
 		dsa_strip_etype_header(skb, DSA_HLEN + extra);
 	}
-
-	/* Ideally we would have a way of configuring the mapping of PCP
-	 * bits to skb->priority on DSA ports (like ingress-qos-map for
-	 * vlan interfaces). For now, assume that a 1:1 mapping is more
-	 * useful than ignoring the priority altogether.
-	 */
-	skb->priority = dsa_header[2] >> 5;
 
 	return skb;
 }
