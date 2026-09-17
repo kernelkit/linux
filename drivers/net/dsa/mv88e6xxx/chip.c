@@ -32,6 +32,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/phylink.h>
 #include <net/dsa.h>
+#include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 
 #include "chip.h"
@@ -4861,6 +4862,7 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_sync_qpri = mv88e6390_port_sync_qpri,
+	.port_set_egress_rate = mv88e6390_port_set_egress_rate,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -4932,6 +4934,7 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_sync_qpri = mv88e6390_port_sync_qpri,
+	.port_set_egress_rate = mv88e6390_port_set_egress_rate,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5003,6 +5006,7 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_sync_qpri = mv88e6390_port_sync_qpri,
+	.port_set_egress_rate = mv88e6390_port_set_egress_rate,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5178,6 +5182,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_sync_qpri = mv88e6390_port_sync_qpri,
+	.port_set_egress_rate = mv88e6390_port_set_egress_rate,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5577,6 +5582,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_sync_qpri = mv88e6390_port_sync_qpri,
+	.port_set_egress_rate = mv88e6390_port_set_egress_rate,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5652,6 +5658,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_sync_qpri = mv88e6390_port_sync_qpri,
+	.port_set_egress_rate = mv88e6390_port_set_egress_rate,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -5726,6 +5733,7 @@ static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	.port_get_pcp_prio = mv88e6390_port_get_pcp_prio,
 	.port_set_pcp_prio = mv88e6390_port_set_pcp_prio,
 	.port_sync_qpri = mv88e6390_port_sync_qpri,
+	.port_set_egress_rate = mv88e6390_port_set_egress_rate,
 	.port_get_pcp_rewr = mv88e6390_port_get_pcp_rewr,
 	.port_set_pcp_rewr = mv88e6390_port_set_pcp_rewr,
 	.port_get_dscp_rewr = mv88e6390_port_get_dscp_rewr,
@@ -7685,7 +7693,49 @@ out_reset:
 	netdev_reset_tc(dev);
 	mv88e6xxx_port_set_qpri(chip, port, NULL);
 	return err;
+}
 
+static int mv88e6xxx_qos_port_tbf(struct mv88e6xxx_chip *chip, int port,
+				  struct tc_tbf_qopt_offload *qopt)
+{
+	struct mv88e6xxx_port *mp = &chip->ports[port];
+	u64 bps;
+	int err;
+
+	if (!chip->info->ops->port_set_egress_rate)
+		return -EOPNOTSUPP;
+
+	if (qopt->parent != TC_H_ROOT)
+		return -EOPNOTSUPP;
+
+	switch (qopt->command) {
+	case TC_TBF_REPLACE:
+		bps = qopt->replace_params.rate.rate_bytes_ps * 8;
+
+		mv88e6xxx_reg_lock(chip);
+		err = chip->info->ops->port_set_egress_rate(chip, port, bps);
+		mv88e6xxx_reg_unlock(chip);
+		if (err)
+			return err;
+
+		mp->tbf_handle = qopt->handle;
+		return 0;
+	case TC_TBF_DESTROY:
+		mp->tbf_handle = 0;
+
+		mv88e6xxx_reg_lock(chip);
+		err = chip->info->ops->port_set_egress_rate(chip, port, 0);
+		mv88e6xxx_reg_unlock(chip);
+		return err;
+	case TC_TBF_STATS:
+	case TC_TBF_GRAFT:
+		/* The child brings its own offload, and stats stay in
+		 * software; either is what marks the tbf offloaded
+		 */
+		return mp->tbf_handle ? 0 : -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int mv88e6xxx_qos_query_caps(struct tc_query_caps_base *base)
@@ -7711,6 +7761,8 @@ static int mv88e6xxx_port_setup_tc(struct dsa_switch *ds, int port,
 		return mv88e6xxx_qos_query_caps(type_data);
 	case TC_SETUP_QDISC_MQPRIO:
 		return mv88e6xxx_qos_port_mqprio(chip, port, type_data);
+	case TC_SETUP_QDISC_TBF:
+		return mv88e6xxx_qos_port_tbf(chip, port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

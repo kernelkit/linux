@@ -312,6 +312,9 @@ struct mv88e6xxx_port {
 	 */
 	bool qmap;
 	u8 qpri[8];
+
+	/* Offloaded tbf qdisc at the root, 0 when none */
+	u32 tbf_handle;
 };
 
 enum mv88e6xxx_region_id {
@@ -604,6 +607,10 @@ struct mv88e6xxx_ops {
 	int (*port_set_pcp_prio)(struct mv88e6xxx_chip *chip, int port,
 				 u8 pcp, u8 dei, int prio);
 	int (*port_sync_qpri)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Egress shaper in bits per second, 0 turns it off */
+	int (*port_set_egress_rate)(struct mv88e6xxx_chip *chip, int port,
+				    u64 bps);
 
 	/* Egress remarking from the frame priority, a negative code
 	 * point disables it for that priority.
