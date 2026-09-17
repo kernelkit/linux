@@ -316,6 +316,12 @@ struct mv88e6xxx_port {
 	bool qmap;
 	u8 qpri[8];
 
+	/* Offloaded ets qdisc, with the round robin weight per queue it
+	 * asked for, 0 for queues it serves strictly or not at all
+	 */
+	bool ets;
+	u8 wrr[8];
+
 	/* Offloaded tbf qdisc at the root, 0 when none */
 	u32 tbf_handle;
 };
@@ -494,6 +500,11 @@ struct mv88e6xxx_chip {
 	 * that asked most recently.
 	 */
 	u8 qpri[8];
+
+	/* Round robin weight per queue in the loaded service sequence,
+	 * one sequence per chip like the queue map; 0 where no port asked
+	 */
+	u8 wrr[8];
 };
 
 #define TCAM_MATCH_SIZE 96
@@ -642,6 +653,15 @@ struct mv88e6xxx_ops {
 	int (*port_set_pcp_prio)(struct mv88e6xxx_chip *chip, int port,
 				 u8 pcp, u8 dei, int prio);
 	int (*port_sync_qpri)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Transmission selection: the number of highest queues served
+	 * strictly, the rest by weighted round robin; the weights are a
+	 * queue service sequence shared by all ports of the chip.
+	 */
+	int (*port_set_sched)(struct mv88e6xxx_chip *chip, int port,
+			      unsigned int strict);
+	int (*set_qos_weights)(struct mv88e6xxx_chip *chip, const u8 *seq,
+			       unsigned int len);
 
 	/* Egress shaper in bits per second, 0 turns it off */
 	int (*port_set_egress_rate)(struct mv88e6xxx_chip *chip, int port,

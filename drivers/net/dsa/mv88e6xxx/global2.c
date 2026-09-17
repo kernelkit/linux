@@ -297,6 +297,48 @@ int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
 	return err;
 }
 
+/* Offset 0x1C: QoS Weights Register */
+
+static int mv88e6390_g2_qos_weights_write(struct mv88e6xxx_chip *chip,
+					  u8 ptr, u8 data)
+{
+	u16 val = MV88E6XXX_G2_QOS_WEIGHTS_UPDATE |
+		FIELD_PREP(MV88E6390_G2_QOS_WEIGHTS_PTR_MASK, ptr) |
+		FIELD_PREP(MV88E6XXX_G2_QOS_WEIGHTS_DATA_MASK, data);
+
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_QOS_WEIGHTS, val);
+}
+
+/* Load the weighted round robin sequence the queue controller walks on
+ * every port: @len queue numbers, served one frame each in turn.  Two
+ * entries per octet, the earlier one in the low bits, and the length
+ * written last since that is what puts the new table in use.
+ */
+int mv88e6390_g2_set_qos_weights(struct mv88e6xxx_chip *chip, const u8 *seq,
+				 unsigned int len)
+{
+	unsigned int i;
+	u8 data;
+	int err;
+
+	if (!len || len > MV88E6390_G2_QOS_WEIGHTS_MAX_LEN)
+		return -EINVAL;
+
+	for (i = 0; i < len; i += 2) {
+		data = seq[i] & 0x7;
+		if (i + 1 < len)
+			data |= (seq[i + 1] & 0x7) << 4;
+
+		err = mv88e6390_g2_qos_weights_write(chip, i / 2, data);
+		if (err)
+			return err;
+	}
+
+	return mv88e6390_g2_qos_weights_write(chip,
+					      MV88E6390_G2_QOS_WEIGHTS_PTR_LEN,
+					      len);
+}
+
 /* Offset 0x0E: ATU Statistics */
 
 int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip, u16 kind, u16 bin)
