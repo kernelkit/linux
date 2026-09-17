@@ -502,6 +502,14 @@
 #define MV88E6390_PORT_CTL3_UPDATE_DSCP			0x0020
 #define MV88E6390_PORT_CTL3_UPDATE_DEI			0x0008
 
+/* Offset 0x1C: Port Queue Control */
+#define MV88E6390_PORT_QUEUE_CTL			0x1c
+#define MV88E6390_PORT_QUEUE_CTL_UPDATE			0x8000
+#define MV88E6390_PORT_QUEUE_CTL_PTR_MASK		0x7f00
+#define MV88E6390_PORT_QUEUE_CTL_PTR_SCHED		0x00
+#define MV88E6390_PORT_QUEUE_CTL_DATA_MASK		0x00ff
+#define MV88E6390_PORT_QUEUE_CTL_SCHED_STRICT_MASK	0x07
+
 /* Offset 0x18: Port IEEE Priority Remapping Registers (0-3) */
 #define MV88E6095_PORT_IEEE_PRIO_REMAP_0123	0x18
 
@@ -598,6 +606,8 @@ int mv88e6390_port_get_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 int mv88e6390_port_set_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 				u8 pcp, u8 dei, int prio);
 int mv88e6390_port_sync_qpri(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_port_set_sched(struct mv88e6xxx_chip *chip, int port,
+			     unsigned int strict);
 int mv88e6390_port_set_egress_rate(struct mv88e6xxx_chip *chip, int port,
 				   u64 bps);
 int mv88e6390_port_get_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
