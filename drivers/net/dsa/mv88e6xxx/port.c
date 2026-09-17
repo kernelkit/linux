@@ -1480,6 +1480,60 @@ int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 				    0x0001);
 }
 
+/* Shape the port to a Layer 2 bit rate, or turn the shaper off with 0.
+ * The rate is a decrement value stepping a counter at one of four fixed
+ * intervals, each covering a decade of rates, so it is rounded to the
+ * nearest step of that decade.
+ */
+int mv88e6390_port_set_egress_rate(struct mv88e6xxx_chip *chip, int port,
+				   u64 bps)
+{
+	u32 step, rate;
+	u16 dec;
+	int err;
+
+	if (!bps) {
+		err = mv88e6xxx_port_write(chip, port,
+					   MV88E6XXX_PORT_EGRESS_RATE_CTL2, 0);
+		if (err)
+			return err;
+
+		return mv88e6097_port_egress_rate_limiting(chip, port);
+	}
+
+	if (bps < 64000) {
+		return -ERANGE;
+	} else if (bps < 1000000) {
+		step = 64000;
+		rate = 0x1e84;
+	} else if (bps < 100000000) {
+		step = 1000000;
+		rate = 0x01f4;
+	} else if (bps < 1000000000) {
+		step = 10000000;
+		rate = 0x0032;
+	} else if (bps <= 10000000000ULL) {
+		step = 100000000;
+		rate = 0x0005;
+	} else {
+		return -ERANGE;
+	}
+
+	dec = DIV_ROUND_CLOSEST_ULL(bps, step);
+	if (!dec || dec > MV88E6390_PORT_EGRESS_RATE_CTL1_DEC_MASK)
+		return -ERANGE;
+
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_EGRESS_RATE_CTL1,
+				   dec);
+	if (err)
+		return err;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_EGRESS_RATE_CTL2,
+				    FIELD_PREP(MV88E6390_PORT_EGRESS_RATE_CTL2_COUNT_MASK,
+					       MV88E6390_PORT_EGRESS_RATE_CTL2_COUNT_LAYER2) |
+				    rate);
+}
+
 /* Offset 0x0B: Port Association Vector */
 
 int mv88e6xxx_port_set_assoc_vector(struct mv88e6xxx_chip *chip, int port,
