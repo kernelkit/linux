@@ -266,6 +266,8 @@
 #define MV88E6XXX_G2_QOS_WEIGHTS_UPDATE		0x8000
 #define MV88E6352_G2_QOS_WEIGHTS_PTR_MASK	0x3f00
 #define MV88E6390_G2_QOS_WEIGHTS_PTR_MASK	0x7f00
+#define MV88E6390_G2_QOS_WEIGHTS_PTR_LEN	0x40
+#define MV88E6390_G2_QOS_WEIGHTS_MAX_LEN	128
 #define MV88E6XXX_G2_QOS_WEIGHTS_DATA_MASK	0x00ff
 
 /* Offset 0x1D: Misc Register */
@@ -331,6 +333,9 @@ int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip,
 				   struct mii_bus *bus,
 				   int addr, int devad, int reg, u16 val);
 int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr);
+
+int mv88e6390_g2_set_qos_weights(struct mv88e6xxx_chip *chip, const u8 *seq,
+				 unsigned int len);
 
 int mv88e6xxx_g2_get_eeprom8(struct mv88e6xxx_chip *chip,
 			     struct ethtool_eeprom *eeprom, u8 *data);
