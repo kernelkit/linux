@@ -240,9 +240,16 @@
 
 /* Offset 0x09: Egress Rate Control */
 #define MV88E6XXX_PORT_EGRESS_RATE_CTL1		0x09
+#define MV88E6390_PORT_EGRESS_RATE_CTL1_DEC_MASK	0x007f
 
 /* Offset 0x0A: Egress Rate Control 2 */
 #define MV88E6XXX_PORT_EGRESS_RATE_CTL2		0x0a
+#define MV88E6390_PORT_EGRESS_RATE_CTL2_COUNT_MASK	0xc000
+#define MV88E6390_PORT_EGRESS_RATE_CTL2_COUNT_FRAMES	0x0
+#define MV88E6390_PORT_EGRESS_RATE_CTL2_COUNT_LAYER1	0x1
+#define MV88E6390_PORT_EGRESS_RATE_CTL2_COUNT_LAYER2	0x2
+#define MV88E6390_PORT_EGRESS_RATE_CTL2_COUNT_LAYER3	0x3
+#define MV88E6390_PORT_EGRESS_RATE_CTL2_RATE_MASK	0x3fff
 
 /* Offset 0x0B: Port Association Vector */
 #define MV88E6XXX_PORT_ASSOC_VECTOR			0x0b
@@ -591,6 +598,8 @@ int mv88e6390_port_get_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 int mv88e6390_port_set_pcp_prio(struct mv88e6xxx_chip *chip, int port,
 				u8 pcp, u8 dei, int prio);
 int mv88e6390_port_sync_qpri(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_port_set_egress_rate(struct mv88e6xxx_chip *chip, int port,
+				   u64 bps);
 int mv88e6390_port_get_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
 				u8 prio, u8 *pcp);
 int mv88e6390_port_set_pcp_rewr(struct mv88e6xxx_chip *chip, int port,
