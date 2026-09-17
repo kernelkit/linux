@@ -2088,6 +2088,34 @@ int mv88e6390_port_sync_qpri(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6390_port_set_default_prio(chip, port, err);
 }
 
+/* Offset 0x1C: Port Queue Control */
+
+static int mv88e6390_port_queue_ctl_write(struct mv88e6xxx_chip *chip,
+					  int port, u8 ptr, u8 data)
+{
+	u16 reg;
+
+	reg = MV88E6390_PORT_QUEUE_CTL_UPDATE |
+		FIELD_PREP(MV88E6390_PORT_QUEUE_CTL_PTR_MASK, ptr) |
+		FIELD_PREP(MV88E6390_PORT_QUEUE_CTL_DATA_MASK, data);
+
+	return mv88e6xxx_port_write(chip, port, MV88E6390_PORT_QUEUE_CTL, reg);
+}
+
+/* Serve the @strict highest queues in strict priority order and the
+ * rest by weighted round robin, with the weights from Global 2.
+ */
+int mv88e6390_port_set_sched(struct mv88e6xxx_chip *chip, int port,
+			     unsigned int strict)
+{
+	u8 mode = min_t(unsigned int, strict,
+			MV88E6390_PORT_QUEUE_CTL_SCHED_STRICT_MASK);
+
+	return mv88e6390_port_queue_ctl_write(chip, port,
+					      MV88E6390_PORT_QUEUE_CTL_PTR_SCHED,
+					      mode);
+}
+
 /* Egress remarking uses the frame priority assigned at ingress to look
  * up the PCP written to tagged frames and the DSCP written to IP frames.
  * Green and yellow frames have separate tables, both are kept equal as
