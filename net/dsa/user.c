@@ -2243,11 +2243,13 @@ dsa_user_dcbnl_set_default_prio(struct net_device *dev, struct dcb_app *app)
 	return 0;
 }
 
-/* Update the DSCP prio entries on all user ports of the switch in case
- * the switch supports global DSCP prio instead of per port DSCP prios.
+/* Update the APP entry on all user ports of the switch in case the
+ * switch has one classification table instead of one per port.  Only
+ * the other ports' tables are touched; hardware was programmed by the
+ * caller.
  */
-static int dsa_user_dcbnl_ieee_global_dscp_setdel(struct net_device *dev,
-						  struct dcb_app *app, bool del)
+static int dsa_user_dcbnl_ieee_global_app_setdel(struct net_device *dev,
+						 struct dcb_app *app, bool del)
 {
 	int (*setdel)(struct net_device *dev, struct dcb_app *app);
 	struct dsa_port *dp = dsa_user_to_port(dev);
@@ -2289,7 +2291,7 @@ err_try_to_restore:
 
 		restore_err = setdel(user, app);
 		if (restore_err)
-			netdev_err(user, "Failed to restore DSCP prio entry configuration\n");
+			netdev_err(user, "Failed to restore APP entry configuration\n");
 	}
 
 	return err;
@@ -2329,7 +2331,7 @@ dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 	if (!ds->dscp_prio_mapping_is_global)
 		return 0;
 
-	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, false);
+	err = dsa_user_dcbnl_ieee_global_app_setdel(dev, app, false);
 	if (err) {
 		if (ds->ops->port_del_dscp_prio)
 			ds->ops->port_del_dscp_prio(ds, port, dscp, new_prio);
@@ -2438,7 +2440,7 @@ dsa_user_dcbnl_del_dscp_prio(struct net_device *dev, struct dcb_app *app)
 	if (!ds->dscp_prio_mapping_is_global)
 		return 0;
 
-	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, true);
+	err = dsa_user_dcbnl_ieee_global_app_setdel(dev, app, true);
 	if (err) {
 		if (ds->ops->port_add_dscp_prio)
 			ds->ops->port_add_dscp_prio(ds, port, dscp,
