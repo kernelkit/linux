@@ -849,6 +849,8 @@ static inline bool dsa_port_tree_same(const struct dsa_port *a,
 
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
+struct ieee_ets;
+
 struct dsa_switch_ops {
 	/*
 	 * Tagging protocol helpers called for the CPU ports and DSA links.
@@ -988,6 +990,18 @@ struct dsa_switch_ops {
 	int	(*port_set_dscp_rewr)(struct dsa_switch *ds, int port, u8 prio,
 				      u8 dscp);
 	int	(*port_del_dscp_rewr)(struct dsa_switch *ds, int port, u8 prio);
+
+	/*
+	 * IEEE 802.1Qaz Enhanced Transmission Selection: the priority to
+	 * traffic class map, the transmission selection algorithm of each
+	 * class, and the share of the port the classes selected by ETS
+	 * get.  The getter reports what the port runs, and the number of
+	 * traffic classes it has in ets_cap.
+	 */
+	int	(*port_get_ets)(struct dsa_switch *ds, int port,
+				struct ieee_ets *ets);
+	int	(*port_set_ets)(struct dsa_switch *ds, int port,
+				struct ieee_ets *ets);
 
 	/*
 	 * Suspend and resume
