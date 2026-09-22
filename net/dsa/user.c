@@ -3040,9 +3040,77 @@ static const struct ethtool_ops dsa_user_ethtool_ops = {
 	.get_mm_stats		= dsa_user_get_mm_stats,
 };
 
+/* The shares of the classes selected by ETS add up to the whole port,
+ * and a class selected by another algorithm has no share.
+ */
+static int dsa_user_dcbnl_ets_validate(struct net_device *dev,
+				       struct ieee_ets *ets)
+{
+	unsigned int total = 0;
+	int tc;
+
+	for (tc = 0; tc < IEEE_8021QAZ_MAX_TCS; tc++) {
+		if (ets->prio_tc[tc] >= IEEE_8021QAZ_MAX_TCS) {
+			netdev_err(dev, "Priority %d maps to traffic class %u\n",
+				   tc, ets->prio_tc[tc]);
+			return -ERANGE;
+		}
+
+		if (ets->tc_tsa[tc] == IEEE_8021QAZ_TSA_ETS) {
+			total += ets->tc_tx_bw[tc];
+			continue;
+		}
+
+		if (ets->tc_tx_bw[tc]) {
+			netdev_err(dev, "Traffic class %d has a bandwidth share but is not selected by ETS\n",
+				   tc);
+			return -EINVAL;
+		}
+	}
+
+	if (total && total != 100) {
+		netdev_err(dev, "ETS bandwidth shares add up to %u, not 100\n",
+			   total);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused dsa_user_dcbnl_ieee_getets(struct net_device *dev,
+						     struct ieee_ets *ets)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_get_ets)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_get_ets(ds, dp->index, ets);
+}
+
+static int __maybe_unused dsa_user_dcbnl_ieee_setets(struct net_device *dev,
+						     struct ieee_ets *ets)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	if (!ds->ops->port_set_ets)
+		return -EOPNOTSUPP;
+
+	err = dsa_user_dcbnl_ets_validate(dev, ets);
+	if (err)
+		return err;
+
+	return ds->ops->port_set_ets(ds, dp->index, ets);
+}
+
 static const struct dcbnl_rtnl_ops __maybe_unused dsa_user_dcbnl_ops = {
 	.ieee_setapp		= dsa_user_dcbnl_ieee_setapp,
 	.ieee_delapp		= dsa_user_dcbnl_ieee_delapp,
+	.ieee_getets		= dsa_user_dcbnl_ieee_getets,
+	.ieee_setets		= dsa_user_dcbnl_ieee_setets,
 	.dcbnl_setapptrust	= dsa_user_dcbnl_set_apptrust,
 	.dcbnl_getapptrust	= dsa_user_dcbnl_get_apptrust,
 	.dcbnl_setrewr		= dsa_user_dcbnl_setrewr,
