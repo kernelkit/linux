@@ -447,6 +447,16 @@ struct dsa_switch {
 	 */
 	u32			dscp_prio_mapping_is_global:1;
 
+	/* Same, for the PCP classification table. */
+	u32			pcp_prio_mapping_is_global:1;
+	u32			pcp_prio_mapping_ignores_dei:1;
+
+	/* Same, for the two tables a port remarks from, each named after
+	 * the direction it maps in.
+	 */
+	u32			prio_pcp_mapping_is_global:1;
+	u32			prio_dscp_mapping_is_global:1;
+
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
 
@@ -839,6 +849,8 @@ static inline bool dsa_port_tree_same(const struct dsa_port *a,
 
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
+struct ieee_ets;
+
 struct dsa_switch_ops {
 	/*
 	 * Tagging protocol helpers called for the CPU ports and DSA links.
@@ -962,6 +974,34 @@ struct dsa_switch_ops {
 				       u8 prio);
 	int	(*port_del_etype_prio)(struct dsa_switch *ds, int port, u16 etype,
 				       u8 prio);
+	int	(*port_get_pcp_prio)(struct dsa_switch *ds, int port, u8 pcp,
+				     u8 dei);
+	int	(*port_add_pcp_prio)(struct dsa_switch *ds, int port, u8 pcp,
+				     u8 dei, u8 prio);
+	int	(*port_del_pcp_prio)(struct dsa_switch *ds, int port, u8 pcp,
+				     u8 dei, u8 prio);
+	int	(*port_get_pcp_rewr)(struct dsa_switch *ds, int port, u8 prio,
+				     u8 *pcp, u8 *dei);
+	int	(*port_set_pcp_rewr)(struct dsa_switch *ds, int port, u8 prio,
+				     u8 pcp, u8 dei);
+	int	(*port_del_pcp_rewr)(struct dsa_switch *ds, int port, u8 prio);
+	int	(*port_get_dscp_rewr)(struct dsa_switch *ds, int port, u8 prio,
+				      u8 *dscp);
+	int	(*port_set_dscp_rewr)(struct dsa_switch *ds, int port, u8 prio,
+				      u8 dscp);
+	int	(*port_del_dscp_rewr)(struct dsa_switch *ds, int port, u8 prio);
+
+	/*
+	 * IEEE 802.1Qaz Enhanced Transmission Selection: the priority to
+	 * traffic class map, the transmission selection algorithm of each
+	 * class, and the share of the port the classes selected by ETS
+	 * get.  The getter reports what the port runs, and the number of
+	 * traffic classes it has in ets_cap.
+	 */
+	int	(*port_get_ets)(struct dsa_switch *ds, int port,
+				struct ieee_ets *ets);
+	int	(*port_set_ets)(struct dsa_switch *ds, int port,
+				struct ieee_ets *ets);
 
 	/*
 	 * Suspend and resume

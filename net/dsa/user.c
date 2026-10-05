@@ -2243,11 +2243,13 @@ dsa_user_dcbnl_set_default_prio(struct net_device *dev, struct dcb_app *app)
 	return 0;
 }
 
-/* Update the DSCP prio entries on all user ports of the switch in case
- * the switch supports global DSCP prio instead of per port DSCP prios.
+/* Update the APP entry on all user ports of the switch in case the
+ * switch has one classification table instead of one per port.  Only
+ * the other ports' tables are touched; hardware was programmed by the
+ * caller.
  */
-static int dsa_user_dcbnl_ieee_global_dscp_setdel(struct net_device *dev,
-						  struct dcb_app *app, bool del)
+static int dsa_user_dcbnl_ieee_global_app_setdel(struct net_device *dev,
+						 struct dcb_app *app, bool del)
 {
 	int (*setdel)(struct net_device *dev, struct dcb_app *app);
 	struct dsa_port *dp = dsa_user_to_port(dev);
@@ -2289,7 +2291,7 @@ err_try_to_restore:
 
 		restore_err = setdel(user, app);
 		if (restore_err)
-			netdev_err(user, "Failed to restore DSCP prio entry configuration\n");
+			netdev_err(user, "Failed to restore APP entry configuration\n");
 	}
 
 	return err;
@@ -2329,11 +2331,177 @@ dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 	if (!ds->dscp_prio_mapping_is_global)
 		return 0;
 
-	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, false);
+	err = dsa_user_dcbnl_ieee_global_app_setdel(dev, app, false);
 	if (err) {
 		if (ds->ops->port_del_dscp_prio)
 			ds->ops->port_del_dscp_prio(ds, port, dscp, new_prio);
 		dcb_ieee_delapp(dev, app);
+		return err;
+	}
+
+	return 0;
+}
+
+/* The protocol of a PCP APP entry is the DEI in bit 3 and the PCP in
+ * bits 2:0, matching the order of the DCB_APP_SEL_PCP table.
+ */
+#define DSA_DCB_PCP_MAX		16
+#define DSA_DCB_PCP(proto)	((proto) & 0x7)
+#define DSA_DCB_DEI(proto)	(((proto) >> 3) & 0x1)
+
+static int __maybe_unused
+dsa_user_dcbnl_add_pcp_offload(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	unsigned long mask, new_prio;
+	int err, port = dp->index;
+
+	err = dcb_ieee_setapp(dev, app);
+	if ((err == -EEXIST) && ds->pcp_prio_mapping_ignores_dei)
+		/* This is possibly the entry that we just injected as
+		 * a result of offloading the opposite value of DEI,
+		 * so be gracious to loops etc. that setup mappings
+		 * for all PCP+DEI pairs.
+		 */
+		return 0;
+	if (err)
+		return err;
+
+	mask = dcb_ieee_getapp_mask(dev, app);
+	new_prio = __fls(mask);
+
+	err = ds->ops->port_add_pcp_prio(ds, port, DSA_DCB_PCP(app->protocol),
+					 DSA_DCB_DEI(app->protocol), new_prio);
+	if (err)
+		dcb_ieee_delapp(dev, app);
+
+	if (!ds->pcp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_app_setdel(dev, app, false);
+	if (err) {
+		if (ds->ops->port_del_pcp_prio)
+			ds->ops->port_del_pcp_prio(ds, port,
+						   DSA_DCB_PCP(app->protocol),
+						   DSA_DCB_DEI(app->protocol),
+						   new_prio);
+		dcb_ieee_delapp(dev, app);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_del_pcp_offload(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int err, port = dp->index;
+
+	if (!ds->ops->port_del_pcp_prio)
+		return -EOPNOTSUPP;
+
+	err = dcb_ieee_delapp(dev, app);
+	if ((err == -ENOENT) && ds->pcp_prio_mapping_ignores_dei)
+		/* Since we originally injected an extra entry that
+		 * the user did not explicitly ask for, be gracious to
+		 * `dcb app flush dev {swp} pcp-prio`.
+		 */
+		return 0;
+	if (err)
+		return err;
+
+	err = ds->ops->port_del_pcp_prio(ds, port, DSA_DCB_PCP(app->protocol),
+					 DSA_DCB_DEI(app->protocol),
+					 app->priority);
+	if (err) {
+		dcb_ieee_setapp(dev, app);
+		return err;
+	}
+
+	if (!ds->pcp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_app_setdel(dev, app, true);
+	if (err) {
+		if (ds->ops->port_add_pcp_prio)
+			ds->ops->port_add_pcp_prio(ds, port,
+						   DSA_DCB_PCP(app->protocol),
+						   DSA_DCB_DEI(app->protocol),
+						   app->priority);
+		dcb_ieee_setapp(dev, app);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_add_pcp_prio(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	if (!ds->ops->port_add_pcp_prio)
+		return -EOPNOTSUPP;
+
+	if (app->protocol >= DSA_DCB_PCP_MAX) {
+		netdev_err(dev, "PCP APP entry with protocol value %u is invalid\n",
+			   app->protocol);
+		return -EINVAL;
+	}
+
+	err = dsa_user_dcbnl_add_pcp_offload(dev, app);
+	if (err)
+		return err;
+
+	if (!ds->pcp_prio_mapping_ignores_dei)
+		return 0;
+
+	app->protocol =
+		(!DSA_DCB_DEI(app->protocol) << 3) | DSA_DCB_PCP(app->protocol);
+
+	err = dsa_user_dcbnl_add_pcp_offload(dev, app);
+	if (err) {
+		app->protocol =
+			(!DSA_DCB_DEI(app->protocol) << 3) | DSA_DCB_PCP(app->protocol);
+
+		dsa_user_dcbnl_del_pcp_offload(dev, app);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_del_pcp_prio(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	if (!ds->ops->port_del_pcp_prio)
+		return -EOPNOTSUPP;
+
+	err = dsa_user_dcbnl_del_pcp_offload(dev, app);
+	if (err)
+		return err;
+
+	if (!ds->pcp_prio_mapping_ignores_dei)
+		return 0;
+
+	app->protocol =
+		(!DSA_DCB_DEI(app->protocol) << 3) | DSA_DCB_PCP(app->protocol);
+
+	err = dsa_user_dcbnl_del_pcp_offload(dev, app);
+	if (err) {
+		app->protocol =
+			(!DSA_DCB_DEI(app->protocol) << 3) | DSA_DCB_PCP(app->protocol);
+
+		dsa_user_dcbnl_add_pcp_offload(dev, app);
 		return err;
 	}
 
@@ -2382,6 +2550,8 @@ static int __maybe_unused dsa_user_dcbnl_ieee_setapp(struct net_device *dev,
 		break;
 	case IEEE_8021QAZ_APP_SEL_DSCP:
 		return dsa_user_dcbnl_add_dscp_prio(dev, app);
+	case DCB_APP_SEL_PCP:
+		return dsa_user_dcbnl_add_pcp_prio(dev, app);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2438,7 +2608,7 @@ dsa_user_dcbnl_del_dscp_prio(struct net_device *dev, struct dcb_app *app)
 	if (!ds->dscp_prio_mapping_is_global)
 		return 0;
 
-	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, true);
+	err = dsa_user_dcbnl_ieee_global_app_setdel(dev, app, true);
 	if (err) {
 		if (ds->ops->port_add_dscp_prio)
 			ds->ops->port_add_dscp_prio(ds, port, dscp,
@@ -2488,9 +2658,271 @@ static int __maybe_unused dsa_user_dcbnl_ieee_delapp(struct net_device *dev,
 		break;
 	case IEEE_8021QAZ_APP_SEL_DSCP:
 		return dsa_user_dcbnl_del_dscp_prio(dev, app);
+	case DCB_APP_SEL_PCP:
+		return dsa_user_dcbnl_del_pcp_prio(dev, app);
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+/* Egress remarking: the DCB rewrite table maps a priority back to a PCP
+ * and DEI, or to a DSCP.  Hardware holds one code point per priority and
+ * selector, so a new entry replaces any existing one for that priority.
+ */
+static int __maybe_unused
+dsa_user_dcbnl_rewr_validate(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	u16 max;
+
+	switch (app->selector) {
+	case DCB_APP_SEL_PCP:
+		if (!ds->ops->port_set_pcp_rewr || !ds->ops->port_del_pcp_rewr)
+			return -EOPNOTSUPP;
+		max = DSA_DCB_PCP_MAX;
+		break;
+	case IEEE_8021QAZ_APP_SEL_DSCP:
+		if (!ds->ops->port_set_dscp_rewr || !ds->ops->port_del_dscp_rewr)
+			return -EOPNOTSUPP;
+		max = 64;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (app->protocol >= max || app->priority >= IEEE_8021QAZ_MAX_TCS) {
+		netdev_err(dev, "Rewrite entry %u:%u is invalid\n",
+			   app->priority, app->protocol);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_rewr_program(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (app->selector == DCB_APP_SEL_PCP)
+		return ds->ops->port_set_pcp_rewr(ds, port, app->priority,
+						  DSA_DCB_PCP(app->protocol),
+						  DSA_DCB_DEI(app->protocol));
+
+	return ds->ops->port_set_dscp_rewr(ds, port, app->priority,
+					   app->protocol);
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_rewr_clear(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (app->selector == DCB_APP_SEL_PCP)
+		return ds->ops->port_del_pcp_rewr(ds, port, app->priority);
+
+	return ds->ops->port_del_dscp_rewr(ds, port, app->priority);
+}
+
+/* Protocols currently rewritten for the priority and selector of @app */
+static u64 __maybe_unused
+dsa_user_dcbnl_rewr_mask(struct net_device *dev, struct dcb_app *app)
+{
+	struct dcb_rewr_prio_pcp_map pcp_map;
+	struct dcb_ieee_app_prio_map dscp_map;
+
+	if (app->selector == DCB_APP_SEL_PCP) {
+		dcb_getrewr_prio_pcp_mask_map(dev, &pcp_map);
+		return pcp_map.map[app->priority];
+	}
+
+	dcb_getrewr_prio_dscp_mask_map(dev, &dscp_map);
+	return dscp_map.map[app->priority];
+}
+
+/* Hardware holds one code point per priority and selector, so drop the
+ * entries that priority had before @app, given the @mask it had then.
+ */
+static void __maybe_unused
+dsa_user_dcbnl_rewr_drop_stale(struct net_device *dev, struct dcb_app *app,
+			       u64 mask)
+{
+	struct dcb_app old = *app;
+
+	mask &= ~BIT_ULL(app->protocol);
+	for (old.protocol = 0; mask; old.protocol++, mask >>= 1)
+		if (mask & 1)
+			dcb_delrewr(dev, &old);
+}
+
+/* Record @app in a netdev's rewrite table without touching hardware */
+static int __maybe_unused
+dsa_user_dcbnl_rewr_record(struct net_device *dev, struct dcb_app *app)
+{
+	u64 mask = dsa_user_dcbnl_rewr_mask(dev, app);
+	int err;
+
+	if (!(mask & BIT_ULL(app->protocol))) {
+		err = dcb_setrewr(dev, app);
+		if (err)
+			return err;
+	}
+
+	dsa_user_dcbnl_rewr_drop_stale(dev, app, mask);
+
+	return 0;
+}
+
+/* Whether the switch has one rewrite table for all its ports */
+static bool __maybe_unused
+dsa_user_dcbnl_rewr_is_global(struct net_device *dev, struct dcb_app *app)
+{
+	struct dsa_switch *ds = dsa_user_to_port(dev)->ds;
+
+	if (app->selector == DCB_APP_SEL_PCP)
+		return ds->prio_pcp_mapping_is_global;
+
+	return ds->prio_dscp_mapping_is_global;
+}
+
+/* Keep the other ports' rewrite tables in step with the one table the
+ * switch has, so every port reads back what hardware does.  A table
+ * that cannot be updated leaves that port's view stale; hardware is
+ * already programmed, so the operation stands.
+ */
+static void __maybe_unused
+dsa_user_dcbnl_global_rewr_setdel(struct net_device *dev, struct dcb_app *app,
+				  bool del)
+{
+	struct dsa_switch *ds = dsa_user_to_port(dev)->ds;
+	struct dsa_port *other_dp;
+	int err;
+
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		struct net_device *user = other_dp->user;
+
+		if (!user || user == dev)
+			continue;
+
+		if (del)
+			err = dcb_delrewr(user, app);
+		else
+			err = dsa_user_dcbnl_rewr_record(user, app);
+
+		if (err)
+			netdev_err(user, "Failed to mirror rewrite entry\n");
+	}
+}
+
+static int __maybe_unused dsa_user_dcbnl_setrewr(struct net_device *dev,
+						 struct dcb_app *app)
+{
+	bool exists;
+	u64 mask;
+	int err;
+
+	err = dsa_user_dcbnl_rewr_validate(dev, app);
+	if (err)
+		return err;
+
+	mask = dsa_user_dcbnl_rewr_mask(dev, app);
+	exists = mask & BIT_ULL(app->protocol);
+
+	if (!exists) {
+		err = dcb_setrewr(dev, app);
+		if (err)
+			return err;
+	}
+
+	err = dsa_user_dcbnl_rewr_program(dev, app);
+	if (err) {
+		if (!exists)
+			dcb_delrewr(dev, app);
+		return err;
+	}
+
+	dsa_user_dcbnl_rewr_drop_stale(dev, app, mask);
+
+	if (dsa_user_dcbnl_rewr_is_global(dev, app))
+		dsa_user_dcbnl_global_rewr_setdel(dev, app, false);
+
+	return 0;
+}
+
+static int __maybe_unused dsa_user_dcbnl_delrewr(struct net_device *dev,
+						 struct dcb_app *app)
+{
+	int err;
+
+	err = dsa_user_dcbnl_rewr_validate(dev, app);
+	if (err)
+		return err;
+
+	err = dcb_delrewr(dev, app);
+	if (err)
+		return err;
+
+	err = dsa_user_dcbnl_rewr_clear(dev, app);
+	if (err) {
+		dcb_setrewr(dev, app);
+		return err;
+	}
+
+	if (dsa_user_dcbnl_rewr_is_global(dev, app))
+		dsa_user_dcbnl_global_rewr_setdel(dev, app, true);
+
+	return 0;
+}
+
+static int __maybe_unused dsa_user_dcbnl_rewr_init(struct net_device *dev)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+	int err, prio;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+		struct dcb_app app = { .priority = prio };
+		u8 pcp, dei, dscp;
+
+		if (ds->ops->port_get_pcp_rewr) {
+			err = ds->ops->port_get_pcp_rewr(ds, port, prio,
+							 &pcp, &dei);
+			if (err && err != -ENOENT && err != -EOPNOTSUPP)
+				return err;
+
+			if (!err) {
+				app.selector = DCB_APP_SEL_PCP;
+				app.protocol = dei << 3 | pcp;
+
+				err = dcb_setrewr(dev, &app);
+				if (err)
+					return err;
+			}
+		}
+
+		if (ds->ops->port_get_dscp_rewr) {
+			err = ds->ops->port_get_dscp_rewr(ds, port, prio, &dscp);
+			if (err && err != -ENOENT && err != -EOPNOTSUPP)
+				return err;
+
+			if (!err) {
+				app.selector = IEEE_8021QAZ_APP_SEL_DSCP;
+				app.protocol = dscp;
+
+				err = dcb_setrewr(dev, &app);
+				if (err)
+					return err;
+			}
+		}
+	}
+
+	return 0;
 }
 
 /* Pre-populate the DCB application priority table with the priorities
@@ -2511,12 +2943,13 @@ static int dsa_user_dcbnl_init(struct net_device *dev)
 			.priority = prio,
 		};
 
-		if (prio < 0)
+		if (prio >= 0) {
+			err = dcb_ieee_setapp(dev, &app);
+			if (err)
+				return err;
+		} else if (prio != -EOPNOTSUPP) {
 			return prio;
-
-		err = dcb_ieee_setapp(dev, &app);
-		if (err)
-			return err;
+		}
 	}
 
 	if (ds->ops->port_get_dscp_prio) {
@@ -2543,7 +2976,33 @@ static int dsa_user_dcbnl_init(struct net_device *dev)
 		}
 	}
 
-	return 0;
+	if (ds->ops->port_get_pcp_prio) {
+		int protocol;
+
+		for (protocol = 0; protocol < DSA_DCB_PCP_MAX; protocol++) {
+			struct dcb_app app = {
+				.selector = DCB_APP_SEL_PCP,
+				.protocol = protocol,
+			};
+			int prio;
+
+			prio = ds->ops->port_get_pcp_prio(ds, port,
+							  DSA_DCB_PCP(protocol),
+							  DSA_DCB_DEI(protocol));
+			if (prio == -EOPNOTSUPP)
+				continue;
+			if (prio < 0)
+				return prio;
+
+			app.priority = prio;
+
+			err = dcb_ieee_setapp(dev, &app);
+			if (err)
+				return err;
+		}
+	}
+
+	return dsa_user_dcbnl_rewr_init(dev);
 }
 
 static const struct ethtool_ops dsa_user_ethtool_ops = {
@@ -2581,11 +3040,81 @@ static const struct ethtool_ops dsa_user_ethtool_ops = {
 	.get_mm_stats		= dsa_user_get_mm_stats,
 };
 
+/* The shares of the classes selected by ETS add up to the whole port,
+ * and a class selected by another algorithm has no share.
+ */
+static int dsa_user_dcbnl_ets_validate(struct net_device *dev,
+				       struct ieee_ets *ets)
+{
+	unsigned int total = 0;
+	int tc;
+
+	for (tc = 0; tc < IEEE_8021QAZ_MAX_TCS; tc++) {
+		if (ets->prio_tc[tc] >= IEEE_8021QAZ_MAX_TCS) {
+			netdev_err(dev, "Priority %d maps to traffic class %u\n",
+				   tc, ets->prio_tc[tc]);
+			return -ERANGE;
+		}
+
+		if (ets->tc_tsa[tc] == IEEE_8021QAZ_TSA_ETS) {
+			total += ets->tc_tx_bw[tc];
+			continue;
+		}
+
+		if (ets->tc_tx_bw[tc]) {
+			netdev_err(dev, "Traffic class %d has a bandwidth share but is not selected by ETS\n",
+				   tc);
+			return -EINVAL;
+		}
+	}
+
+	if (total && total != 100) {
+		netdev_err(dev, "ETS bandwidth shares add up to %u, not 100\n",
+			   total);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused dsa_user_dcbnl_ieee_getets(struct net_device *dev,
+						     struct ieee_ets *ets)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_get_ets)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_get_ets(ds, dp->index, ets);
+}
+
+static int __maybe_unused dsa_user_dcbnl_ieee_setets(struct net_device *dev,
+						     struct ieee_ets *ets)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	if (!ds->ops->port_set_ets)
+		return -EOPNOTSUPP;
+
+	err = dsa_user_dcbnl_ets_validate(dev, ets);
+	if (err)
+		return err;
+
+	return ds->ops->port_set_ets(ds, dp->index, ets);
+}
+
 static const struct dcbnl_rtnl_ops __maybe_unused dsa_user_dcbnl_ops = {
 	.ieee_setapp		= dsa_user_dcbnl_ieee_setapp,
 	.ieee_delapp		= dsa_user_dcbnl_ieee_delapp,
+	.ieee_getets		= dsa_user_dcbnl_ieee_getets,
+	.ieee_setets		= dsa_user_dcbnl_ieee_setets,
 	.dcbnl_setapptrust	= dsa_user_dcbnl_set_apptrust,
 	.dcbnl_getapptrust	= dsa_user_dcbnl_get_apptrust,
+	.dcbnl_setrewr		= dsa_user_dcbnl_setrewr,
+	.dcbnl_delrewr		= dsa_user_dcbnl_delrewr,
 };
 
 static void dsa_user_get_stats64(struct net_device *dev,
