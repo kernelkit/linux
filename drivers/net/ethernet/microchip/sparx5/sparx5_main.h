@@ -408,6 +408,10 @@ struct sparx5 {
 	struct list_head mdb_entries;
 	/* mdb list mutex */
 	struct mutex mdb_lock;
+	/* CPU multicast entries, shared by the standalone ports */
+	struct list_head mc_cpu_entries;
+	/* mc_cpu_entries lock */
+	spinlock_t mc_cpu_lock;
 	struct delayed_work mact_work;
 	struct workqueue_struct *mact_queue;
 	/* Board specifics */

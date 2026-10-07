@@ -116,21 +116,79 @@ int sparx5_mact_learn(struct sparx5 *sparx5, int pgid,
 	return ret;
 }
 
+/* Standalone ports share pvid, hence the CPU multicast MAC entry too */
+struct sparx5_mc_cpu_entry {
+	struct list_head list;
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+	int refcnt;
+};
+
+static struct sparx5_mc_cpu_entry *
+sparx5_mc_cpu_find(struct sparx5 *sparx5, const unsigned char *addr, u16 vid)
+{
+	struct sparx5_mc_cpu_entry *e;
+
+	list_for_each_entry(e, &sparx5->mc_cpu_entries, list)
+		if (e->vid == vid && ether_addr_equal(e->addr, addr))
+			return e;
+
+	return NULL;
+}
+
 int sparx5_mc_unsync(struct net_device *dev, const unsigned char *addr)
 {
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *sparx5 = port->sparx5;
+	struct sparx5_mc_cpu_entry *e;
+	int ret = 0;
 
-	return sparx5_mact_forget(sparx5, addr, port->pvid);
+	spin_lock(&sparx5->mc_cpu_lock);
+	e = sparx5_mc_cpu_find(sparx5, addr, port->pvid);
+	if (e && --e->refcnt == 0) {
+		list_del(&e->list);
+		kfree(e);
+		ret = sparx5_mact_forget(sparx5, addr, port->pvid);
+	}
+	spin_unlock(&sparx5->mc_cpu_lock);
+
+	return ret;
 }
 
 int sparx5_mc_sync(struct net_device *dev, const unsigned char *addr)
 {
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *sparx5 = port->sparx5;
+	struct sparx5_mc_cpu_entry *e;
+	int ret = 0;
 
-	return sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
-				 addr, port->pvid);
+	spin_lock(&sparx5->mc_cpu_lock);
+	e = sparx5_mc_cpu_find(sparx5, addr, port->pvid);
+	if (!e) {
+		e = kmalloc(sizeof(*e), GFP_ATOMIC);
+		if (!e) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = sparx5_mact_learn(sparx5,
+					sparx5_get_pgid(sparx5, PGID_CPU),
+					addr, port->pvid);
+		if (ret) {
+			kfree(e);
+			goto out;
+		}
+
+		ether_addr_copy(e->addr, addr);
+		e->vid = port->pvid;
+		e->refcnt = 0;
+		list_add_tail(&e->list, &sparx5->mc_cpu_entries);
+	}
+	e->refcnt++;
+out:
+	spin_unlock(&sparx5->mc_cpu_lock);
+
+	return ret;
 }
 
 static int sparx5_mact_get(struct sparx5 *sparx5,
@@ -494,6 +552,8 @@ int sparx5_mact_init(struct sparx5 *sparx5)
 	char queue_name[32];
 
 	spin_lock_init(&sparx5->lock);
+	spin_lock_init(&sparx5->mc_cpu_lock);
+	INIT_LIST_HEAD(&sparx5->mc_cpu_entries);
 
 	/*  Flush MAC table */
 	spx5_wr(LRN_COMMON_ACCESS_CTRL_CPU_ACCESS_CMD_SET(MAC_CMD_CLEAR_ALL) |
@@ -529,7 +589,14 @@ int sparx5_mact_init(struct sparx5 *sparx5)
 
 void sparx5_mact_deinit(struct sparx5 *sparx5)
 {
+	struct sparx5_mc_cpu_entry *e, *tmp;
+
 	cancel_delayed_work_sync(&sparx5->mact_work);
 	destroy_workqueue(sparx5->mact_queue);
 	mutex_destroy(&sparx5->mact_lock);
+
+	list_for_each_entry_safe(e, tmp, &sparx5->mc_cpu_entries, list) {
+		list_del(&e->list);
+		kfree(e);
+	}
 }
