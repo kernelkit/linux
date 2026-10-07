@@ -506,8 +506,14 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	if (ret)
 		return ret;
 
-	/* rx data queue for band0 */
-	if (!dev->phy.mt76->band_idx) {
+	/* rx data queue for band0.  Also on a device whose only phy is
+	 * band1 when WED does RX: the WED drives WPDMA RX ring 0 and 1
+	 * alike, and with ring 0 never set up it stalls on ring 1 after
+	 * a while, the ring sits with no descriptor armed and the MAC
+	 * counts RX FIFO full.  Give it an empty but valid ring 0. */
+	if (!dev->phy.mt76->band_idx ||
+	    (mtk_wed_device_active(&mdev->mmio.wed) &&
+	     mtk_wed_get_rx_capa(&mdev->mmio.wed))) {
 		if (mtk_wed_device_active(&mdev->mmio.wed) &&
 		    mtk_wed_get_rx_capa(&mdev->mmio.wed)) {
 			mdev->q_rx[MT_RXQ_MAIN].flags =
