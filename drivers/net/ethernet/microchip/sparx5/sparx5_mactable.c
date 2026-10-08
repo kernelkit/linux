@@ -570,6 +570,11 @@ int sparx5_mact_init(struct sparx5 *sparx5)
 			  (unsigned char[]){0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 			  NULL_VID);
 
+	/* Flood BC of bridged ports without a PVID, to the ports and CPU */
+	sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_BCAST),
+			  (unsigned char[]){0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+			  UNAWARE_VID);
+
 	mutex_init(&sparx5->mdb_lock);
 	INIT_LIST_HEAD(&sparx5->mdb_entries);
 	mutex_init(&sparx5->mact_lock);
