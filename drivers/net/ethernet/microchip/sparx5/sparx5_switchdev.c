@@ -155,8 +155,8 @@ static int sparx5_port_attr_set(struct net_device *dev, const void *ctx,
 		/* Used PVID 1 when default_pvid is 0, to avoid
 		 * collision with non-bridged ports.
 		 */
-		if (port->pvid == 0)
-			port->pvid = 1;
+		if (port->pvid == NULL_VID)
+			port->pvid = UNAWARE_VID;
 		port->vlan_aware = attr->u.vlan_filtering;
 		sparx5_vlan_port_apply(port->sparx5, port);
 		break;
@@ -346,8 +346,8 @@ static void sparx5_switchdev_bridge_fdb_event_work(struct work_struct *work)
 	/* Used PVID 1 when default_pvid is 0, to avoid
 	 * collision with non-bridged ports.
 	 */
-	if (fdb_info->vid == 0)
-		vid = 1;
+	if (fdb_info->vid == NULL_VID)
+		vid = UNAWARE_VID;
 	else
 		vid = fdb_info->vid;
 
@@ -679,7 +679,9 @@ static int sparx5_handle_port_vlan_del(struct net_device *dev,
 			container_of(nb, struct sparx5,
 				     switchdev_blocking_nb);
 
-		sparx5_mact_forget(sparx5, dev->broadcast, vid);
+		/* Kept for the bridged ports without a PVID */
+		if (vid != UNAWARE_VID)
+			sparx5_mact_forget(sparx5, dev->broadcast, vid);
 		return 0;
 	}
 
