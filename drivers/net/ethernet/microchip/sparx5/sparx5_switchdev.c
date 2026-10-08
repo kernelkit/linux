@@ -329,7 +329,6 @@ static void sparx5_switchdev_bridge_fdb_event_work(struct work_struct *work)
 	struct sparx5_port *port;
 	struct sparx5 *sparx5;
 	bool host_addr;
-	u16 vid;
 
 	rtnl_lock();
 	if (!sparx5_netdevice_check(dev)) {
@@ -343,26 +342,18 @@ static void sparx5_switchdev_bridge_fdb_event_work(struct work_struct *work)
 
 	fdb_info = &switchdev_work->fdb_info;
 
-	/* Used PVID 1 when default_pvid is 0, to avoid
-	 * collision with non-bridged ports.
-	 */
-	if (fdb_info->vid == NULL_VID)
-		vid = UNAWARE_VID;
-	else
-		vid = fdb_info->vid;
-
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		if (host_addr)
 			sparx5_add_mact_entry(sparx5, dev,
 					      sparx5_get_pgid(sparx5, PGID_CPU),
-					      fdb_info->addr, vid);
+					      fdb_info->addr, fdb_info->vid);
 		else
 			sparx5_add_mact_entry(sparx5, port->ndev, port->portno,
-					      fdb_info->addr, vid);
+					      fdb_info->addr, fdb_info->vid);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		sparx5_del_mact_entry(sparx5, fdb_info->addr, vid);
+		sparx5_del_mact_entry(sparx5, fdb_info->addr, fdb_info->vid);
 		break;
 	}
 

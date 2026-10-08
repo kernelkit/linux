@@ -39,7 +39,24 @@ struct sparx5_mact_entry {
 #define MAC_ENT_LOCK	BIT(2)
 	u16 vid;
 	u16 port;
+	u8 refs; /* Bridge VIDs using a locked entry */
+#define MAC_ENT_REF_VID		BIT(0) /* The entry's own VID */
+#define MAC_ENT_REF_UNAWARE	BIT(1) /* Bridge VID 0, see UNAWARE_VID */
 };
+
+/* Bridge VID 0 is mapped to UNAWARE_VID, to keep clear of the standalone
+ * ports on NULL_VID, so it shares the MAC table entry with that VID.
+ */
+static u16 sparx5_mact_bridge_vid(u16 vid, u8 *ref)
+{
+	if (vid == NULL_VID) {
+		*ref = MAC_ENT_REF_UNAWARE;
+		return UNAWARE_VID;
+	}
+
+	*ref = MAC_ENT_REF_VID;
+	return vid;
+}
 
 static int sparx5_mact_get_status(struct sparx5 *sparx5)
 {
@@ -354,6 +371,13 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 	struct sparx5_mact_entry *mact_entry;
 	int ret;
 	u32 cfg2;
+	u8 ref;
+
+	vid = sparx5_mact_bridge_vid(vid, &ref);
+
+	mact_entry = find_mact_entry(sparx5, addr, vid, portno);
+	if (mact_entry && mact_entry->flags & MAC_ENT_LOCK)
+		mact_entry->refs |= ref;
 
 	ret = sparx5_mact_find(sparx5, addr, vid, &cfg2);
 	if (!ret)
@@ -365,7 +389,6 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 	 * mact thread to start the frame will reach CPU and the CPU will
 	 * add the entry but without the extern_learn flag.
 	 */
-	mact_entry = find_mact_entry(sparx5, addr, vid, portno);
 	if (mact_entry)
 		goto update_hw;
 
@@ -386,6 +409,7 @@ update_hw:
 	/* New entry? */
 	if (mact_entry->flags == 0) {
 		mact_entry->flags |= MAC_ENT_LOCK; /* Don't age this */
+		mact_entry->refs = ref;
 		sparx5_fdb_call_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE, addr, vid,
 					  dev, true);
 	}
@@ -398,6 +422,9 @@ int sparx5_del_mact_entry(struct sparx5 *sparx5,
 			  u16 vid)
 {
 	struct sparx5_mact_entry *mact_entry, *tmp;
+	u8 ref;
+
+	vid = sparx5_mact_bridge_vid(vid, &ref);
 
 	/* Delete the entry in SW MAC table not to get the notification when
 	 * SW is pulling again
@@ -405,8 +432,12 @@ int sparx5_del_mact_entry(struct sparx5 *sparx5,
 	mutex_lock(&sparx5->mact_lock);
 	list_for_each_entry_safe(mact_entry, tmp, &sparx5->mact_entries,
 				 list) {
-		if ((vid == 0 || mact_entry->vid == vid) &&
+		if (mact_entry->vid == vid &&
 		    ether_addr_equal(addr, mact_entry->mac)) {
+			mact_entry->refs &= ~ref;
+			if (mact_entry->refs)
+				continue;
+
 			sparx5_mact_forget(sparx5, addr, mact_entry->vid);
 
 			list_del(&mact_entry->list);
