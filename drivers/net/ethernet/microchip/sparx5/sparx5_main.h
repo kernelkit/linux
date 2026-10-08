@@ -103,6 +103,7 @@ enum sparx5_feature {
 
 #define IFH_LEN                9 /* 36 bytes */
 #define NULL_VID               0
+#define UNAWARE_VID            1 /* Bridged ports without a PVID */
 #define SPX5_MACT_PULL_DELAY   (2 * HZ)
 #define SPX5_STATS_CHECK_DELAY (1 * HZ)
 #define SPX5_PRIOS             8     /* Number of priority queues */
