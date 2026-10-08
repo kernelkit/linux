@@ -276,6 +276,10 @@ static int sparx5_port_add_addr(struct net_device *dev, bool up)
 	struct sparx5 *sparx5 = port->sparx5;
 	u16 vid = port->pvid;
 
+	/* The bridge keeps the entries of its ports */
+	if (test_bit(port->portno, sparx5->bridge_mask))
+		return 0;
+
 	if (up)
 		sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
 				  port->ndev->dev_addr, vid);
