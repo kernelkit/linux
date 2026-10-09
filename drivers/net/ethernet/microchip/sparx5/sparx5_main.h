@@ -409,10 +409,10 @@ struct sparx5 {
 	struct list_head mdb_entries;
 	/* mdb list mutex */
 	struct mutex mdb_lock;
-	/* CPU multicast entries, shared by the standalone ports */
-	struct list_head mc_cpu_entries;
-	/* mc_cpu_entries lock */
-	spinlock_t mc_cpu_lock;
+	/* CPU entries, shared by the standalone ports */
+	struct list_head cpu_entries;
+	/* cpu_entries lock */
+	spinlock_t cpu_lock;
 	struct delayed_work mact_work;
 	struct workqueue_struct *mact_queue;
 	/* Board specifics */
@@ -491,6 +491,10 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 int sparx5_del_mact_entry(struct sparx5 *sparx5,
 			  const unsigned char *addr,
 			  u16 vid);
+int sparx5_cpu_entry_get(struct sparx5 *sparx5, const unsigned char *addr,
+			 u16 vid);
+int sparx5_cpu_entry_put(struct sparx5 *sparx5, const unsigned char *addr,
+			 u16 vid);
 int sparx5_mc_sync(struct net_device *dev, const unsigned char *addr);
 int sparx5_mc_unsync(struct net_device *dev, const unsigned char *addr);
 void sparx5_set_ageing(struct sparx5 *sparx5, int msecs);
