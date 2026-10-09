@@ -193,14 +193,13 @@ static int sparx5_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	/* The bridge keeps the entries of its ports */
-	if (!test_bit(port->portno, sparx5->bridge_mask)) {
+	/* The bridge keeps the entries of its ports, a port that is down has none */
+	if (!test_bit(port->portno, sparx5->bridge_mask) && netif_running(dev)) {
 		/* Remove current */
-		sparx5_mact_forget(sparx5, dev->dev_addr,  port->pvid);
+		sparx5_cpu_entry_put(sparx5, dev->dev_addr, port->pvid);
 
 		/* Add new */
-		sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
-				  addr->sa_data, port->pvid);
+		sparx5_cpu_entry_get(sparx5, addr->sa_data, port->pvid);
 	}
 
 	/* Record the address */
