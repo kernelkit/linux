@@ -199,7 +199,8 @@ static int sparx5_port_bridge_join(struct sparx5_port *port,
 		goto err_switchdev_offload;
 
 	/* Remove standalone port entry */
-	sparx5_mact_forget(sparx5, ndev->dev_addr, 0);
+	if (netif_running(ndev))
+		sparx5_cpu_entry_put(sparx5, ndev->dev_addr, NULL_VID);
 
 	/* Port enters in bridge mode therefore don't need to copy to CPU
 	 * frames for multicast in case the bridge is not requesting them
@@ -236,8 +237,8 @@ static void sparx5_port_bridge_leave(struct sparx5_port *port,
 	port->vid = NULL_VID;
 
 	/* Forward frames to CPU */
-	sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
-			  port->ndev->dev_addr, 0);
+	if (netif_running(port->ndev))
+		sparx5_cpu_entry_get(sparx5, port->ndev->dev_addr, NULL_VID);
 
 	/* Port enters in host more therefore restore mc list */
 	__dev_mc_sync(port->ndev, sparx5_mc_sync, sparx5_mc_unsync);
@@ -281,10 +282,9 @@ static int sparx5_port_add_addr(struct net_device *dev, bool up)
 		return 0;
 
 	if (up)
-		sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
-				  port->ndev->dev_addr, vid);
+		sparx5_cpu_entry_get(sparx5, port->ndev->dev_addr, vid);
 	else
-		sparx5_mact_forget(sparx5, port->ndev->dev_addr, vid);
+		sparx5_cpu_entry_put(sparx5, port->ndev->dev_addr, vid);
 
 	return 0;
 }
