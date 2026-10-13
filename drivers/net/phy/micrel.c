@@ -455,6 +455,8 @@ struct kszphy_priv {
 	bool rmii_ref_clk_sel_val;
 	bool clk_enable;
 	bool is_ptp_available;
+	bool aneg_restarted;
+	bool qsgmii_resync;
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
 	struct kszphy_phy_stats phy_stats;
 };
@@ -4598,7 +4600,60 @@ static int lan8814_config_init(struct phy_device *phydev)
 	if (lan8814->led_mode >= 0)
 		lan8814_setup_led(phydev, lan8814->led_mode);
 
+	lan8814->qsgmii_resync = true;
+
 	return lan8814_erratas(phydev);
+}
+
+/* Microchip's PHY API resets the package QSGMII and restarts aneg after
+ * every PHY reset, once the MAC has configured its end, and renegotiates
+ * each port once after its first 1000BASE-T link, to avoid CRC errors.
+ * Under phylink the MAC side is set up before config_aneg runs.
+ */
+static int lan8814_config_aneg(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+	bool resync = priv->qsgmii_resync;
+	int err;
+
+	if (resync) {
+		priv->qsgmii_resync = false;
+		err = lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+					     LAN8814_QSGMII_SOFT_RESET,
+					     LAN8814_QSGMII_SOFT_RESET_BIT,
+					     LAN8814_QSGMII_SOFT_RESET_BIT);
+		if (err < 0)
+			return err;
+	}
+
+	err = genphy_config_aneg(phydev);
+	if (err || !resync || phydev->autoneg != AUTONEG_ENABLE)
+		return err;
+
+	return genphy_restart_aneg(phydev);
+}
+
+static int lan8814_read_status(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+	int err, val;
+
+	err = ksz9031_read_status(phydev);
+	if (err || priv->aneg_restarted || !phydev->link ||
+	    phydev->speed != SPEED_1000)
+		return err;
+
+	val = phy_read(phydev, MII_STAT1000);
+	if (val < 0)
+		return val;
+	if ((val & (LPA_1000LOCALRXOK | LPA_1000REMRXOK)) !=
+	    (LPA_1000LOCALRXOK | LPA_1000REMRXOK))
+		return 0;
+
+	priv->aneg_restarted = true;
+	phydev->link = 0;
+
+	return genphy_restart_aneg(phydev);
 }
 
 /* It is expected that there will not be any 'lan8814_take_coma_mode'
@@ -6584,7 +6639,8 @@ static struct phy_driver ksphy_driver[] = {
 	.driver_data	= &lan8814_type,
 	.probe		= lan8814_probe,
 	.soft_reset	= genphy_soft_reset,
-	.read_status	= ksz9031_read_status,
+	.config_aneg	= lan8814_config_aneg,
+	.read_status	= lan8814_read_status,
 	.get_sset_count	= kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
