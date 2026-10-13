@@ -457,6 +457,9 @@ struct kszphy_priv {
 	bool is_ptp_available;
 	bool aneg_restarted;
 	bool qsgmii_resync;
+	struct phy_device *phydev;
+	struct delayed_work aneg_work;
+	unsigned int aneg_checks;
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
 	struct kszphy_phy_stats phy_stats;
 };
@@ -4605,6 +4608,69 @@ static int lan8814_config_init(struct phy_device *phydev)
 	return lan8814_erratas(phydev);
 }
 
+#define LAN8814_AX_AN_STATUS			0x14
+#define LAN8814_AX_AN_STATUS_SIG_DET		BIT(13)
+#define LAN8814_ANEG_CHECKS			3
+
+static void lan8814_aneg_queue(struct kszphy_priv *priv, unsigned int secs)
+{
+	mod_delayed_work(system_power_efficient_wq, &priv->aneg_work,
+			 round_jiffies_relative(secs * HZ));
+}
+
+/* Errata module 20: autonegotiation can get stuck while the link partner is
+ * present.  Restart it once if a signal has been detected for three seconds
+ * without a link, as Microchip's PHY API does.
+ */
+static void lan8814_aneg_work(struct work_struct *work)
+{
+	struct kszphy_priv *priv = container_of(work, struct kszphy_priv,
+						aneg_work.work);
+	struct phy_device *phydev = priv->phydev;
+	int val;
+
+	mutex_lock(&phydev->lock);
+
+	if (!phy_is_started(phydev) || phydev->link ||
+	    phydev->autoneg != AUTONEG_ENABLE)
+		goto out;
+
+	val = phy_read(phydev, LAN8814_AX_AN_STATUS);
+	if (val < 0)
+		goto out;
+
+	if (!(val & LAN8814_AX_AN_STATUS_SIG_DET)) {
+		priv->aneg_checks = 0;
+		lan8814_aneg_queue(priv, 5);
+		goto out;
+	}
+
+	val = phy_read(phydev, MII_BMSR);
+	if (val < 0 || (val & (BMSR_LSTATUS | BMSR_ANEGCOMPLETE)))
+		goto out;
+
+	if (++priv->aneg_checks < LAN8814_ANEG_CHECKS) {
+		lan8814_aneg_queue(priv, 1);
+		goto out;
+	}
+
+	phydev_dbg(phydev, "autonegotiation stuck, restarting\n");
+	genphy_restart_aneg(phydev);
+out:
+	mutex_unlock(&phydev->lock);
+}
+
+static void lan8814_link_change_notify(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+
+	priv->aneg_checks = 0;
+	if (phydev->link || phydev->autoneg != AUTONEG_ENABLE)
+		cancel_delayed_work(&priv->aneg_work);
+	else
+		lan8814_aneg_queue(priv, 1);
+}
+
 /* Microchip's PHY API resets the package QSGMII and restarts aneg after
  * every PHY reset, once the MAC has configured its end, and renegotiates
  * each port once after its first 1000BASE-T link, to avoid CRC errors.
@@ -4625,6 +4691,8 @@ static int lan8814_config_aneg(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 	}
+
+	lan8814_link_change_notify(phydev);
 
 	err = genphy_config_aneg(phydev);
 	if (err || !resync || phydev->autoneg != AUTONEG_ENABLE)
@@ -4756,7 +4824,17 @@ static int lan8814_probe(struct phy_device *phydev)
 	 */
 	phy_disable_eee(phydev);
 
+	priv->phydev = phydev;
+	INIT_DELAYED_WORK(&priv->aneg_work, lan8814_aneg_work);
+
 	return 0;
+}
+
+static void lan8814_remove(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+
+	cancel_delayed_work_sync(&priv->aneg_work);
 }
 
 #define LAN8841_MMD_TIMER_REG			0
@@ -6643,9 +6721,11 @@ static struct phy_driver ksphy_driver[] = {
 	.config_init	= lan8814_config_init,
 	.driver_data	= &lan8814_type,
 	.probe		= lan8814_probe,
+	.remove		= lan8814_remove,
 	.soft_reset	= genphy_soft_reset,
 	.config_aneg	= lan8814_config_aneg,
 	.read_status	= lan8814_read_status,
+	.link_change_notify = lan8814_link_change_notify,
 	.get_sset_count	= kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
