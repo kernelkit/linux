@@ -2309,7 +2309,8 @@ mt7530_setup_irq(struct mt7530_priv *priv)
 		mt7530_set(priv, MT7530_TOP_SIG_CTRL, TOP_SIG_CTRL_NORMAL);
 
 	ret = devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),
-					      priv->regmap, irq,
+					      priv->irq_regmap ?: priv->regmap,
+					      irq,
 					      IRQF_ONESHOT,
 					      0, &mt7530_regmap_irq_chip,
 					      &irq_data);
