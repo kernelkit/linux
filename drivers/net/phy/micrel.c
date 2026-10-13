@@ -4428,6 +4428,8 @@ static void lan8814_setup_led(struct phy_device *phydev, int val)
 #define LAN8814_POWER_MGMT_MODE_12_100BT_EEE_MDIX_TX	0x1c
 #define LAN8814_POWER_MGMT_MODE_13_100BT_EEE_MDIX_RX	0x1d
 #define LAN8814_POWER_MGMT_MODE_14_100BTX_EEE_TX_RX	0x1e
+#define LAN8814_ANALOG_CONTROL_4			0x04
+#define LAN8814_AFED_CONTROL				0x09
 
 #define LAN8814_POWER_MGMT_DLLPD_D			BIT(0)
 #define LAN8814_POWER_MGMT_ADCPD_D			BIT(1)
@@ -4550,6 +4552,12 @@ static int lanphy_write_reg_data(struct phy_device *phydev,
 #define LAN8814_ANALOG_CONTROL_10_PLL_DIV_MASK		GENMASK(1, 0)
 #define LAN8814_ANALOG_CONTROL_10_PLL_DIV		1
 
+/* Errata module 13: 10BASE-T transmitter settings, from Microchip's PHY API */
+static const struct lanphy_reg_data mau_errata[] = {
+	{ LAN8814_PAGE_POWER_REGS, LAN8814_ANALOG_CONTROL_4, 0x81e0 },
+	{ LAN8814_PAGE_POWER_REGS, LAN8814_AFED_CONTROL, 0xe214 },
+};
+
 static int lan8814_erratas(struct phy_device *phydev)
 {
 	int ret;
@@ -4561,6 +4569,10 @@ static int lan8814_erratas(struct phy_device *phydev)
 
 	ret = lanphy_write_reg_data(phydev, waketx_timer_errata,
 				    ARRAY_SIZE(waketx_timer_errata));
+	if (ret)
+		return ret;
+
+	ret = lanphy_write_reg_data(phydev, mau_errata, ARRAY_SIZE(mau_errata));
 	if (ret)
 		return ret;
 
