@@ -4537,6 +4537,42 @@ static int lanphy_write_reg_data(struct phy_device *phydev,
 	return ret;
 }
 
+#define LAN8814_PAGE_ANALOG_CTRL			29
+#define LAN8814_ANALOG_CONTROL_1			0x01
+#define LAN8814_ANALOG_CONTROL_1_PLL_TRIM_MASK		GENMASK(6, 5)
+#define LAN8814_ANALOG_CONTROL_1_PLL_TRIM		FIELD_PREP_CONST(GENMASK(6, 5), 2)
+#define LAN8814_ANALOG_CONTROL_10			0x0d
+#define LAN8814_ANALOG_CONTROL_10_PLL_DIV_MASK		GENMASK(1, 0)
+#define LAN8814_ANALOG_CONTROL_10_PLL_DIV		1
+
+static int lan8814_erratas(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = lanphy_write_reg_data(phydev, short_center_tap_errata,
+				    ARRAY_SIZE(short_center_tap_errata));
+	if (ret)
+		return ret;
+
+	ret = lanphy_write_reg_data(phydev, waketx_timer_errata,
+				    ARRAY_SIZE(waketx_timer_errata));
+	if (ret)
+		return ret;
+
+	ret = lanphy_modify_page_reg(phydev, LAN8814_PAGE_ANALOG_CTRL,
+				     LAN8814_ANALOG_CONTROL_1,
+				     LAN8814_ANALOG_CONTROL_1_PLL_TRIM_MASK,
+				     LAN8814_ANALOG_CONTROL_1_PLL_TRIM);
+	if (ret < 0)
+		return ret;
+
+	ret = lanphy_modify_page_reg(phydev, LAN8814_PAGE_ANALOG_CTRL,
+				     LAN8814_ANALOG_CONTROL_10,
+				     LAN8814_ANALOG_CONTROL_10_PLL_DIV_MASK,
+				     LAN8814_ANALOG_CONTROL_10_PLL_DIV);
+	return ret < 0 ? ret : 0;
+}
+
 static int lan8814_config_init(struct phy_device *phydev)
 {
 	struct kszphy_priv *lan8814 = phydev->priv;
@@ -4562,7 +4598,7 @@ static int lan8814_config_init(struct phy_device *phydev)
 	if (lan8814->led_mode >= 0)
 		lan8814_setup_led(phydev, lan8814->led_mode);
 
-	return 0;
+	return lan8814_erratas(phydev);
 }
 
 /* It is expected that there will not be any 'lan8814_take_coma_mode'
