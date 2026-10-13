@@ -154,6 +154,7 @@ static const struct regmap_config regmap_config = {
 static int
 mt7530_probe(struct mdio_device *mdiodev)
 {
+	struct regmap_config *irq_config;
 	struct mt7530_priv *priv;
 	struct device_node *dn;
 	int ret;
@@ -211,6 +212,30 @@ mt7530_probe(struct mdio_device *mdiodev)
 					&regmap_config);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+	/* regmap-irq accesses the switch from its own thread and from the
+	 * irq core's bus lock callbacks, outside the driver's MDIO locking.
+	 * The register protocol is stateful, a page select followed by two
+	 * half words, so an unlocked access interleaving with a locked one
+	 * commits the latter's value into whatever register the former
+	 * selected.  Give the irq chip a regmap that takes the MDIO bus lock
+	 * around every access, like the PCS regmaps do.
+	 */
+	irq_config = devm_kmemdup(priv->dev, &regmap_config,
+				  sizeof(regmap_config), GFP_KERNEL);
+	if (!irq_config)
+		return -ENOMEM;
+
+	irq_config->name = "irq";
+	irq_config->disable_locking = false;
+	irq_config->lock = mt7530_mdio_regmap_lock;
+	irq_config->unlock = mt7530_mdio_regmap_unlock;
+	irq_config->lock_arg = &priv->bus->mdio_lock;
+
+	priv->irq_regmap = devm_regmap_init(priv->dev, &mt7530_regmap_bus,
+					    priv, irq_config);
+	if (IS_ERR(priv->irq_regmap))
+		return PTR_ERR(priv->irq_regmap);
 
 	if (priv->id == ID_MT7531)
 		priv->create_sgmii = mt7531_create_sgmii;

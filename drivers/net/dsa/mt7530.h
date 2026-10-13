@@ -887,6 +887,7 @@ struct mt7530_priv {
 	struct dsa_switch	*ds;
 	struct mii_bus		*bus;
 	struct regmap		*regmap;
+	struct regmap		*irq_regmap;
 	struct reset_control	*rstc;
 	struct regulator	*core_pwr;
 	struct regulator	*io_pwr;
