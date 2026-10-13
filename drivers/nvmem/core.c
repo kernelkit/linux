@@ -1453,7 +1453,11 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np, const char *id)
 	of_node_put(cell_np);
 	if (!cell_entry) {
 		nvmem_layout_module_put(nvmem);
-		ret = nvmem->layout ? -EPROBE_DEFER : -ENOENT;
+		/* A bound layout has added all its cells, the cell is not there */
+		if (nvmem->layout && !device_is_bound(&nvmem->layout->dev))
+			ret = -EPROBE_DEFER;
+		else
+			ret = -ENOENT;
 		__nvmem_device_put(nvmem);
 		return ERR_PTR(ret);
 	}
