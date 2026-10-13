@@ -460,6 +460,7 @@ struct kszphy_priv {
 	struct phy_device *phydev;
 	struct delayed_work aneg_work;
 	unsigned int aneg_checks;
+	bool link_up;
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
 	struct kszphy_phy_stats phy_stats;
 };
@@ -4672,7 +4673,7 @@ out:
 	mutex_unlock(&phydev->lock);
 }
 
-static void lan8814_link_change_notify(struct phy_device *phydev)
+static void lan8814_aneg_arm(struct phy_device *phydev)
 {
 	struct kszphy_priv *priv = phydev->priv;
 
@@ -4681,6 +4682,50 @@ static void lan8814_link_change_notify(struct phy_device *phydev)
 		cancel_delayed_work(&priv->aneg_work);
 	else
 		lan8814_aneg_queue(priv, 1);
+}
+
+#define LAN8814_RX_RA_FIFO_THRESHOLDS_1		0x20
+#define LAN8814_RX_RA_FIFO_THRESHOLDS_2		0x21
+#define LAN8814_RX_RA_FIFO_THRESHOLDS_3		0x22
+#define LAN8814_TX_RA_FIFO_THRESHOLDS_1		0x26
+#define LAN8814_TX_RA_FIFO_THRESHOLDS_2		0x27
+#define LAN8814_TX_RA_FIFO_THRESHOLDS_3		0x28
+#define LAN8814_TX_RA_FIFO_RESET		0x2c
+#define LAN8814_RX_RA_FIFO_RESET		0x2d
+
+/* Errata module 11: late collisions in half duplex.  Microchip's PHY API
+ * lowers the rate adaptation FIFO thresholds on 10/100 half-duplex links,
+ * and resets the FIFOs to their defaults when the link goes down.
+ */
+static const struct lanphy_reg_data half_duplex_errata[] = {
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_RX_RA_FIFO_THRESHOLDS_1, 0x200 },
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_RX_RA_FIFO_THRESHOLDS_2, 0x404 },
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_RX_RA_FIFO_THRESHOLDS_3, 0x608 },
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_TX_RA_FIFO_THRESHOLDS_1, 0x200 },
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_TX_RA_FIFO_THRESHOLDS_2, 0x404 },
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_TX_RA_FIFO_THRESHOLDS_3, 0x608 },
+};
+
+static const struct lanphy_reg_data ra_fifo_reset[] = {
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_TX_RA_FIFO_RESET, 1 },
+	{ LAN8814_PAGE_PORT_REGS, LAN8814_RX_RA_FIFO_RESET, 1 },
+};
+
+static void lan8814_link_change_notify(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+
+	if (phydev->link != priv->link_up) {
+		priv->link_up = phydev->link;
+		if (!phydev->link)
+			lanphy_write_reg_data(phydev, ra_fifo_reset,
+					      ARRAY_SIZE(ra_fifo_reset));
+		else if (phydev->duplex == DUPLEX_HALF)
+			lanphy_write_reg_data(phydev, half_duplex_errata,
+					      ARRAY_SIZE(half_duplex_errata));
+	}
+
+	lan8814_aneg_arm(phydev);
 }
 
 /* Microchip's PHY API resets the package QSGMII and restarts aneg after
@@ -4704,7 +4749,7 @@ static int lan8814_config_aneg(struct phy_device *phydev)
 			return err;
 	}
 
-	lan8814_link_change_notify(phydev);
+	lan8814_aneg_arm(phydev);
 
 	err = genphy_config_aneg(phydev);
 	if (err || !resync || phydev->autoneg != AUTONEG_ENABLE)
