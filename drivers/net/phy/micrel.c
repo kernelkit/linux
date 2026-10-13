@@ -4751,6 +4751,11 @@ static int lan8814_probe(struct phy_device *phydev)
 	lan8814_clear_2psp_bit(phydev);
 	lan8814_update_meas_time(phydev);
 
+	/* Errata module 24: spurious LPI entry on cable unplug.  Keep EEE
+	 * off, as Microchip's PHY API does by default.
+	 */
+	phy_disable_eee(phydev);
+
 	return 0;
 }
 
