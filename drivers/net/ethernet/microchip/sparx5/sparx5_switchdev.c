@@ -437,10 +437,11 @@ static int sparx5_handle_port_vlan_add(struct net_device *dev,
 			container_of(nb, struct sparx5,
 				     switchdev_blocking_nb);
 
-		/* Flood broadcast to CPU */
-		sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_BCAST),
-				  dev->broadcast, v->vid);
-		return 0;
+		/* Flood broadcast to CPU, UNAWARE_VID has it already */
+		if (v->vid == UNAWARE_VID)
+			return 0;
+
+		return sparx5_cpu_entry_get(sparx5, dev->broadcast, v->vid);
 	}
 
 	if (!sparx5_netdevice_check(dev))
@@ -676,7 +677,7 @@ static int sparx5_handle_port_vlan_del(struct net_device *dev,
 
 		/* Kept for the bridged ports without a PVID */
 		if (vid != UNAWARE_VID)
-			sparx5_mact_forget(sparx5, dev->broadcast, vid);
+			sparx5_cpu_entry_put(sparx5, dev->broadcast, vid);
 		return 0;
 	}
 
