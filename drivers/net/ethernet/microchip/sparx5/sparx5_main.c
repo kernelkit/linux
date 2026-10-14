@@ -342,6 +342,13 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	INIT_LIST_HEAD(&spx5_port->tc_templates);
 	sparx5->ports[config->portno] = spx5_port;
 
+	/* An address given for the port overrides the base address + port */
+	err = of_get_ethdev_address(config->node, ndev);
+	if (err == -EPROBE_DEFER)
+		return err;
+	if (!err)
+		ndev->addr_assign_type = NET_ADDR_PERM;
+
 	err = sparx5_port_init(sparx5, spx5_port, &config->conf);
 	if (err) {
 		dev_err(sparx5->dev, "port init failed\n");
