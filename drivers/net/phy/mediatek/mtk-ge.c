@@ -2,6 +2,10 @@
 #include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/crc32.h>
+#include <linux/etherdevice.h>
+#include <linux/netdevice.h>
+#include <linux/workqueue.h>
 
 #include "mtk.h"
 
@@ -124,6 +128,130 @@ static int mt7531_phy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+#define MT7531_LINK_WAIT	msecs_to_jiffies(5000)
+#define MT7531_PULSE		msecs_to_jiffies(300)
+#define MT7531_BACKOFF_STEP	250
+#define MT7531_MAX_ROUNDS	16
+
+struct mt7531_phy_priv {
+	struct phy_device *phydev;
+	struct delayed_work watch;
+	unsigned int round;
+	bool in_pulse;
+};
+
+static unsigned long mt7531_phy_backoff(struct phy_device *phydev,
+					unsigned int round)
+{
+	struct net_device *ndev = phydev->attached_dev;
+	unsigned int nibble;
+	u32 key;
+
+	if (ndev)
+		key = crc32_le(~0, ndev->dev_addr, ETH_ALEN);
+	else
+		key = phydev->mdio.addr;
+
+	nibble = (key >> (4 * (round & 7))) & 0xf;
+
+	return msecs_to_jiffies(MT7531_BACKOFF_STEP * nibble);
+}
+
+static void mt7531_phy_watch(struct work_struct *work)
+{
+	struct mt7531_phy_priv *priv = container_of(work, struct mt7531_phy_priv,
+						    watch.work);
+	struct phy_device *phydev = priv->phydev;
+	int bmsr, exp;
+
+	mutex_lock(&phydev->lock);
+
+	if (priv->in_pulse) {
+		priv->in_pulse = false;
+		genphy_resume(phydev);
+		schedule_delayed_work(&priv->watch, MT7531_LINK_WAIT +
+				      mt7531_phy_backoff(phydev, priv->round));
+		goto out;
+	}
+
+	if (phydev->state < PHY_UP || phydev->autoneg != AUTONEG_ENABLE)
+		goto out;
+
+	/* Link status is latched low, read it twice. */
+	bmsr = phy_read(phydev, MII_BMSR);
+	if (bmsr >= 0)
+		bmsr = phy_read(phydev, MII_BMSR);
+	exp = phy_read(phydev, MII_EXPANSION);
+	if (bmsr < 0 || exp < 0)
+		goto out;
+
+	if (bmsr & BMSR_LSTATUS)
+		goto out;
+
+	/* Nobody on the other end, nothing to break. */
+	if (!(exp & EXPANSION_LCWP))
+		goto out;
+
+	if (priv->round >= MT7531_MAX_ROUNDS)
+		goto out;
+
+	priv->round++;
+	priv->in_pulse = true;
+	genphy_suspend(phydev);
+	schedule_delayed_work(&priv->watch, MT7531_PULSE);
+out:
+	mutex_unlock(&phydev->lock);
+}
+
+static int mt7531_phy_resume(struct phy_device *phydev)
+{
+	struct mt7531_phy_priv *priv = phydev->priv;
+	int ret;
+
+	ret = genphy_resume(phydev);
+	if (ret)
+		return ret;
+
+	priv->round = 0;
+	priv->in_pulse = false;
+	mod_delayed_work(system_wq, &priv->watch,
+			 MT7531_LINK_WAIT + mt7531_phy_backoff(phydev, 0));
+
+	return 0;
+}
+
+static int mt7531_phy_suspend(struct phy_device *phydev)
+{
+	struct mt7531_phy_priv *priv = phydev->priv;
+
+	cancel_delayed_work_sync(&priv->watch);
+	priv->in_pulse = false;
+
+	return genphy_suspend(phydev);
+}
+
+static int mt7531_phy_probe(struct phy_device *phydev)
+{
+	struct mt7531_phy_priv *priv;
+
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->phydev = phydev;
+	INIT_DELAYED_WORK(&priv->watch, mt7531_phy_watch);
+	phydev->priv = priv;
+
+	return 0;
+}
+
+static void mt7531_phy_remove(struct phy_device *phydev)
+{
+	struct mt7531_phy_priv *priv = phydev->priv;
+
+	cancel_delayed_work_sync(&priv->watch);
+}
+
 static struct phy_driver mtk_gephy_driver[] = {
 	{
 		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7530),
@@ -143,14 +271,16 @@ static struct phy_driver mtk_gephy_driver[] = {
 	{
 		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7531),
 		.name		= "MediaTek MT7531 PHY",
+		.probe		= mt7531_phy_probe,
+		.remove		= mt7531_phy_remove,
 		.config_init	= mt7531_phy_config_init,
 		/* Interrupts are handled by the switch, not the PHY
 		 * itself.
 		 */
 		.config_intr	= genphy_no_config_intr,
 		.handle_interrupt = genphy_handle_interrupt_no_ack,
-		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
+		.suspend	= mt7531_phy_suspend,
+		.resume		= mt7531_phy_resume,
 		.read_page	= mtk_phy_read_page,
 		.write_page	= mtk_phy_write_page,
 	},
