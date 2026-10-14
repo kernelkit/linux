@@ -188,8 +188,11 @@ int sparx5_cpu_entry_get(struct sparx5 *sparx5, const unsigned char *addr,
 			goto out;
 		}
 
+		/* Broadcast also floods to the VLAN's member ports */
 		ret = sparx5_mact_learn(sparx5,
-					sparx5_get_pgid(sparx5, PGID_CPU),
+					sparx5_get_pgid(sparx5,
+							is_broadcast_ether_addr(addr) ?
+							PGID_BCAST : PGID_CPU),
 					addr, vid);
 		if (ret) {
 			kfree(e);
