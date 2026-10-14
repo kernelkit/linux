@@ -9,6 +9,8 @@
 #include "sparx5_port.h"
 #include "sparx5_tc.h"
 
+#include <linux/if_vlan.h>
+
 /* The IFH bit position of the first VSTAX bit. This is because the
  * VSTAX bit positions in Data sheet is starting from zero.
  */
@@ -184,6 +186,25 @@ static int sparx5_port_get_phys_port_name(struct net_device *dev,
 	return 0;
 }
 
+struct sparx5_addr_move {
+	struct sparx5 *sparx5;
+	const unsigned char *from;
+	const unsigned char *to;
+};
+
+/* Called for every VID in the filter, also those without a VLAN device */
+static int sparx5_vlan_move_addr(struct net_device *vlan_dev, int vid,
+				 void *arg)
+{
+	struct sparx5_addr_move *move = arg;
+
+	if (!vid)
+		return 0;
+
+	sparx5_cpu_entry_put(move->sparx5, move->from, vid);
+	return sparx5_cpu_entry_get(move->sparx5, move->to, vid);
+}
+
 static int sparx5_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sparx5_port *port = netdev_priv(dev);
@@ -202,8 +223,53 @@ static int sparx5_set_mac_address(struct net_device *dev, void *p)
 		sparx5_cpu_entry_get(sparx5, addr->sa_data, port->pvid);
 	}
 
+	/* Frames to VLAN uppers are delivered by address and VID */
+	vlan_for_each(dev, sparx5_vlan_move_addr,
+		      &(struct sparx5_addr_move){ sparx5, dev->dev_addr,
+						  addr->sa_data });
+
 	/* Record the address */
 	eth_hw_addr_set(dev, addr->sa_data);
+
+	return 0;
+}
+
+/* A VLAN upper terminates its VID locally, also on a bridged port: its
+ * traffic goes to the CPU without the port joining the VLAN.
+ */
+static int sparx5_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
+				  u16 vid)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+	struct sparx5 *sparx5 = port->sparx5;
+	int err;
+
+	if (!vid)
+		return 0;
+
+	err = sparx5_cpu_entry_get(sparx5, dev->dev_addr, vid);
+	if (err || vid == UNAWARE_VID)
+		return err;
+
+	err = sparx5_cpu_entry_get(sparx5, dev->broadcast, vid);
+	if (err)
+		sparx5_cpu_entry_put(sparx5, dev->dev_addr, vid);
+
+	return err;
+}
+
+static int sparx5_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
+				   u16 vid)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+	struct sparx5 *sparx5 = port->sparx5;
+
+	if (!vid)
+		return 0;
+
+	if (vid != UNAWARE_VID)
+		sparx5_cpu_entry_put(sparx5, dev->broadcast, vid);
+	sparx5_cpu_entry_put(sparx5, dev->dev_addr, vid);
 
 	return 0;
 }
@@ -254,6 +320,8 @@ static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_set_rx_mode        = sparx5_set_rx_mode,
 	.ndo_get_phys_port_name = sparx5_port_get_phys_port_name,
 	.ndo_set_mac_address    = sparx5_set_mac_address,
+	.ndo_vlan_rx_add_vid    = sparx5_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid   = sparx5_vlan_rx_kill_vid,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_get_stats64        = sparx5_get_stats64,
 	.ndo_get_port_parent_id = sparx5_get_port_parent_id,
@@ -279,7 +347,7 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 		return ERR_PTR(-ENOMEM);
 
 	ndev->hw_features |= NETIF_F_HW_TC;
-	ndev->features |= NETIF_F_HW_TC;
+	ndev->features |= NETIF_F_HW_TC | NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	SET_NETDEV_DEV(ndev, sparx5->dev);
 	spx5_port = netdev_priv(ndev);
