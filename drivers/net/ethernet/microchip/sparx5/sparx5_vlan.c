@@ -9,10 +9,25 @@
 
 static int sparx5_vlant_set_mask(struct sparx5 *sparx5, u16 vid)
 {
+	DECLARE_BITMAP(ports, SPX5_PORTS);
 	u32 mask[3];
+	int portno;
+
+	bitmap_copy(ports, sparx5->vlan_mask[vid], SPX5_PORTS);
+
+	/* Ports in a VLAN-unaware bridge classify to UNAWARE_VID, whether or
+	 * not the bridge has added that VLAN to them.
+	 */
+	if (vid == UNAWARE_VID) {
+		for_each_set_bit(portno, sparx5->bridge_mask, SPX5_PORTS) {
+			if (sparx5->ports[portno] &&
+			    !sparx5->ports[portno]->vlan_aware)
+				__set_bit(portno, ports);
+		}
+	}
 
 	/* Divide up mask in 32 bit words */
-	bitmap_to_arr32(mask, sparx5->vlan_mask[vid], SPX5_PORTS);
+	bitmap_to_arr32(mask, ports, SPX5_PORTS);
 
 	/* Output mask to respective registers */
 	spx5_wr(mask[0], sparx5, ANA_L3_VLAN_MASK_CFG(vid));
@@ -206,6 +221,9 @@ void sparx5_vlan_port_apply(struct sparx5 *sparx5,
 
 {
 	u32 val;
+
+	/* Bridge membership or VLAN awareness may have changed */
+	sparx5_vlant_set_mask(sparx5, UNAWARE_VID);
 
 	/* Configure PVID, vlan aware */
 	val = ANA_CL_VLAN_CTRL_VLAN_AWARE_ENA_SET(port->vlan_aware) |
