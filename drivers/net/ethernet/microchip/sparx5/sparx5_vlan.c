@@ -249,7 +249,10 @@ void sparx5_vlan_port_apply(struct sparx5 *sparx5,
 			/* Tag all frames except when VID == DEFAULT_VLAN */
 			val |= REW_TAG_CTRL_TAG_CFG_SET(1);
 		else
-			val |= REW_TAG_CTRL_TAG_CFG_SET(3);
+			/* Tag all frames except when VID == 0, frames from
+			 * the CPU carry their own tag and have VID 0.
+			 */
+			val |= REW_TAG_CTRL_TAG_CFG_SET(2);
 	}
 	spx5_wr(val, sparx5, REW_TAG_CTRL(port->portno));
 
