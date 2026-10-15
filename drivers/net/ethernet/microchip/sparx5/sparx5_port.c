@@ -23,7 +23,12 @@ enum port_error {
 	SPX5_PERR_IFTYPE,
 };
 
-#define PAUSE_DISCARD        0xC
+/* ANA_CL_CAPTURE_BPDU_CFG, two bits per address 01-80-C2-00-00-0X:
+ * redirect them all to the CPU, a bridge never forwards them, but
+ * discard pause frames, 01-80-C2-00-00-01.
+ */
+#define BPDU_REDIR_ALL       0x55555555
+#define BPDU_PAUSE_DISCARD   0xC
 #define ETH_MAXLEN           (ETH_DATA_LEN + ETH_HLEN + ETH_FCS_LEN)
 
 static void decode_sgmii_word(u16 lp_abil, struct sparx5_port_status *status)
@@ -1098,8 +1103,9 @@ int sparx5_port_init(struct sparx5 *sparx5,
 		sparx5,
 		QSYS_ATOP(port->portno));
 
-	/* Discard pause frame 01-80-C2-00-00-01 */
-	spx5_wr(PAUSE_DISCARD, sparx5, ANA_CL_CAPTURE_BPDU_CFG(port->portno));
+	/* Reserved link-local multicast to the CPU, pause frames dropped */
+	spx5_wr(BPDU_REDIR_ALL | BPDU_PAUSE_DISCARD, sparx5,
+		ANA_CL_CAPTURE_BPDU_CFG(port->portno));
 
 	/* Discard SMAC multicast */
 	spx5_rmw(ANA_CL_FILTER_CTRL_FILTER_SMAC_MC_DIS_SET(0),
