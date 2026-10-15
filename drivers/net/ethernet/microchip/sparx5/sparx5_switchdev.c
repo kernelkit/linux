@@ -137,6 +137,15 @@ static int sparx5_port_attr_set(struct net_device *dev, const void *ctx,
 				struct netlink_ext_ack *extack)
 {
 	struct sparx5_port *port = netdev_priv(dev);
+	struct sparx5 *sparx5 = port->sparx5;
+
+	/* Attributes of an upper in a bridge, e.g. a VLAN interface on the
+	 * port, or of a bridge the port is not in, are not ours.
+	 */
+	if (attr->orig_dev != dev &&
+	    (attr->orig_dev != sparx5->hw_bridge_dev ||
+	     !test_bit(port->portno, sparx5->bridge_mask)))
+		return -EOPNOTSUPP;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
