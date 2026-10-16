@@ -176,6 +176,7 @@ void sparx5_pgid_read_mask(struct sparx5 *spx5, int pgid, u32 portmask[3])
 void sparx5_update_fwd(struct sparx5 *sparx5)
 {
 	DECLARE_BITMAP(workmask, SPX5_PORTS);
+	DECLARE_BITMAP(lagmask, SPX5_PORTS);
 	u32 mask[3];
 	int port;
 
@@ -188,6 +189,20 @@ void sparx5_update_fwd(struct sparx5 *sparx5)
 			/* Allow to send to all bridged but self */
 			bitmap_copy(workmask, sparx5->bridge_fwd_mask, SPX5_PORTS);
 			clear_bit(port, workmask);
+
+			spin_lock(&sparx5->lock);
+			if (sparx5->ports[port] && sparx5->ports[port]->lag_master) {
+				/* Do not send frames back on the LAG they were
+				 * received on.
+				 */
+				sparx5_lag_mask_get(sparx5,
+						    sparx5->ports[port]->lag_master,
+						    lagmask);
+				bitmap_andnot(workmask, workmask, lagmask,
+					      SPX5_PORTS);
+			}
+			spin_unlock(&sparx5->lock);
+
 			bitmap_to_arr32(mask, workmask, SPX5_PORTS);
 			spx5_wr(mask[0], sparx5, ANA_AC_SRC_CFG(port));
 			if (is_sparx5(sparx5)) {
@@ -213,6 +228,34 @@ void sparx5_update_fwd(struct sparx5 *sparx5)
 	if (is_sparx5(sparx5)) {
 		spx5_wr(mask[1], sparx5, ANA_L2_AUTO_LRN_CFG1);
 		spx5_wr(mask[2], sparx5, ANA_L2_AUTO_LRN_CFG2);
+	}
+}
+
+void sparx5_update_dst_fwd(struct sparx5 *sparx5)
+{
+	DECLARE_BITMAP(dstmask, SPX5_PORTS);
+	struct sparx5_port *port;
+	u32 mask[3] = {0};
+
+	for (int i = 0; i < sparx5->data->consts->n_ports; i++) {
+		port = sparx5->ports[i];
+		if (!port)
+			continue;
+
+		bitmap_zero(dstmask, SPX5_PORTS);
+
+		if (port->lag_master)
+			sparx5_lag_mask_get(sparx5, port->lag_master, dstmask);
+		else
+			set_bit(i, dstmask);
+
+		bitmap_to_arr32(mask, dstmask, SPX5_PORTS);
+
+		spx5_wr(mask[0], sparx5, ANA_AC_PGID_CFG(i));
+		if (is_sparx5(sparx5)) {
+			spx5_wr(mask[1], sparx5, ANA_AC_PGID_CFG1(i));
+			spx5_wr(mask[2], sparx5, ANA_AC_PGID_CFG2(i));
+		}
 	}
 }
 
