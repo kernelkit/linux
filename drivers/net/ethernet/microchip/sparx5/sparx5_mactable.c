@@ -30,20 +30,6 @@
 #define TABLE_UPDATE_SLEEP_US 10
 #define TABLE_UPDATE_TIMEOUT_US 100000
 
-struct sparx5_mact_entry {
-	struct list_head list;
-	unsigned char mac[ETH_ALEN];
-	u32 flags;
-#define MAC_ENT_ALIVE	BIT(0)
-#define MAC_ENT_MOVED	BIT(1)
-#define MAC_ENT_LOCK	BIT(2)
-	u16 vid;
-	u16 port;
-	u8 refs; /* Bridge VIDs using a locked entry */
-#define MAC_ENT_REF_VID		BIT(0) /* The entry's own VID */
-#define MAC_ENT_REF_UNAWARE	BIT(1) /* Bridge VID 0, see UNAWARE_VID */
-};
-
 /* Bridge VID 0 is mapped to UNAWARE_VID, to keep clear of the standalone
  * ports on NULL_VID, so it shares the MAC table entry with that VID.
  */
@@ -334,6 +320,7 @@ static struct sparx5_mact_entry *alloc_mact_entry(struct sparx5 *sparx5,
 						  const unsigned char *mac,
 						  u16 vid, u16 port_index)
 {
+	struct sparx5_port *port = sparx5->ports[port_index];
 	struct sparx5_mact_entry *mact_entry;
 
 	mact_entry = devm_kzalloc(sparx5->dev,
@@ -344,6 +331,12 @@ static struct sparx5_mact_entry *alloc_mact_entry(struct sparx5 *sparx5,
 	memcpy(mact_entry->mac, mac, ETH_ALEN);
 	mact_entry->vid = vid;
 	mact_entry->port = port_index;
+
+	spin_lock(&sparx5->lock);
+	mact_entry->lag = !!(mact_entry->port < sparx5->data->consts->n_ports &&
+			     port->lag_master);
+	spin_unlock(&sparx5->lock);
+
 	return mact_entry;
 }
 
@@ -370,14 +363,21 @@ static struct sparx5_mact_entry *find_mact_entry(struct sparx5 *sparx5,
 
 static void sparx5_fdb_call_notifiers(enum switchdev_notifier_type type,
 				      const char *mac, u16 vid,
-				      struct net_device *dev, bool offloaded)
+				      struct sparx5_port *port, bool offloaded)
 {
 	struct switchdev_notifier_fdb_info info = {};
+	struct sparx5 *sparx5 = port->sparx5;
+	struct net_device *ndev;
 
 	info.addr = mac;
 	info.vid = vid;
 	info.offloaded = offloaded;
-	call_switchdev_notifiers(type, dev, &info.info, NULL);
+
+	spin_lock(&sparx5->lock);
+	ndev = (port->lag_master ? port->lag_master : port->ndev);
+	spin_unlock(&sparx5->lock);
+
+	call_switchdev_notifiers(type, ndev, &info.info, NULL);
 }
 
 int sparx5_add_mact_entry(struct sparx5 *sparx5,
@@ -385,6 +385,7 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 			  u16 portno,
 			  const unsigned char *addr, u16 vid)
 {
+	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5_mact_entry *mact_entry;
 	int ret;
 	u32 cfg2;
@@ -419,7 +420,6 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 	mutex_lock(&sparx5->mact_lock);
 	list_add_tail(&mact_entry->list, &sparx5->mact_entries);
 	mutex_unlock(&sparx5->mact_lock);
-
 update_hw:
 	ret = sparx5_mact_learn(sparx5, portno, addr, vid);
 
@@ -427,8 +427,14 @@ update_hw:
 	if (mact_entry->flags == 0) {
 		mact_entry->flags |= MAC_ENT_LOCK; /* Don't age this */
 		mact_entry->refs = ref;
-		sparx5_fdb_call_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE, addr, vid,
-					  dev, true);
+		/* Only notify bridge for entries on physical ports.
+		 * Host/foreign device entries use a PGID (portno >= n_ports)
+		 * and must not notify, as it would override the bridge's
+		 * FDB entry pointing to the foreign device.
+		 */
+		if (portno < sparx5->data->consts->n_ports)
+			sparx5_fdb_call_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
+						  addr, vid, port, true);
 	}
 
 	return ret;
@@ -520,9 +526,8 @@ static void sparx5_mact_handle_entry(struct sparx5 *sparx5,
 	}
 
 	/* New or moved entry - notify bridge */
-	sparx5_fdb_call_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
-				  mac, vid, sparx5->ports[port]->ndev,
-				  true);
+	sparx5_fdb_call_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE, mac, vid,
+				  sparx5->ports[port], true);
 }
 
 static void sparx5_mact_pull_work(struct work_struct *work)
@@ -571,7 +576,7 @@ static void sparx5_mact_pull_work(struct work_struct *work)
 
 		sparx5_fdb_call_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
 					  mact_entry->mac, mact_entry->vid,
-					  sparx5->ports[mact_entry->port]->ndev,
+					  sparx5->ports[mact_entry->port],
 					  true);
 
 		list_del(&mact_entry->list);
