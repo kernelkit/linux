@@ -206,8 +206,10 @@ static void sparx5_ptp_classify(struct sparx5_port *port, struct sk_buff *skb,
 
 static void sparx5_ptp_txtstamp_old_release(struct sparx5_port *port)
 {
+	struct sparx5 *sparx5 = port->sparx5;
 	struct sk_buff *skb, *skb_tmp;
 	unsigned long flags;
+	int released = 0;
 
 	spin_lock_irqsave(&port->tx_skbs.lock, flags);
 	skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
@@ -217,8 +219,16 @@ static void sparx5_ptp_txtstamp_old_release(struct sparx5_port *port)
 
 		__skb_unlink(skb, &port->tx_skbs);
 		dev_kfree_skb_any(skb);
+		released++;
 	}
 	spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
+
+	if (!released)
+		return;
+
+	spin_lock_irqsave(&sparx5->ptp_ts_id_lock, flags);
+	sparx5->ptp_skbs -= released;
+	spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
 }
 
 int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
