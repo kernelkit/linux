@@ -1539,6 +1539,17 @@ extern const struct sparx5_regs *regs;
 #define ANA_CL_QOS_CFG_DEFAULT_QOS_VAL_GET(x)\
 	FIELD_GET(ANA_CL_QOS_CFG_DEFAULT_QOS_VAL, x)
 
+/* ANA_CL:PORT:CAPTURE_CFG */
+#define ANA_CL_CAPTURE_CFG(g)                                                  \
+	__REG(TARGET_ANA_CL, 0, 1, regs->gaddr[GA_ANA_CL_PORT], g,             \
+	      regs->gcnt[GC_ANA_CL_PORT], 512, 184, 0, 1, 4)
+
+#define ANA_CL_CAPTURE_CFG_CPU_IGMP_REDIR_ENA    BIT(0)
+#define ANA_CL_CAPTURE_CFG_CPU_IGMP_REDIR_ENA_SET(x)\
+	FIELD_PREP(ANA_CL_CAPTURE_CFG_CPU_IGMP_REDIR_ENA, x)
+#define ANA_CL_CAPTURE_CFG_CPU_IGMP_REDIR_ENA_GET(x)\
+	FIELD_GET(ANA_CL_CAPTURE_CFG_CPU_IGMP_REDIR_ENA, x)
+
 /* ANA_CL:PORT:CAPTURE_BPDU_CFG */
 #define ANA_CL_CAPTURE_BPDU_CFG(g)                                             \
 	__REG(TARGET_ANA_CL, 0, 1, regs->gaddr[GA_ANA_CL_PORT], g,             \
