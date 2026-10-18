@@ -4,6 +4,9 @@
  * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
  */
 
+#include <linux/if_vlan.h>
+#include <linux/ip.h>
+
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 
@@ -55,6 +58,42 @@ void sparx5_ifh_parse(struct sparx5 *sparx5, u32 *ifh, struct frame_info *info)
 		((u64)xtr_hdr[3] << 16) |
 		((u64)xtr_hdr[4] <<  8) |
 		((u64)xtr_hdr[5] <<  0);
+}
+
+/* Everything we see on an interface that is in the HW bridge has already
+ * been forwarded, except IGMP that the port redirects to the CPU.
+ */
+void sparx5_rx_fwd_mark(struct sparx5_port *port, struct sk_buff *skb)
+{
+	struct sparx5 *sparx5 = port->sparx5;
+	__be16 proto = skb->protocol;
+	const struct iphdr *iph;
+	unsigned int off = 0;
+	struct iphdr _iph;
+
+	if (!test_bit(port->portno, sparx5->bridge_mask))
+		return;
+
+	skb->offload_fwd_mark = 1;
+
+	if (eth_type_vlan(proto)) {
+		const struct vlan_hdr *vh;
+		struct vlan_hdr _vh;
+
+		vh = skb_header_pointer(skb, 0, sizeof(_vh), &_vh);
+		if (!vh)
+			return;
+		proto = vh->h_vlan_encapsulated_proto;
+		off = VLAN_HLEN;
+	}
+	if (proto != htons(ETH_P_IP))
+		return;
+
+	iph = skb_header_pointer(skb, off, sizeof(_iph), &_iph);
+	if (iph && iph->protocol == IPPROTO_IGMP &&
+	    spx5_rd(sparx5, ANA_CL_CAPTURE_CFG(port->portno)) &
+	    ANA_CL_CAPTURE_CFG_CPU_IGMP_REDIR_ENA)
+		skb->offload_fwd_mark = 0;
 }
 
 static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
@@ -148,17 +187,12 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 		return;
 	}
 
-	/* Everything we see on an interface that is in the HW bridge
-	 * has already been forwarded
-	 */
-	if (test_bit(port->portno, sparx5->bridge_mask))
-		skb->offload_fwd_mark = 1;
-
 	/* Finish up skb */
 	skb_put(skb, byte_cnt - ETH_FCS_LEN);
 	eth_skb_pad(skb);
 	sparx5_ptp_rxtstamp(sparx5, skb, fi.timestamp);
 	skb->protocol = eth_type_trans(skb, netdev);
+	sparx5_rx_fwd_mark(port, skb);
 	netdev->stats.rx_bytes += skb->len;
 	netdev->stats.rx_packets++;
 	netif_rx(skb);
