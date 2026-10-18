@@ -98,6 +98,10 @@ static int mt7615_check_eeprom(struct mt76_dev *dev)
 	}
 }
 
+static bool force_dbdc;
+module_param(force_dbdc, bool, 0444);
+MODULE_PARM_DESC(force_dbdc, "Use both bands concurrently (DBDC) when the EEPROM does not select a band");
+
 static void
 mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 {
@@ -136,6 +140,11 @@ mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 		break;
 	default:
 		dev->mphy.cap.has_2ghz = true;
+		if (force_dbdc) {
+			dev_info(dev->mt76.dev, "no band selected in EEPROM, forcing DBDC\n");
+			dev->dbdc_support = true;
+			break;
+		}
 		dev->mphy.cap.has_5ghz = true;
 		break;
 	}
