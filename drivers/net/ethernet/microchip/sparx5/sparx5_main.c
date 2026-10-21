@@ -720,11 +720,15 @@ static int sparx5_start(struct sparx5 *sparx5)
 	     pgid <= sparx5_get_pgid(sparx5, PGID_BCAST); pgid++)
 		sparx5_pgid_clear(sparx5, pgid);
 
-	/* CPU copy CPU pgids */
+	/* CPU copy CPU pgids and link-local IP multicast */
 	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
 		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_CPU)));
 	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
 		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_BCAST)));
+	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
+		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_IPV4_MC_CTRL)));
+	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
+		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_IPV6_MC_CTRL)));
 
 	/* Recalc injected frame FCS */
 	for (idx = sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_0);
