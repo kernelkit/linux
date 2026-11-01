@@ -740,6 +740,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 {
 	struct usb_port *port_dev;
 	struct usb_device *hdev = hub->hdev;
+	int raw_port = port1;
 	int retval;
 
 	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
@@ -752,7 +753,10 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		return -ENOMEM;
 	}
 
-	port_dev->connect_type = usb_of_get_connect_type(hdev, port1);
+	if (!hdev->parent)
+		raw_port = usb_hcd_find_raw_port_number(bus_to_hcd(hdev->bus),
+							port1);
+	port_dev->connect_type = usb_of_get_connect_type(hdev, raw_port);
 	hub->ports[port1 - 1] = port_dev;
 	port_dev->portnum = port1;
 	set_bit(port1, hub->power_bits);
