@@ -316,6 +316,7 @@ static const struct sparx5_consts lan969x_consts = {
 	.n_auto_cals         = 4,
 	.n_filters           = 256,
 	.n_gates             = 256,
+	.n_tas_gcl           = 3000,
 	.n_sdlbs             = 496,
 	.n_dsm_cal_taxis     = 5,
 	.buf_size            = 1572864,
