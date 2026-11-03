@@ -169,6 +169,18 @@ static int sparx5_tc_setup_qdisc_taprio(struct net_device *ndev,
 	}
 }
 
+static int sparx5_tc_setup_qdisc_cbs(struct net_device *ndev,
+				     struct tc_cbs_qopt_offload *qopt)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	u32 idx;
+
+	idx = sparx5_hsch_l0_get_idx(port->sparx5, port->portno, qopt->queue);
+
+	return qopt->enable ? sparx5_tc_cbs_add(port, qopt, idx) :
+			      sparx5_tc_cbs_del(port, idx);
+}
+
 int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			 void *type_data)
 {
@@ -183,6 +195,8 @@ int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		return sparx5_tc_setup_qdisc_ets(ndev, type_data);
 	case TC_SETUP_QDISC_TAPRIO:
 		return sparx5_tc_setup_qdisc_taprio(ndev, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return sparx5_tc_setup_qdisc_cbs(ndev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
