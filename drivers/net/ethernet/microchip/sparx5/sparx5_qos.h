@@ -80,6 +80,12 @@ int sparx5_tc_ets_add(struct sparx5_port *port,
 
 int sparx5_tc_ets_del(struct sparx5_port *port);
 
+/* Credit-Based Shaper */
+struct tc_cbs_qopt_offload;
+int sparx5_tc_cbs_add(struct sparx5_port *port,
+		      struct tc_cbs_qopt_offload *qopt, u32 idx);
+int sparx5_tc_cbs_del(struct sparx5_port *port, u32 idx);
+
 u32 sparx5_get_hsch_max_group_rate(int grp);
 
 #endif	/* __SPARX5_QOS_H__ */
