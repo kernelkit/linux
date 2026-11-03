@@ -85,6 +85,14 @@ static const u32 spx5_hsch_max_group_rate[SPX5_HSCH_LEAK_GRP_CNT] = {
 	26214200 /* 26.214 Gbps */
 };
 
+int sparx5_hsch_l0_get_idx(struct sparx5 *sparx5, int port, int queue)
+{
+	const struct sparx5_consts *consts = sparx5->data->consts;
+
+	return (consts->n_hsch_l1_elems * port) +
+	       (consts->n_hsch_queues * queue);
+}
+
 u32 sparx5_get_hsch_max_group_rate(int grp)
 {
 	return spx5_hsch_max_group_rate[grp];
