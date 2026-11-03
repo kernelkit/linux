@@ -572,22 +572,20 @@ int sparx5_tc_mqprio_del(struct net_device *ndev)
 	return 0;
 }
 
-int sparx5_tc_tbf_add(struct sparx5_port *port,
-		      struct tc_tbf_qopt_offload_replace_params *params,
-		      u32 layer, u32 idx)
+/* Shape a scheduler element: rate in kbit/s, burst in bytes */
+static int sparx5_shaper_add(struct sparx5_port *port, u32 layer, u32 idx,
+			     u32 rate, u64 burst)
 {
 	struct sparx5_shaper sh = {
 		.mode = SPX5_SE_MODE_DATARATE,
-		.rate = div_u64(params->rate.rate_bytes_ps, 1000) * 8,
-		.burst = params->max_size,
 	};
 	struct sparx5_lg *lg;
 	u32 group;
 
 	/* Find suitable group for this se */
-	if (sparx5_lg_get_group_by_rate(layer, sh.rate, &group) < 0) {
+	if (sparx5_lg_get_group_by_rate(layer, rate, &group) < 0) {
 		pr_debug("Could not find leak group for se with rate: %d",
-			 sh.rate);
+			 rate);
 		return -EINVAL;
 	}
 
@@ -595,20 +593,22 @@ int sparx5_tc_tbf_add(struct sparx5_port *port,
 
 	pr_debug("Found matching group (speed: %d)\n", lg->max_rate);
 
-	if (sh.rate < SPX5_SE_RATE_MIN || sh.burst < SPX5_SE_BURST_MIN)
+	if (rate < SPX5_SE_RATE_MIN || burst < SPX5_SE_BURST_MIN)
 		return -EINVAL;
 
 	/* Calculate committed rate and burst */
-	sh.rate = DIV_ROUND_UP(sh.rate, lg->resolution);
-	sh.burst = DIV_ROUND_UP(sh.burst, SPX5_SE_BURST_UNIT);
+	sh.rate = DIV_ROUND_UP(rate, lg->resolution);
+	burst = DIV_ROUND_UP_ULL(burst, SPX5_SE_BURST_UNIT);
 
-	if (sh.rate > SPX5_SE_RATE_MAX || sh.burst > SPX5_SE_BURST_MAX)
+	if (sh.rate > SPX5_SE_RATE_MAX || burst > SPX5_SE_BURST_MAX)
 		return -EINVAL;
+
+	sh.burst = burst;
 
 	return sparx5_shaper_conf_set(port, &sh, layer, idx, group);
 }
 
-int sparx5_tc_tbf_del(struct sparx5_port *port, u32 layer, u32 idx)
+static int sparx5_shaper_del(struct sparx5_port *port, u32 layer, u32 idx)
 {
 	struct sparx5_shaper sh = {0};
 	u32 group;
@@ -616,6 +616,20 @@ int sparx5_tc_tbf_del(struct sparx5_port *port, u32 layer, u32 idx)
 	sparx5_lg_get_group_by_index(port->sparx5, layer, idx, &group);
 
 	return sparx5_shaper_conf_set(port, &sh, layer, idx, group);
+}
+
+int sparx5_tc_tbf_add(struct sparx5_port *port,
+		      struct tc_tbf_qopt_offload_replace_params *params,
+		      u32 layer, u32 idx)
+{
+	return sparx5_shaper_add(port, layer, idx,
+				 div_u64(params->rate.rate_bytes_ps, 1000) * 8,
+				 params->max_size);
+}
+
+int sparx5_tc_tbf_del(struct sparx5_port *port, u32 layer, u32 idx)
+{
+	return sparx5_shaper_del(port, layer, idx);
 }
 
 int sparx5_tc_ets_add(struct sparx5_port *port,
