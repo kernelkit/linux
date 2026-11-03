@@ -1069,6 +1069,7 @@ static const struct sparx5_consts sparx5_consts = {
 	.n_auto_cals         = 7,
 	.n_filters           = 1024,
 	.n_gates             = 1024,
+	.n_tas_gcl           = 10000,
 	.n_sdlbs             = 4096,
 	.n_dsm_cal_taxis     = 8,
 	.buf_size            = 4194280,
