@@ -69,7 +69,7 @@ static void sparx5_tc_get_layer_and_idx(struct sparx5 *sparx5, u32 parent,
 	} else {
 		u32 queue = TC_H_MIN(parent) - 1;
 		*layer = 0;
-		*idx = SPX5_HSCH_L0_GET_IDX(portno, queue);
+		*idx = sparx5_hsch_l0_get_idx(sparx5, portno, queue);
 	}
 }
 
