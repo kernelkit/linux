@@ -665,6 +665,42 @@ int sparx5_tc_ets_del(struct sparx5_port *port)
 	return sparx5_dwrr_conf_set(port, &dwrr);
 }
 
+int sparx5_tc_cbs_add(struct sparx5_port *port,
+		      struct tc_cbs_qopt_offload *qopt, u32 idx)
+{
+	u64 burst;
+	int err;
+
+	if (qopt->idleslope <= 0 || qopt->sendslope >= 0 ||
+	    qopt->locredit >= qopt->hicredit)
+		return -EINVAL;
+
+	/* The burst is the credit span scaled from the send slope to the
+	 * link rate: the bytes the class sends at once on a full credit.
+	 */
+	burst = (u64)(qopt->idleslope - qopt->sendslope) *
+		(qopt->hicredit - qopt->locredit);
+	burst = div_u64(burst, -qopt->sendslope);
+
+	err = sparx5_shaper_add(port, 0, idx, qopt->idleslope, burst);
+	if (err)
+		return err;
+
+	/* Run the element as a credit-based shaper */
+	spx5_rmw(HSCH_SE_CFG_SE_AVB_ENA_SET(1), HSCH_SE_CFG_SE_AVB_ENA,
+		 port->sparx5, HSCH_SE_CFG(idx));
+
+	return 0;
+}
+
+int sparx5_tc_cbs_del(struct sparx5_port *port, u32 idx)
+{
+	spx5_rmw(HSCH_SE_CFG_SE_AVB_ENA_SET(0), HSCH_SE_CFG_SE_AVB_ENA,
+		 port->sparx5, HSCH_SE_CFG(idx));
+
+	return sparx5_shaper_del(port, 0, idx);
+}
+
 void sparx5_tas_speed(struct sparx5_port *port, int speed)
 {
 	struct sparx5 *sparx5 = port->sparx5;
