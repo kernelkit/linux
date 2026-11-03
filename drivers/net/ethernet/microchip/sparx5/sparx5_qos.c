@@ -613,7 +613,8 @@ static int sparx5_shaper_del(struct sparx5_port *port, u32 layer, u32 idx)
 	struct sparx5_shaper sh = {0};
 	u32 group;
 
-	sparx5_lg_get_group_by_index(port->sparx5, layer, idx, &group);
+	if (sparx5_lg_get_group_by_index(port->sparx5, layer, idx, &group) < 0)
+		return 0;
 
 	return sparx5_shaper_conf_set(port, &sh, layer, idx, group);
 }
