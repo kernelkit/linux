@@ -60,6 +60,7 @@ struct sparx5_dwrr {
 };
 
 int sparx5_qos_init(struct sparx5 *sparx5);
+int sparx5_tas_init(struct sparx5 *sparx5);
 void sparx5_tas_speed(struct sparx5_port *port, int speed);
 
 /* Multi-Queue Priority */
@@ -85,6 +86,12 @@ struct tc_cbs_qopt_offload;
 int sparx5_tc_cbs_add(struct sparx5_port *port,
 		      struct tc_cbs_qopt_offload *qopt, u32 idx);
 int sparx5_tc_cbs_del(struct sparx5_port *port, u32 idx);
+
+/* Time-Aware Shaper */
+struct tc_taprio_qopt_offload;
+int sparx5_tc_taprio_add(struct sparx5_port *port,
+			 struct tc_taprio_qopt_offload *qopt);
+int sparx5_tc_taprio_del(struct sparx5_port *port);
 
 u32 sparx5_get_hsch_max_group_rate(int grp);
 

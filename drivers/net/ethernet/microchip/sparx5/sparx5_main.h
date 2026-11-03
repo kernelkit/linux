@@ -320,6 +320,7 @@ struct sparx5_consts {
 	u32 n_auto_cals;         /* Number of auto calendars */
 	u32 n_filters;           /* Number of PSFP filters */
 	u32 n_gates;             /* Number of PSFP gates */
+	u32 n_tas_gcl;           /* Number of TAS gate control list entries */
 	u32 n_sdlbs;             /* Number of service dual leaky buckets */
 	u32 n_dsm_cal_taxis;     /* Number of DSM calendar taxis */
 	u32 buf_size;            /* Amount of QLIM watermark memory */
