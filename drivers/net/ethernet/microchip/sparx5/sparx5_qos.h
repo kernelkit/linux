@@ -77,6 +77,7 @@ int sparx5_tc_tbf_add(struct sparx5_port *port,
 		      struct tc_tbf_qopt_offload_replace_params *params,
 		      u32 layer, u32 idx);
 int sparx5_tc_tbf_del(struct sparx5_port *port, u32 layer, u32 idx);
+int sparx5_tc_tbf_stats(struct sparx5_port *port, u32 layer, u32 idx);
 
 /* Enhanced Transmission Selection */
 struct tc_ets_qopt_offload_replace_params;

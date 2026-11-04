@@ -644,6 +644,17 @@ int sparx5_tc_tbf_del(struct sparx5_port *port, u32 layer, u32 idx)
 	return sparx5_shaper_del(port, layer, idx);
 }
 
+/* No counters to add, the element is shaped when it is in a leak group */
+int sparx5_tc_tbf_stats(struct sparx5_port *port, u32 layer, u32 idx)
+{
+	u32 group;
+
+	if (sparx5_lg_get_group_by_index(port->sparx5, layer, idx, &group) < 0)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 int sparx5_tc_ets_add(struct sparx5_port *port,
 		      struct tc_ets_qopt_offload_replace_params *params)
 {

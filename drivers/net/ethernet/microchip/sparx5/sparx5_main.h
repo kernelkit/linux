@@ -242,6 +242,8 @@ struct sparx5_port {
 	struct net_device *lag_master;
 	enum netdev_lag_hash lag_hash_type;
 	bool lag_tx_active;
+	u32 ets_handle; /* the ets qdisc the hardware runs */
+	u32 tbf_handle; /* the root tbf, which an ets may hang under */
 	u8 prio_tc[SPX5_PRIOS]; /* the class a priority is queued in */
 	u8 tc_prio[SPX5_PRIOS]; /* the lowest priority queued in a class */
 };
