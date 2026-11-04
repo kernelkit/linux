@@ -249,6 +249,8 @@ struct sparx5_port {
 	struct net_device *lag_master;
 	enum netdev_lag_hash lag_hash_type;
 	bool lag_tx_active;
+	u32 ets_handle; /* the ets qdisc the hardware runs */
+	u32 tbf_handle; /* the root tbf, which an ets may hang under */
 };
 
 enum sparx5_core_clockfreq {
