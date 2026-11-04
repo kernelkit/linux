@@ -88,19 +88,29 @@ static int sparx5_tc_setup_qdisc_tbf(struct net_device *ndev,
 				     struct tc_tbf_qopt_offload *qopt)
 {
 	struct sparx5_port *port = netdev_priv(ndev);
+	bool root = qopt->parent == TC_H_ROOT;
 	u32 layer, se_idx;
+	int err;
 
 	sparx5_tc_get_layer_and_idx(port->sparx5, qopt->parent, port->portno,
 				    &layer, &se_idx);
 
 	switch (qopt->command) {
 	case TC_TBF_REPLACE:
-		return sparx5_tc_tbf_add(port, &qopt->replace_params, layer,
-					 se_idx);
+		err = sparx5_tc_tbf_add(port, &qopt->replace_params, layer,
+					se_idx);
+		if (!err && root)
+			port->tbf_handle = qopt->handle;
+		return err;
 	case TC_TBF_DESTROY:
+		if (root)
+			port->tbf_handle = 0;
 		return sparx5_tc_tbf_del(port, layer, se_idx);
 	case TC_TBF_STATS:
-		return -EOPNOTSUPP;
+		return sparx5_tc_tbf_stats(port, layer, se_idx);
+	case TC_TBF_GRAFT:
+		/* The child brings its own offload */
+		return root && port->tbf_handle ? 0 : -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -114,14 +124,14 @@ static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
 	struct tc_ets_qopt_offload_replace_params *params =
 		&qopt->replace_params;
 	struct sparx5_port *port = netdev_priv(ndev);
-	int i;
-
-	/* Only allow ets on ports  */
-	if (qopt->parent != TC_H_ROOT)
-		return -EOPNOTSUPP;
+	int i, err;
 
 	switch (qopt->command) {
 	case TC_ETS_REPLACE:
+		/* The root of the port, or under its tbf */
+		if (qopt->parent != TC_H_ROOT &&
+		    TC_H_MAJ(qopt->parent) != port->tbf_handle)
+			return -EOPNOTSUPP;
 
 		/* We support eight priorities */
 		if (params->bands != SPX5_PRIOS)
@@ -137,10 +147,19 @@ static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
 			}
 		}
 
-		return sparx5_tc_ets_add(port, params);
+		err = sparx5_tc_ets_add(port, params);
+		if (!err)
+			port->ets_handle = qopt->handle;
+		return err;
 	case TC_ETS_DESTROY:
-
+		/* By its handle, a tbf above it is destroyed first */
+		if (qopt->handle != port->ets_handle)
+			return -EOPNOTSUPP;
+		port->ets_handle = 0;
 		return sparx5_tc_ets_del(port);
+	case TC_ETS_STATS:
+		/* Nothing to report, but this is what marks it offloaded */
+		return qopt->handle == port->ets_handle ? 0 : -EOPNOTSUPP;
 	case TC_ETS_GRAFT:
 		return -EOPNOTSUPP;
 
