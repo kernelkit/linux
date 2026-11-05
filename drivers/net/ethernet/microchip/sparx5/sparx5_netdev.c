@@ -78,6 +78,12 @@ void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno)
 	ifh_encode_bitfield(ifh_hdr, 1,        is_sparx5(sparx5) ? 67 : 66, 1);
 }
 
+void sparx5_set_port_ifh_qos_class(void *ifh_hdr, u8 qos_class)
+{
+	/* VSTAX.CL_QOS = the queue on the destination port */
+	ifh_encode_bitfield(ifh_hdr, qos_class, VSTAX + 56, 3);
+}
+
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op)
 {
 	ifh_encode_bitfield(ifh_hdr, rew_op, VSTAX + 32,  10);

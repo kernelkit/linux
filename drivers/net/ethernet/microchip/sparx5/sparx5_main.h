@@ -242,6 +242,8 @@ struct sparx5_port {
 	struct net_device *lag_master;
 	enum netdev_lag_hash lag_hash_type;
 	bool lag_tx_active;
+	u8 prio_tc[SPX5_PRIOS]; /* the class a priority is queued in */
+	u8 tc_prio[SPX5_PRIOS]; /* the lowest priority queued in a class */
 };
 
 enum sparx5_core_clockfreq {
@@ -468,6 +470,7 @@ int sparx5_port_changeupper(struct net_device *dev,
 struct frame_info {
 	int src_port;
 	u32 timestamp;
+	u8 qos_class;
 };
 
 void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp);
@@ -561,8 +564,14 @@ void sparx5_stats_deinit(struct sparx5 *sparx5);
 /* sparx5_dcb.c */
 #ifdef CONFIG_SPARX5_DCB
 int sparx5_dcb_init(struct sparx5 *sparx5);
+int sparx5_dcb_app_update(struct net_device *dev);
 #else
 static inline int sparx5_dcb_init(struct sparx5 *sparx5)
+{
+	return 0;
+}
+
+static inline int sparx5_dcb_app_update(struct net_device *dev)
 {
 	return 0;
 }
@@ -572,6 +581,7 @@ static inline int sparx5_dcb_init(struct sparx5 *sparx5)
 void sparx5_set_port_ifh_timestamp(struct sparx5 *sparx5, void *ifh_hdr,
 				   u64 timestamp);
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
+void sparx5_set_port_ifh_qos_class(void *ifh_hdr, u8 qos_class);
 void sparx5_set_port_ifh_pdu_type(struct sparx5 *sparx5, void *ifh_hdr,
 				  u32 pdu_type);
 void sparx5_set_port_ifh_pdu_w16_offset(struct sparx5 *sparx5, void *ifh_hdr,

@@ -316,7 +316,7 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	const struct sparx5_ops *ops;
 	struct net_device *ndev;
 	struct phylink *phylink;
-	int err;
+	int err, i;
 
 	ops = sparx5->data->ops;
 
@@ -339,6 +339,8 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	spx5_port->phylink_pcs.poll = true;
 	spx5_port->phylink_pcs.ops = &sparx5_phylink_pcs_ops;
 	spx5_port->is_mrouter = false;
+	for (i = 0; i < SPX5_PRIOS; i++)
+		spx5_port->prio_tc[i] = spx5_port->tc_prio[i] = i;
 	INIT_LIST_HEAD(&spx5_port->tc_templates);
 	sparx5->ports[config->portno] = spx5_port;
 

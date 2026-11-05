@@ -49,6 +49,9 @@ void sparx5_ifh_parse(struct sparx5 *sparx5, u32 *ifh, struct frame_info *info)
 	info->src_port = spx5_field_get(GENMASK(is_sparx5(sparx5) ? 7 : 6, 1),
 					fwd);
 
+	/* VSTAX.CL_QOS is bit 129-131 */
+	info->qos_class = (xtr_hdr[19] >> 1) & GENMASK(2, 0);
+
 	/*
 	 * Bit 270-271 are occasionally unexpectedly set by the hardware,
 	 * clear bits before extracting timestamp
@@ -192,6 +195,7 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 	eth_skb_pad(skb);
 	sparx5_ptp_rxtstamp(sparx5, skb, fi.timestamp);
 	skb->protocol = eth_type_trans(skb, netdev);
+	skb->priority = port->tc_prio[fi.qos_class];
 	sparx5_rx_fwd_mark(port, skb);
 	netdev->stats.rx_bytes += skb->len;
 	netdev->stats.rx_packets++;
@@ -274,6 +278,8 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 
 	memset(ifh, 0, IFH_LEN * 4);
 	sparx5_set_port_ifh(sparx5, ifh, port->portno);
+	sparx5_set_port_ifh_qos_class(ifh, port->prio_tc[min_t(u32, skb->priority,
+								 SPX5_PRIOS - 1)]);
 
 	if (sparx5->ptp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		if (sparx5_ptp_txtstamp_request(port, skb) < 0)

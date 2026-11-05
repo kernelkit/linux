@@ -131,7 +131,11 @@ static bool sparx5_dcb_apptrust_contains(int portno, u8 selector)
 	return false;
 }
 
-static int sparx5_dcb_app_update(struct net_device *dev)
+/* The fabric queues a frame, on every port it leaves by, in the class
+ * its ingress port assigned it.  The class table of the root qdisc is
+ * applied by the classification tables and undone by the rewrite ones.
+ */
+int sparx5_dcb_app_update(struct net_device *dev)
 {
 	struct dcb_ieee_app_prio_map dscp_rewr_map = {0};
 	struct dcb_rewr_prio_pcp_map pcp_rewr_map = {0};
@@ -153,34 +157,39 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 	qos.default_prio = dcb_ieee_getapp_default_prio_mask(dev);
 	if (qos.default_prio)
 		qos.default_prio = fls(qos.default_prio) - 1;
+	qos.default_prio = port->prio_tc[qos.default_prio];
 
 	/* Get dscp ingress mapping */
 	for (i = 0; i < ARRAY_SIZE(dscp_map->map); i++) {
 		app_itr.selector = IEEE_8021QAZ_APP_SEL_DSCP;
 		app_itr.protocol = i;
-		dscp_map->map[i] = dcb_getapp(dev, &app_itr);
+		dscp_map->map[i] = port->prio_tc[dcb_getapp(dev, &app_itr)];
 	}
 
 	/* Get pcp ingress mapping */
 	for (i = 0; i < ARRAY_SIZE(pcp_map->map); i++) {
 		app_itr.selector = DCB_APP_SEL_PCP;
 		app_itr.protocol = i;
-		pcp_map->map[i] = dcb_getapp(dev, &app_itr);
+		pcp_map->map[i] = port->prio_tc[dcb_getapp(dev, &app_itr)];
 	}
 
-	/* Get pcp rewrite mapping */
+	/* Get pcp rewrite mapping, of the lowest priority in each class */
 	dcb_getrewr_prio_pcp_mask_map(dev, &pcp_rewr_map);
 	for (i = 0; i < ARRAY_SIZE(pcp_rewr_map.map); i++) {
-		if (!pcp_rewr_map.map[i])
+		u16 mask = pcp_rewr_map.map[port->tc_prio[i]];
+
+		if (!mask)
 			continue;
 		pcp_rewr = true;
-		qos.pcp_rewr.map.map[i] = fls(pcp_rewr_map.map[i]) - 1;
+		qos.pcp_rewr.map.map[i] = fls(mask) - 1;
 	}
 
-	/* Get dscp rewrite mapping */
+	/* Get dscp rewrite mapping, of the lowest priority in each class */
 	dcb_getrewr_prio_dscp_mask_map(dev, &dscp_rewr_map);
 	for (i = 0; i < ARRAY_SIZE(dscp_rewr_map.map); i++) {
-		if (!dscp_rewr_map.map[i])
+		u64 mask = dscp_rewr_map.map[port->tc_prio[i]];
+
+		if (!mask)
 			continue;
 
 		/* The rewrite table of the switch has 32 entries; one for each
@@ -190,7 +199,7 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 		 * DSCP is only enabled, if we have active mappings.
 		 */
 		dscp_rewr = true;
-		dscp = fls64(dscp_rewr_map.map[i]) - 1;
+		dscp = fls64(mask) - 1;
 		qos.dscp_rewr.map.map[i] = dscp;      /* DP 0 */
 		qos.dscp_rewr.map.map[i + 8] = dscp;  /* DP 1 */
 		qos.dscp_rewr.map.map[i + 16] = dscp; /* DP 2 */

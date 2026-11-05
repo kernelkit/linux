@@ -534,25 +534,43 @@ int sparx5_qos_init(struct sparx5 *sparx5)
 	return 0;
 }
 
-int sparx5_tc_mqprio_add(struct net_device *ndev, u8 num_tc)
+/* Queue each priority in the class @prio_tc says, the identity when NULL */
+int sparx5_tc_prio_tc_set(struct sparx5_port *port, const u8 *prio_tc)
 {
 	int i;
 
-	if (num_tc != SPX5_PRIOS) {
+	for (i = 0; i < SPX5_PRIOS; i++)
+		port->prio_tc[i] = prio_tc ? prio_tc[i] : i;
+
+	/* The lowest priority queued in a class leaves with its PCP and DSCP */
+	for (i = 0; i < SPX5_PRIOS; i++)
+		port->tc_prio[i] = i;
+	for (i = SPX5_PRIOS - 1; i >= 0; i--)
+		port->tc_prio[port->prio_tc[i]] = i;
+
+	return sparx5_dcb_app_update(port->ndev);
+}
+
+int sparx5_tc_mqprio_add(struct net_device *ndev,
+			 const struct tc_mqprio_qopt *qopt)
+{
+	int i;
+
+	if (qopt->num_tc != SPX5_PRIOS) {
 		netdev_err(ndev, "Only %d traffic classes supported\n",
 			   SPX5_PRIOS);
 		return -EINVAL;
 	}
 
-	netdev_set_num_tc(ndev, num_tc);
+	netdev_set_num_tc(ndev, qopt->num_tc);
 
-	for (i = 0; i < num_tc; i++)
+	for (i = 0; i < qopt->num_tc; i++)
 		netdev_set_tc_queue(ndev, i, 1, i);
 
 	netdev_dbg(ndev, "dev->num_tc %u dev->real_num_tx_queues %u\n",
 		   ndev->num_tc, ndev->real_num_tx_queues);
 
-	return 0;
+	return sparx5_tc_prio_tc_set(netdev_priv(ndev), qopt->prio_tc_map);
 }
 
 int sparx5_tc_mqprio_del(struct net_device *ndev)
@@ -562,7 +580,7 @@ int sparx5_tc_mqprio_del(struct net_device *ndev)
 	netdev_dbg(ndev, "dev->num_tc %u dev->real_num_tx_queues %u\n",
 		   ndev->num_tc, ndev->real_num_tx_queues);
 
-	return 0;
+	return sparx5_tc_prio_tc_set(netdev_priv(ndev), NULL);
 }
 
 /* Shape a scheduler element: rate in kbit/s, burst in bytes */
@@ -631,7 +649,8 @@ int sparx5_tc_ets_add(struct sparx5_port *port,
 {
 	struct sparx5_dwrr dwrr = {0};
 	u32 weight[SPX5_PRIOS];
-	int i;
+	u8 prio_tc[SPX5_PRIOS];
+	int i, err;
 
 	for (i = 0; i < SPX5_PRIOS; i++) {
 		/* Strict band; skip */
@@ -648,14 +667,25 @@ int sparx5_tc_ets_add(struct sparx5_port *port,
 	}
 	sparx5_dwrr_cost_set(&dwrr, weight);
 
-	return sparx5_dwrr_conf_set(port, &dwrr);
+	err = sparx5_dwrr_conf_set(port, &dwrr);
+	if (err)
+		return err;
+
+	/* Band 0 is served first by tc, queue 7 by the fabric */
+	for (i = 0; i < SPX5_PRIOS; i++)
+		prio_tc[i] = SPX5_PRIOS - 1 - params->priomap[i];
+
+	return sparx5_tc_prio_tc_set(port, prio_tc);
 }
 
 int sparx5_tc_ets_del(struct sparx5_port *port)
 {
 	struct sparx5_dwrr dwrr = {0};
+	int err;
 
-	return sparx5_dwrr_conf_set(port, &dwrr);
+	err = sparx5_dwrr_conf_set(port, &dwrr);
+
+	return err ?: sparx5_tc_prio_tc_set(port, NULL);
 }
 
 int sparx5_tc_cbs_add(struct sparx5_port *port,

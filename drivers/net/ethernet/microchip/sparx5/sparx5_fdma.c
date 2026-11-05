@@ -168,6 +168,7 @@ static bool sparx5_fdma_rx_get_frame(struct sparx5 *sparx5, struct sparx5_rx *rx
 
 	sparx5_ptp_rxtstamp(sparx5, skb, fi.timestamp);
 	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->priority = port->tc_prio[fi.qos_class];
 	sparx5_rx_fwd_mark(port, skb);
 	skb->dev->stats.rx_bytes += skb->len;
 	skb->dev->stats.rx_packets++;
