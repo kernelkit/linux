@@ -386,24 +386,51 @@ static u32 sparx5_weight_to_hw_cost(u32 weight_min, u32 weight)
 static int sparx5_dwrr_conf_set(struct sparx5_port *port,
 				struct sparx5_dwrr *dwrr)
 {
-	u32 layer = is_sparx5(port->sparx5) ? 2 : 1;
-	int i;
+	struct sparx5 *sparx5 = port->sparx5;
+	u32 val, first = 0, top = 0, l0, idx;
+	u8 inp[SPX5_PRIOS];
+	int q;
 
-	spx5_rmw(HSCH_HSCH_CFG_CFG_HSCH_LAYER_SET(layer) |
-		 HSCH_HSCH_CFG_CFG_CFG_SE_IDX_SET(port->portno),
-		 HSCH_HSCH_CFG_CFG_HSCH_LAYER | HSCH_HSCH_CFG_CFG_CFG_SE_IDX,
-		 port->sparx5, HSCH_HSCH_CFG_CFG);
-
-	/* Number of *lower* indexes that are arbitrated dwrr */
-	spx5_rmw(HSCH_SE_CFG_SE_DWRR_CNT_SET(dwrr->count),
-		 HSCH_SE_CFG_SE_DWRR_CNT, port->sparx5,
-		 HSCH_SE_CFG(port->portno));
-
-	for (i = 0; i < dwrr->count; i++) {
-		spx5_rmw(HSCH_DWRR_ENTRY_DWRR_COST_SET(dwrr->cost[i]),
-			 HSCH_DWRR_ENTRY_DWRR_COST, port->sparx5,
-			 HSCH_DWRR_ENTRY(i));
+	/* The chip builds the hierarchy, so read where the queues go: one
+	 * element, which serves its inputs 0 to SE_DWRR_CNT weighted and
+	 * the rest strict, so the strict queues must sit above there too.
+	 */
+	for (q = 0; q < SPX5_PRIOS; q++) {
+		l0 = sparx5_hsch_l0_get_idx(sparx5, port->portno, q);
+		val = spx5_rd(sparx5, HSCH_HSCH_L0_CFG(l0));
+		if (q == 0) {
+			first = val;
+		} else if ((val ^ first) & (HSCH_HSCH_L0_CFG_NEXT_LAYER |
+					    HSCH_HSCH_L0_CFG_NEXT_IDX)) {
+			netdev_warn(port->ndev,
+				    "the queues are not scheduled by one element\n");
+			return -EOPNOTSUPP;
+		}
+		inp[q] = HSCH_HSCH_L0_CFG_NEXT_INP_GET(val);
+		if (q < dwrr->count) {
+			top = max_t(u32, top, inp[q]);
+		} else if (dwrr->count && inp[q] <= top) {
+			netdev_warn(port->ndev,
+				    "queue %d is scheduled below a weighted one\n",
+				    q);
+			return -EOPNOTSUPP;
+		}
 	}
+	idx = HSCH_HSCH_L0_CFG_NEXT_IDX_GET(first);
+
+	spx5_rmw(HSCH_HSCH_CFG_CFG_HSCH_LAYER_SET(
+			 HSCH_HSCH_L0_CFG_NEXT_LAYER_GET(first) ? 2 : 1) |
+		 HSCH_HSCH_CFG_CFG_CFG_SE_IDX_SET(idx),
+		 HSCH_HSCH_CFG_CFG_HSCH_LAYER | HSCH_HSCH_CFG_CFG_CFG_SE_IDX,
+		 sparx5, HSCH_HSCH_CFG_CFG);
+
+	spx5_rmw(HSCH_SE_CFG_SE_DWRR_CNT_SET(top), HSCH_SE_CFG_SE_DWRR_CNT,
+		 sparx5, HSCH_SE_CFG(idx));
+
+	for (q = 0; q < dwrr->count; q++)
+		spx5_rmw(HSCH_DWRR_ENTRY_DWRR_COST_SET(dwrr->cost[q]),
+			 HSCH_DWRR_ENTRY_DWRR_COST, sparx5,
+			 HSCH_DWRR_ENTRY(inp[q]));
 
 	return 0;
 }

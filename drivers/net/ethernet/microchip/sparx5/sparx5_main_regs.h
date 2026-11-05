@@ -5187,6 +5187,37 @@ extern const struct sparx5_regs *regs;
 #define GCB_SIO_CLOCK_SYS_CLK_PERIOD_GET(x)\
 	FIELD_GET(GCB_SIO_CLOCK_SYS_CLK_PERIOD, x)
 
+/* HSCH:HSCH_L0_CFG:HSCH_L0_CFG */
+#define HSCH_HSCH_L0_CFG(g)                                                    \
+	__REG(TARGET_HSCH, 0, 1, regs->gaddr[GA_HSCH_HSCH_L0_CFG], g,          \
+	      regs->gcnt[GC_HSCH_HSCH_L0_CFG], 4, 0, 0, 1, 4)
+
+#define HSCH_HSCH_L0_CFG_NEXT_LAYER              BIT(21)
+#define HSCH_HSCH_L0_CFG_NEXT_LAYER_SET(x)\
+	FIELD_PREP(HSCH_HSCH_L0_CFG_NEXT_LAYER, x)
+#define HSCH_HSCH_L0_CFG_NEXT_LAYER_GET(x)\
+	FIELD_GET(HSCH_HSCH_L0_CFG_NEXT_LAYER, x)
+
+#define HSCH_HSCH_L0_CFG_NEXT_IDX\
+	GENMASK(regs->fsize[FW_HSCH_HSCH_L0_CFG_NEXT_IDX] + 14 - 1, 14)
+#define HSCH_HSCH_L0_CFG_NEXT_IDX_SET(x)\
+	spx5_field_prep(HSCH_HSCH_L0_CFG_NEXT_IDX, x)
+#define HSCH_HSCH_L0_CFG_NEXT_IDX_GET(x)\
+	spx5_field_get(HSCH_HSCH_L0_CFG_NEXT_IDX, x)
+
+#define HSCH_HSCH_L0_CFG_NEXT_INP\
+	GENMASK(regs->fsize[FW_HSCH_HSCH_L0_CFG_NEXT_INP] + 8 - 1, 8)
+#define HSCH_HSCH_L0_CFG_NEXT_INP_SET(x)\
+	spx5_field_prep(HSCH_HSCH_L0_CFG_NEXT_INP, x)
+#define HSCH_HSCH_L0_CFG_NEXT_INP_GET(x)\
+	spx5_field_get(HSCH_HSCH_L0_CFG_NEXT_INP, x)
+
+#define HSCH_HSCH_L0_CFG_P_QUEUES                GENMASK(7, 0)
+#define HSCH_HSCH_L0_CFG_P_QUEUES_SET(x)\
+	FIELD_PREP(HSCH_HSCH_L0_CFG_P_QUEUES, x)
+#define HSCH_HSCH_L0_CFG_P_QUEUES_GET(x)\
+	FIELD_GET(HSCH_HSCH_L0_CFG_P_QUEUES, x)
+
 /* HSCH:HSCH_CFG:CIR_CFG */
 #define HSCH_CIR_CFG(g)                                                        \
 	__REG(TARGET_HSCH, 0, 1, 0, g, regs->gcnt[GC_HSCH_HSCH_CFG], 32, 0, 0, \

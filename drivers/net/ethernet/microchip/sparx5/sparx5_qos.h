@@ -55,8 +55,8 @@ struct sparx5_layer {
 };
 
 struct sparx5_dwrr {
-	u32 count; /* Number of inputs running dwrr */
-	u8 cost[SPX5_PRIOS];
+	u32 count; /* Queues 0 to count - 1 are weighted, the rest strict */
+	u8 cost[SPX5_PRIOS]; /* Per queue */
 };
 
 int sparx5_qos_init(struct sparx5 *sparx5);
