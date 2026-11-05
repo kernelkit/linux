@@ -221,42 +221,14 @@ int sparx5_dcb_app_update(struct net_device *dev)
 	return sparx5_port_qos_set(port, &qos);
 }
 
-/* Set or delete DSCP app entry.
- *
- * DSCP mapping is global for all ports, so set and delete app entries are
- * replicated for each port.
+/* The DSCP tables are per port, as the operator sets them, and the ports
+ * that use the one table the chip has write it, see sparx5_port_qos_dscp_set.
  */
-static int sparx5_dcb_ieee_dscp_setdel(struct net_device *dev,
-				       struct dcb_app *app,
-				       int (*setdel)(struct net_device *,
-						     struct dcb_app *))
-{
-	struct sparx5_port *port = netdev_priv(dev);
-	struct sparx5 *sparx5 = port->sparx5;
-	struct sparx5_port *port_itr;
-	int err, i;
-
-	for (i = 0; i < sparx5->data->consts->n_ports; i++) {
-		port_itr = port->sparx5->ports[i];
-		if (!port_itr)
-			continue;
-		err = setdel(port_itr->ndev, app);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static int sparx5_dcb_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 {
 	int err;
 
-	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
-		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_ieee_delapp);
-	else
-		err = dcb_ieee_delapp(dev, app);
-
+	err = dcb_ieee_delapp(dev, app);
 	if (err < 0)
 		return err;
 
@@ -281,11 +253,7 @@ static int sparx5_dcb_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 		sparx5_dcb_ieee_delapp(dev, &app_itr);
 	}
 
-	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
-		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_ieee_setapp);
-	else
-		err = dcb_ieee_setapp(dev, app);
-
+	err = dcb_ieee_setapp(dev, app);
 	if (err)
 		goto out;
 
@@ -328,11 +296,7 @@ static int sparx5_dcb_delrewr(struct net_device *dev, struct dcb_app *app)
 {
 	int err;
 
-	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
-		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_delrewr);
-	else
-		err = dcb_delrewr(dev, app);
-
+	err = dcb_delrewr(dev, app);
 	if (err < 0)
 		return err;
 
@@ -357,11 +321,7 @@ static int sparx5_dcb_setrewr(struct net_device *dev, struct dcb_app *app)
 		sparx5_dcb_delrewr(dev, &app_itr);
 	}
 
-	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
-		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_setrewr);
-	else
-		err = dcb_setrewr(dev, app);
-
+	err = dcb_setrewr(dev, app);
 	if (err)
 		goto out;
 
