@@ -297,7 +297,8 @@ void sparx5_vlan_port_apply(struct sparx5 *sparx5,
 			 */
 			val |= REW_TAG_CTRL_TAG_CFG_SET(2);
 	}
-	spx5_wr(val, sparx5, REW_TAG_CTRL(port->portno));
+	spx5_rmw(val, REW_TAG_CTRL_TAG_TPID_CFG | REW_TAG_CTRL_TAG_CFG, sparx5,
+		 REW_TAG_CTRL(port->portno));
 
 	/* Egress VID */
 	spx5_rmw(REW_PORT_VLAN_CFG_PORT_VID_SET(port->vid),
