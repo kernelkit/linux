@@ -1254,8 +1254,8 @@ int sparx5_port_qos_pcp_rewr_set(const struct sparx5_port *port,
 	u8 pcp, dei;
 
 	/* Use mapping table, with classified QoS as index, to map QoS and DP
-	 * to tagged PCP and DEI, if PCP is trusted. Otherwise use classified
-	 * PCP. Classified PCP equals frame PCP.
+	 * to tagged PCP and DEI, if enabled. Otherwise use classified PCP.
+	 * Classified PCP equals frame PCP.
 	 */
 	if (qos->enable)
 		mode = SPARX5_PORT_REW_TAG_CTRL_MAPPED;

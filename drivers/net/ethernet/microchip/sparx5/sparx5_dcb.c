@@ -145,8 +145,6 @@ int sparx5_dcb_app_update(struct net_device *dev)
 	struct sparx5_port_qos qos = {0};
 	struct dcb_app app_itr = {0};
 	int portno = port->portno;
-	bool dscp_rewr = false;
-	bool pcp_rewr = false;
 	u16 dscp;
 	int i;
 
@@ -173,14 +171,17 @@ int sparx5_dcb_app_update(struct net_device *dev)
 		pcp_map->map[i] = port->prio_tc[dcb_getapp(dev, &app_itr)];
 	}
 
-	/* Get pcp rewrite mapping, of the lowest priority in each class */
+	/* Get pcp rewrite mapping, of the lowest priority in each class.
+	 * Rewrite on egress only with a table, an empty one would write
+	 * PCP 0 and DSCP 0 for every classified QoS class and DP.
+	 */
 	dcb_getrewr_prio_pcp_mask_map(dev, &pcp_rewr_map);
 	for (i = 0; i < ARRAY_SIZE(pcp_rewr_map.map); i++) {
 		u16 mask = pcp_rewr_map.map[port->tc_prio[i]];
 
 		if (!mask)
 			continue;
-		pcp_rewr = true;
+		qos.pcp_rewr.enable = true;
 		qos.pcp_rewr.map.map[i] = fls(mask) - 1;
 	}
 
@@ -195,10 +196,9 @@ int sparx5_dcb_app_update(struct net_device *dev)
 		/* The rewrite table of the switch has 32 entries; one for each
 		 * priority for each DP level. Currently, the rewrite map does
 		 * not indicate DP level, so we map classified QoS class to
-		 * classified DSCP, for each classified DP level. Rewrite of
-		 * DSCP is only enabled, if we have active mappings.
+		 * classified DSCP, for each classified DP level.
 		 */
-		dscp_rewr = true;
+		qos.dscp_rewr.enable = true;
 		dscp = fls64(mask) - 1;
 		qos.dscp_rewr.map.map[i] = dscp;      /* DP 0 */
 		qos.dscp_rewr.map.map[i + 8] = dscp;  /* DP 1 */
@@ -210,23 +210,12 @@ int sparx5_dcb_app_update(struct net_device *dev)
 	if (sparx5_dcb_apptrust_contains(portno, DCB_APP_SEL_PCP)) {
 		qos.pcp.qos_enable = true;
 		qos.pcp.dp_enable = qos.pcp.qos_enable;
-		/* Enable rewrite of PCP and DEI if PCP is trusted *and* rewrite
-		 * table is not empty.
-		 */
-		if (pcp_rewr)
-			qos.pcp_rewr.enable = true;
 	}
 
 	/* Enable use of dscp for queue classification ? */
 	if (sparx5_dcb_apptrust_contains(portno, IEEE_8021QAZ_APP_SEL_DSCP)) {
 		qos.dscp.qos_enable = true;
 		qos.dscp.dp_enable = qos.dscp.qos_enable;
-		if (dscp_rewr)
-			/* Do not enable rewrite if no mappings are active, as
-			 * classified DSCP will then be zero for all classified
-			 * QoS class and DP combinations.
-			 */
-			qos.dscp_rewr.enable = true;
 	}
 
 	return sparx5_port_qos_set(port, &qos);
