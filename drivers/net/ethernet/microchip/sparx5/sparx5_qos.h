@@ -63,8 +63,12 @@ int sparx5_qos_init(struct sparx5 *sparx5);
 int sparx5_tas_init(struct sparx5 *sparx5);
 void sparx5_tas_speed(struct sparx5_port *port, int speed);
 
+int sparx5_tc_prio_tc_set(struct sparx5_port *port, const u8 *prio_tc);
+
 /* Multi-Queue Priority */
-int sparx5_tc_mqprio_add(struct net_device *ndev, u8 num_tc);
+struct tc_mqprio_qopt;
+int sparx5_tc_mqprio_add(struct net_device *ndev,
+			 const struct tc_mqprio_qopt *qopt);
 int sparx5_tc_mqprio_del(struct net_device *ndev);
 
 /* Token Bucket Filter */
