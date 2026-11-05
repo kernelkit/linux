@@ -1342,23 +1342,23 @@ int sparx5_port_qos_dscp_rewr_set(const struct sparx5_port *port,
 				  struct sparx5_port_qos_dscp_rewr *qos)
 {
 	struct sparx5 *sparx5 = port->sparx5;
-	bool rewr = false;
 	u16 dscp;
 	int i;
 
 	/* On egress, rewrite DSCP value to either classified DSCP or frame
 	 * DSCP. If enabled; classified DSCP, if disabled; frame DSCP.
 	 */
-	if (qos->enable)
-		rewr = true;
-
-	spx5_rmw(REW_DSCP_MAP_DSCP_UPDATE_ENA_SET(rewr),
+	spx5_rmw(REW_DSCP_MAP_DSCP_UPDATE_ENA_SET(qos->enable),
 		 REW_DSCP_MAP_DSCP_UPDATE_ENA, sparx5,
 		 REW_DSCP_MAP(port->portno));
 
 	/* On ingress, map each classified QoS class and DP to classified DSCP
-	 * value. This mapping table is global for all ports.
+	 * value. This mapping table is global for all ports, so a port
+	 * without a table leaves it to the ports that have one.
 	 */
+	if (!qos->enable)
+		return 0;
+
 	for (i = 0; i < ARRAY_SIZE(qos->map.map); i++) {
 		dscp = qos->map.map[i];
 		spx5_rmw(ANA_CL_QOS_MAP_CFG_DSCP_REWR_VAL_SET(dscp),
@@ -1390,22 +1390,21 @@ int sparx5_port_qos_dscp_set(const struct sparx5_port *port,
 		 ANA_CL_QOS_CFG_DSCP_KEEP_ENA, sparx5,
 		 ANA_CL_QOS_CFG(port->portno));
 
-	/* Map each dscp value to priority and dp */
+	/* Map each dscp value to priority and dp, trusted.  The table is
+	 * one for the chip, so a port that does not classify by DSCP
+	 * leaves it to the ports that do.
+	 */
+	if (!qos->qos_enable)
+		return 0;
+
 	for (i = 0; i < ARRAY_SIZE(qos->map.map); i++) {
 		spx5_rmw(ANA_CL_DSCP_CFG_DSCP_QOS_VAL_SET(*(dscp + i)) |
-			 ANA_CL_DSCP_CFG_DSCP_DP_VAL_SET(0),
+			 ANA_CL_DSCP_CFG_DSCP_DP_VAL_SET(0) |
+			 ANA_CL_DSCP_CFG_DSCP_TRUST_ENA_SET(1),
 			 ANA_CL_DSCP_CFG_DSCP_QOS_VAL |
-			 ANA_CL_DSCP_CFG_DSCP_DP_VAL, sparx5,
+			 ANA_CL_DSCP_CFG_DSCP_DP_VAL |
+			 ANA_CL_DSCP_CFG_DSCP_TRUST_ENA, sparx5,
 			 ANA_CL_DSCP_CFG(i));
-	}
-
-	/* Set per-dscp trust */
-	for (i = 0; i <  ARRAY_SIZE(qos->map.map); i++) {
-		if (qos->qos_enable) {
-			spx5_rmw(ANA_CL_DSCP_CFG_DSCP_TRUST_ENA_SET(1),
-				 ANA_CL_DSCP_CFG_DSCP_TRUST_ENA, sparx5,
-				 ANA_CL_DSCP_CFG(i));
-		}
 	}
 
 	return 0;
