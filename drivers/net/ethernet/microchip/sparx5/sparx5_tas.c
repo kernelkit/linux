@@ -690,7 +690,8 @@ int sparx5_tas_enable(struct sparx5_port *port,
 
 out:
 	mutex_unlock(&sparx5->tas_lock);
-	return err;
+
+	return err ?: sparx5_tc_prio_tc_set(port, qopt->mqprio.qopt.prio_tc_map);
 }
 
 int sparx5_tas_disable(struct sparx5_port *port)
@@ -715,7 +716,7 @@ int sparx5_tas_disable(struct sparx5_port *port)
 
 	mutex_unlock(&port->sparx5->tas_lock);
 
-	return err;
+	return err ?: sparx5_tc_prio_tc_set(port, NULL);
 }
 
 int sparx5_tas_init(struct sparx5 *sparx5)
