@@ -111,6 +111,7 @@ const unsigned int sparx5_gaddr[GADDR_LAST] = {
 	[GA_REW_VOE_PORT_LM_CNT] = 393216,
 	[GA_REW_RAM_CTRL] = 378696,
 	[GA_VOP_RAM_CTRL] = 279176,
+	[GA_XQS_QMAP_SE_TBL] = 6720,
 	[GA_XQS_SYSTEM] = 6768,
 	[GA_XQS_QLIMIT_SHR] = 7936,
 };

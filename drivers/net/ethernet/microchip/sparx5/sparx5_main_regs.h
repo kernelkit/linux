@@ -8505,6 +8505,15 @@ extern const struct sparx5_regs *regs;
 #define XQS_STAT_CFG_STAT_WRAP_DIS_GET(x)\
 	FIELD_GET(XQS_STAT_CFG_STAT_WRAP_DIS, x)
 
+/* XQS:SYSTEM:MAP_CFG_CFG */
+#define XQS_MAP_CFG_CFG                                                        \
+	__REG(TARGET_XQS, 0, 1, regs->gaddr[GA_XQS_SYSTEM], 0, 1, 872, 4, 0, 1, 4)
+
+/* XQS:QMAP_SE_TBL:QMAP_SE_TBL */
+#define XQS_QMAP_SE_TBL(g)                                                     \
+	__REG(TARGET_XQS, 0, 1, regs->gaddr[GA_XQS_QMAP_SE_TBL], g, 4, 8, 0, 0, \
+	      1, 4)
+
 /* XQS:QLIMIT_SHR:QLIMIT_SHR_TOP_CFG */
 #define XQS_QLIMIT_SHR_TOP_CFG(g)                                              \
 	__REG(TARGET_XQS, 0, 1, regs->gaddr[GA_XQS_QLIMIT_SHR], g, 4, 48, 0, 0,\
