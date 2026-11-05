@@ -379,7 +379,7 @@ int sparx5_tc_taprio_add(struct sparx5_port *port,
 
 	sparx5_tas_list_state_set(sparx5, SPX5_TAS_STATE_ADVANCING);
 
-	return 0;
+	return sparx5_tc_prio_tc_set(port, qopt->mqprio.qopt.prio_tc_map);
 }
 
 int sparx5_tc_taprio_del(struct sparx5_port *port)
@@ -390,7 +390,7 @@ int sparx5_tc_taprio_del(struct sparx5_port *port)
 		err = sparx5_tas_list_shutdown(port,
 					       sparx5_tas_list_index(port, i));
 
-	return err;
+	return err ?: sparx5_tc_prio_tc_set(port, NULL);
 }
 
 void sparx5_tas_speed(struct sparx5_port *port, int speed)

@@ -111,6 +111,7 @@ const unsigned int lan969x_gaddr[GADDR_LAST] = {
 	[GA_REW_VOE_PORT_LM_CNT] = 90112,
 	[GA_REW_RAM_CTRL] = 93992,
 	[GA_VOP_RAM_CTRL] = 16368,
+	[GA_XQS_QMAP_SE_TBL] = 5696,
 	[GA_XQS_SYSTEM] = 5744,
 	[GA_XQS_QLIMIT_SHR] = 6912,
 };

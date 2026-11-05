@@ -81,7 +81,7 @@ static int sparx5_tc_setup_qdisc_mqprio(struct net_device *ndev,
 	if (m->qopt.num_tc == 0)
 		return sparx5_tc_mqprio_del(ndev);
 	else
-		return sparx5_tc_mqprio_add(ndev, m->qopt.num_tc);
+		return sparx5_tc_mqprio_add(ndev, &m->qopt);
 }
 
 static int sparx5_tc_setup_qdisc_tbf(struct net_device *ndev,
@@ -129,9 +129,6 @@ static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
 
 		/* Sanity checks */
 		for (i = 0; i < SPX5_PRIOS; ++i) {
-			/* Priority map is *always* reverse e.g: 7 6 5 .. 0 */
-			if (params->priomap[i] != (7 - i))
-				return -EOPNOTSUPP;
 			/* Throw an error if we receive zero weights by tc */
 			if (params->quanta[i] && params->weights[i] == 0) {
 				pr_err("Invalid ets configuration; band %d has weight zero",
