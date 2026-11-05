@@ -78,10 +78,18 @@ void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno)
 	ifh_encode_bitfield(ifh_hdr, 1,        is_sparx5(sparx5) ? 67 : 66, 1);
 }
 
-void sparx5_set_port_ifh_qos_class(void *ifh_hdr, u8 qos_class)
+void sparx5_set_port_ifh_qos(void *ifh_hdr, const struct sparx5_port *port,
+			     u32 priority)
 {
+	u8 qos_class = port->prio_tc[min_t(u32, priority, SPX5_PRIOS - 1)];
+
 	/* VSTAX.CL_QOS = the queue on the destination port */
 	ifh_encode_bitfield(ifh_hdr, qos_class, VSTAX + 56, 3);
+	/* QOS.UPDATE_DSCP and QOS.DSCP, as the analyzer sets them for a
+	 * classified frame; the rewriter obeys on a port that updates DSCP
+	 */
+	ifh_encode_bitfield(ifh_hdr, BIT(6) | port->sparx5->dscp_rewr[qos_class],
+			    0, 7);
 }
 
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op)

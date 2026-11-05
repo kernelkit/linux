@@ -278,8 +278,7 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 
 	memset(ifh, 0, IFH_LEN * 4);
 	sparx5_set_port_ifh(sparx5, ifh, port->portno);
-	sparx5_set_port_ifh_qos_class(ifh, port->prio_tc[min_t(u32, skb->priority,
-								 SPX5_PRIOS - 1)]);
+	sparx5_set_port_ifh_qos(ifh, port, skb->priority);
 
 	if (sparx5->ptp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		if (sparx5_ptp_txtstamp_request(port, skb) < 0)

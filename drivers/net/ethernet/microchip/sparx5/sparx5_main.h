@@ -450,6 +450,7 @@ struct sparx5 {
 	/* Common root for debugfs */
 	struct dentry *debugfs_root;
 	const struct sparx5_match_data *data;
+	u8 dscp_rewr[SPX5_PRIOS]; /* the DSCP a class is remarked with, per chip */
 };
 
 /* sparx5_main.c */
@@ -583,7 +584,8 @@ static inline int sparx5_dcb_app_update(struct net_device *dev)
 void sparx5_set_port_ifh_timestamp(struct sparx5 *sparx5, void *ifh_hdr,
 				   u64 timestamp);
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
-void sparx5_set_port_ifh_qos_class(void *ifh_hdr, u8 qos_class);
+void sparx5_set_port_ifh_qos(void *ifh_hdr, const struct sparx5_port *port,
+			     u32 priority);
 void sparx5_set_port_ifh_pdu_type(struct sparx5 *sparx5, void *ifh_hdr,
 				  u32 pdu_type);
 void sparx5_set_port_ifh_pdu_w16_offset(struct sparx5 *sparx5, void *ifh_hdr,
