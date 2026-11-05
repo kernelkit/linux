@@ -1366,6 +1366,10 @@ int sparx5_port_qos_dscp_rewr_set(const struct sparx5_port *port,
 			 ANA_CL_QOS_MAP_CFG(i));
 	}
 
+	/* The CPU fills in the DP 0 row for the frames it sends */
+	for (i = 0; i < SPX5_PRIOS; i++)
+		sparx5->dscp_rewr[i] = qos->map.map[i];
+
 	return 0;
 }
 
