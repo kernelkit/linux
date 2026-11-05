@@ -131,6 +131,7 @@ static struct sk_buff *lan969x_fdma_rx_get_frame(struct sparx5 *sparx5,
 
 	sparx5_ptp_rxtstamp(sparx5, skb, fi.timestamp);
 	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->priority = fi.qos_class;
 	sparx5_rx_fwd_mark(port, skb);
 
 	skb->dev->stats.rx_bytes += skb->len;

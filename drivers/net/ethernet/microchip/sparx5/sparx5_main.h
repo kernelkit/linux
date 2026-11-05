@@ -468,6 +468,7 @@ int sparx5_port_changeupper(struct net_device *dev,
 struct frame_info {
 	int src_port;
 	u32 timestamp;
+	u8 qos_class;
 };
 
 void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp);
@@ -572,6 +573,7 @@ static inline int sparx5_dcb_init(struct sparx5 *sparx5)
 void sparx5_set_port_ifh_timestamp(struct sparx5 *sparx5, void *ifh_hdr,
 				   u64 timestamp);
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
+void sparx5_set_port_ifh_qos_class(void *ifh_hdr, u8 qos_class);
 void sparx5_set_port_ifh_pdu_type(struct sparx5 *sparx5, void *ifh_hdr,
 				  u32 pdu_type);
 void sparx5_set_port_ifh_pdu_w16_offset(struct sparx5 *sparx5, void *ifh_hdr,
