@@ -1390,9 +1390,10 @@ int sparx5_port_qos_dscp_set(const struct sparx5_port *port,
 		 ANA_CL_QOS_CFG_DSCP_KEEP_ENA, sparx5,
 		 ANA_CL_QOS_CFG(port->portno));
 
-	/* Map each dscp value to priority and dp, trusted.  The table is
-	 * one for the chip, so a port that does not classify by DSCP
-	 * leaves it to the ports that do.
+	/* Map each dscp value to priority and dp, trusted where mapped so
+	 * the rest classify by pcp or the port default.  The table is one
+	 * for the chip, so a port that does not classify by DSCP leaves
+	 * it to the ports that do.
 	 */
 	if (!qos->qos_enable)
 		return 0;
@@ -1400,7 +1401,7 @@ int sparx5_port_qos_dscp_set(const struct sparx5_port *port,
 	for (i = 0; i < ARRAY_SIZE(qos->map.map); i++) {
 		spx5_rmw(ANA_CL_DSCP_CFG_DSCP_QOS_VAL_SET(*(dscp + i)) |
 			 ANA_CL_DSCP_CFG_DSCP_DP_VAL_SET(0) |
-			 ANA_CL_DSCP_CFG_DSCP_TRUST_ENA_SET(1),
+			 ANA_CL_DSCP_CFG_DSCP_TRUST_ENA_SET(!!(qos->trust & BIT_ULL(i))),
 			 ANA_CL_DSCP_CFG_DSCP_QOS_VAL |
 			 ANA_CL_DSCP_CFG_DSCP_DP_VAL |
 			 ANA_CL_DSCP_CFG_DSCP_TRUST_ENA, sparx5,
