@@ -450,7 +450,7 @@ static int sparx5_leak_groups_init(struct sparx5 *sparx5)
 		layer = &layers[i];
 		for (ii = 0; ii < SPX5_HSCH_LEAK_GRP_CNT; ii++) {
 			lg = &layer->leak_groups[ii];
-			lg->max_rate = ops->get_hsch_max_group_rate(i);
+			lg->max_rate = ops->get_hsch_max_group_rate(ii);
 
 			/* Calculate the leak time in us, to serve a maximum
 			 * rate of 'max_rate' for this group
