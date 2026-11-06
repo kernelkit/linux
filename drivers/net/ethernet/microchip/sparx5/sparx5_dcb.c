@@ -139,6 +139,7 @@ int sparx5_dcb_app_update(struct net_device *dev)
 {
 	struct dcb_ieee_app_prio_map dscp_rewr_map = {0};
 	struct dcb_rewr_prio_pcp_map pcp_rewr_map = {0};
+	struct dcb_ieee_app_dscp_map dscp_prio_map = {0};
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5_port_qos_dscp_map *dscp_map;
 	struct sparx5_port_qos_pcp_map *pcp_map;
@@ -158,17 +159,27 @@ int sparx5_dcb_app_update(struct net_device *dev)
 	qos.default_prio = port->prio_tc[qos.default_prio];
 
 	/* Get dscp ingress mapping */
-	for (i = 0; i < ARRAY_SIZE(dscp_map->map); i++) {
-		app_itr.selector = IEEE_8021QAZ_APP_SEL_DSCP;
-		app_itr.protocol = i;
-		dscp_map->map[i] = port->prio_tc[dcb_getapp(dev, &app_itr)];
+	dcb_ieee_getapp_dscp_prio_mask_map(dev, &dscp_prio_map);
+	for (i = 0; i < ARRAY_SIZE(dscp_prio_map.map); i++) {
+		u8 mask = dscp_prio_map.map[i];
+
+		if (!mask)
+			continue;
+		qos.dscp.trust |= BIT_ULL(i);
+		dscp_map->map[i] = port->prio_tc[fls(mask) - 1];
 	}
 
 	/* Get pcp ingress mapping */
+	memset(pcp_map->map, qos.default_prio, sizeof(pcp_map->map));
 	for (i = 0; i < ARRAY_SIZE(pcp_map->map); i++) {
+		u8 mask;
+
 		app_itr.selector = DCB_APP_SEL_PCP;
 		app_itr.protocol = i;
-		pcp_map->map[i] = port->prio_tc[dcb_getapp(dev, &app_itr)];
+		mask = dcb_ieee_getapp_mask(dev, &app_itr);
+		if (!mask)
+			continue;
+		pcp_map->map[i] = port->prio_tc[fls(mask) - 1];
 	}
 
 	/* Get pcp rewrite mapping, of the lowest priority in each class.
