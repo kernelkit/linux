@@ -151,6 +151,7 @@ struct sparx5_port_qos_pcp_rewr {
 
 struct sparx5_port_qos_dscp {
 	struct sparx5_port_qos_dscp_map map;
+	u64 trust; /* The dscp values with a map entry */
 	bool qos_enable;
 	bool dp_enable;
 };
