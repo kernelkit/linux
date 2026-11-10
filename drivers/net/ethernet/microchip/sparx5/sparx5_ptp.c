@@ -10,6 +10,10 @@
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
+#include "sparx5_tc.h"
+#include "sparx5_vcap_impl.h"
+#include "vcap_api.h"
+#include "vcap_api_client.h"
 
 #define TOD_ACC_PIN		0x4
 
@@ -78,20 +82,112 @@ static u64 sparx5_ptp_get_nominal_value(struct sparx5 *sparx5)
 	return res;
 }
 
+static const struct sparx5_ptp_trap {
+	u16 proto;
+	u16 etype;
+	u16 dport;
+} sparx5_ptp_traps[] = {
+	{ ETH_P_ALL,  ETH_P_1588, 0 },
+	{ ETH_P_IP,   0, PTP_EV_PORT },
+	{ ETH_P_IP,   0, PTP_GEN_PORT },
+	{ ETH_P_IPV6, 0, PTP_EV_PORT },
+	{ ETH_P_IPV6, 0, PTP_GEN_PORT },
+};
+
+/* Base rule id of the PTP traps, one block per port.  It must be bigger
+ * than the number of entries that can exist in the VCAP.
+ */
+#define SPARX5_VCAP_PTP_RULE_ID		1000000
+#define SPARX5_VCAP_PTP_RULE(port, n) \
+	(SPARX5_VCAP_PTP_RULE_ID + (port)->portno * ARRAY_SIZE(sparx5_ptp_traps) + (n))
+
+static int sparx5_ptp_add_trap(struct sparx5_port *port, int n)
+{
+	const struct sparx5_ptp_trap *trap = &sparx5_ptp_traps[n];
+	struct vcap_control *vctrl = port->sparx5->vcap_ctrl;
+	struct vcap_rule *vrule;
+	int err;
+
+	vrule = vcap_alloc_rule(vctrl, port->ndev, SPARX5_VCAP_CID_IS2_L0,
+				VCAP_USER_PTP, 0, SPARX5_VCAP_PTP_RULE(port, n));
+	if (IS_ERR(vrule))
+		return PTR_ERR(vrule);
+
+	if (trap->etype) {
+		err = vcap_rule_add_key_u32(vrule, VCAP_KF_ETYPE, trap->etype, ~0);
+	} else {
+		err = vcap_rule_add_key_u32(vrule, VCAP_KF_L4_DPORT, trap->dport, ~0);
+		if (err)
+			goto out;
+		err = vcap_rule_add_key_bit(vrule, VCAP_KF_TCP_IS, VCAP_BIT_0);
+	}
+	if (err)
+		goto out;
+
+	err = vcap_rule_add_action_bit(vrule, VCAP_AF_CPU_COPY_ENA, VCAP_BIT_1);
+	if (err)
+		goto out;
+	err = vcap_rule_add_action_u32(vrule, VCAP_AF_CPU_QUEUE_NUM, 0);
+	if (err)
+		goto out;
+	err = vcap_rule_add_action_u32(vrule, VCAP_AF_MASK_MODE, SPX5_PMM_REPLACE_ALL);
+	if (err)
+		goto out;
+	err = vcap_val_rule(vrule, trap->proto);
+	if (err)
+		goto out;
+	err = vcap_add_rule(vrule);
+out:
+	vcap_free_rule(vrule);
+	return err;
+}
+
+static void sparx5_ptp_del_traps(struct sparx5_port *port)
+{
+	struct vcap_control *vctrl = port->sparx5->vcap_ctrl;
+	int n;
+
+	for (n = 0; n < ARRAY_SIZE(sparx5_ptp_traps); n++)
+		vcap_del_rule(vctrl, port->ndev, SPARX5_VCAP_PTP_RULE(port, n));
+	port->ptp_trap = false;
+}
+
+/* PTP on a port goes to the CPU only: on a bridged port the switch
+ * would otherwise forward it past the clock as well.
+ */
+static int sparx5_ptp_setup_traps(struct sparx5_port *port,
+				  struct kernel_hwtstamp_config *cfg)
+{
+	int err, n;
+
+	if (cfg->rx_filter == HWTSTAMP_FILTER_NONE) {
+		if (port->ptp_trap)
+			sparx5_ptp_del_traps(port);
+		return 0;
+	}
+
+	if (port->ptp_trap)
+		return 0;
+
+	for (n = 0; n < ARRAY_SIZE(sparx5_ptp_traps); n++) {
+		err = sparx5_ptp_add_trap(port, n);
+		if (err) {
+			sparx5_ptp_del_traps(port);
+			return err;
+		}
+	}
+	port->ptp_trap = true;
+
+	return 0;
+}
+
 int sparx5_ptp_hwtstamp_set(struct sparx5_port *port,
 			    struct kernel_hwtstamp_config *cfg,
 			    struct netlink_ext_ack *extack)
 {
 	struct sparx5 *sparx5 = port->sparx5;
 	struct sparx5_phc *phc;
-
-	/* For now don't allow to run ptp on ports that are part of a bridge,
-	 * because in case of transparent clock the HW will still forward the
-	 * frames, so there would be duplicate frames
-	 */
-
-	if (test_bit(port->portno, sparx5->bridge_mask))
-		return -EINVAL;
+	int err;
 
 	switch (cfg->tx_type) {
 	case HWTSTAMP_TX_ON:
@@ -128,6 +224,12 @@ int sparx5_ptp_hwtstamp_set(struct sparx5_port *port,
 		break;
 	default:
 		return -ERANGE;
+	}
+
+	err = sparx5_ptp_setup_traps(port, cfg);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Could not trap PTP to the CPU");
+		return err;
 	}
 
 	/* Commit back the result & save it */

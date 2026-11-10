@@ -233,6 +233,7 @@ struct sparx5_port {
 	struct hrtimer inj_timer;
 	/* ptp */
 	u8 ptp_cmd;
+	bool ptp_trap;
 	u16 ts_id;
 	struct sk_buff_head tx_skbs;
 	bool is_mrouter;
