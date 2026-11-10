@@ -32,6 +32,23 @@ enum sparx5_tas_link_speed {
 /* STARTUP_TIME in units of 256 ns, must be non-zero for a list to start */
 #define TAS_STARTUP_TIME_DEFAULT 8
 
+/* The guard band counts minimum-size frames */
+#define TAS_GB_UNIT (ETH_ZLEN + ETH_FCS_LEN)
+
+/* Largest frame for an SDU of @sdu bytes, with two VLAN tags */
+#define TAS_FRAME(sdu) ((sdu) + VLAN_ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
+
+/* Preamble, SFD and interframe gap, IEEE 802.1Q-2022 12.4.2.2 */
+#define TAS_WIRE_OVERHEAD 20
+
+/* Minimum-size frames in the queue system when a gate closes */
+#define TAS_GB_LATENCY 2
+
+/* A 1500-byte frame, its overhead and the queue system latency */
+#define TAS_GB_DEFAULT							\
+	(DIV_ROUND_UP(TAS_FRAME(ETH_DATA_LEN) + TAS_WIRE_OVERHEAD,	\
+		      TAS_GB_UNIT) + TAS_GB_LATENCY)
+
 /* We use 2 TAS lists per present port, as far as the chip has lists:
  * num_tas_lists = min(port_count * SPX5_TAS_ENTRIES_PER_PORT, n_tas_lists);
  *
@@ -48,8 +65,8 @@ enum sparx5_tas_link_speed {
  * We use 1 TAS profile per port, shared by both of its lists:
  * index = portno;
  *
- * We do not yet support frame preemption and the default guard band
- * of 1536 bytes is always used on all queues.
+ * We do not yet support frame preemption and the guard band of a
+ * full-size frame is always used on all queues.
  *
  * The gate mask of each entry is written as is to the port's 8 queues,
  * where bit n gates queue (QoS class) n. The mqprio parameters of the
@@ -509,6 +526,16 @@ static void sparx5_tas_gcl_setup(struct sparx5_port *port, int list, int base,
 	}
 }
 
+static void sparx5_tas_guard_band_set(struct sparx5 *sparx5, int portno)
+{
+	int tc;
+
+	for (tc = 0; tc < SPX5_PRIOS; tc++)
+		spx5_wr(HSCH_TAS_QMAXSDU_CFG_QMAXSDU_VAL_SET(TAS_GB_DEFAULT),
+			sparx5,
+			HSCH_TAS_QMAXSDU_CFG(portno, tc));
+}
+
 int sparx5_tas_enable(struct sparx5_port *port,
 		      struct tc_taprio_qopt_offload *qopt)
 {
@@ -752,17 +779,18 @@ int sparx5_tas_init(struct sparx5 *sparx5)
 		 sparx5,
 		 HSCH_TAS_CFG_CTRL);
 
-	/* Associate profile with port (profile idx = port on lan969x) */
-	if (is_sparx5(sparx5)) {
-		for (i = 0; i < num_ports; i++) {
-			if (!sparx5->ports[i])
-				continue;
+	for (i = 0; i < num_ports; i++) {
+		if (!sparx5->ports[i])
+			continue;
 
+		sparx5_tas_guard_band_set(sparx5, i);
+
+		/* Associate profile with port (profile idx = port on lan969x) */
+		if (is_sparx5(sparx5))
 			spx5_rmw(HSCH_TAS_PROFILE_CONFIG_PORT_NUM_SET(i),
 				 HSCH_TAS_PROFILE_CONFIG_PORT_NUM,
 				 sparx5,
 				 HSCH_TAS_PROFILE_CONFIG(i));
-		}
 	}
 
 	return 0;
