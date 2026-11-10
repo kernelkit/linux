@@ -197,10 +197,27 @@ static int sparx5_tc_setup_qdisc_cbs(struct net_device *ndev,
 			      sparx5_tc_cbs_del(port, idx);
 }
 
+/* Only LAN969x can drop the frames over a class's queueMaxSDU */
+static int sparx5_tc_query_caps(struct net_device *ndev,
+				struct tc_query_caps_base *base)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct tc_taprio_caps *caps = base->caps;
+
+	if (base->type != TC_SETUP_QDISC_TAPRIO)
+		return -EOPNOTSUPP;
+
+	caps->supports_queue_max_sdu = !is_sparx5(port->sparx5);
+
+	return 0;
+}
+
 int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			 void *type_data)
 {
 	switch (type) {
+	case TC_QUERY_CAPS:
+		return sparx5_tc_query_caps(ndev, type_data);
 	case TC_SETUP_BLOCK:
 		return sparx5_tc_setup_block(ndev, type_data);
 	case TC_SETUP_QDISC_MQPRIO:
