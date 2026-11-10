@@ -526,14 +526,34 @@ static void sparx5_tas_gcl_setup(struct sparx5_port *port, int list, int base,
 	}
 }
 
-static void sparx5_tas_guard_band_set(struct sparx5 *sparx5, int portno)
+/* LAN969x drops a class's frames over its queueMaxSDU, read from the
+ * guard band register, so a class with one gets a guard band of its
+ * largest frame, rounded down.
+ */
+static void sparx5_tas_guard_band_set(struct sparx5 *sparx5, int portno,
+				      const u32 *max_sdu)
 {
 	int tc;
 
-	for (tc = 0; tc < SPX5_PRIOS; tc++)
-		spx5_wr(HSCH_TAS_QMAXSDU_CFG_QMAXSDU_VAL_SET(TAS_GB_DEFAULT),
+	for (tc = 0; tc < SPX5_PRIOS; tc++) {
+		u32 sdu = max_sdu ? max_sdu[tc] : 0;
+		u32 val = TAS_GB_DEFAULT, disc = 0;
+
+		if (sdu && sdu < ETH_DATA_LEN) {
+			val = TAS_FRAME(sdu) / TAS_GB_UNIT;
+			disc = HSCH_QMAXSDU_DISC_CFG_QMAXSDU_DISC_ENA_SET(1) |
+			       HSCH_QMAXSDU_DISC_CFG_QMAXSDU_LSB_SET(TAS_FRAME(sdu) %
+								     TAS_GB_UNIT);
+		}
+
+		spx5_wr(HSCH_TAS_QMAXSDU_CFG_QMAXSDU_VAL_SET(val),
 			sparx5,
 			HSCH_TAS_QMAXSDU_CFG(portno, tc));
+		if (!is_sparx5(sparx5))
+			spx5_wr(disc,
+				sparx5,
+				HSCH_QMAXSDU_DISC_CFG(portno, tc));
+	}
 }
 
 int sparx5_tas_enable(struct sparx5_port *port,
@@ -579,6 +599,15 @@ int sparx5_tas_enable(struct sparx5_port *port,
 			netdev_err(port->ndev, "Unsupported GCL command: %d\n",
 				   qopt->entries[i].command);
 			return -EOPNOTSUPP;
+		}
+	}
+
+	for (i = 0; i < SPX5_PRIOS; i++) {
+		if (qopt->max_sdu[i] &&
+		    TAS_FRAME(qopt->max_sdu[i]) < TAS_GB_UNIT) {
+			NL_SET_ERR_MSG_MOD(qopt->extack,
+					   "queueMaxSDU is below a minimum-size frame");
+			return -EINVAL;
 		}
 	}
 
@@ -645,6 +674,8 @@ int sparx5_tas_enable(struct sparx5_port *port,
 	sparx5_tas_gcl_free(port, slot);
 
 	sparx5_tas_gcl_setup(port, new_list, base, qopt);
+
+	sparx5_tas_guard_band_set(sparx5, port->portno, qopt->max_sdu);
 
 	/* The obsolete list keeps its entries until it reaches ADMIN */
 	port->tas_lists[slot].gcl_base = base;
@@ -743,7 +774,12 @@ int sparx5_tas_disable(struct sparx5_port *port)
 
 	mutex_unlock(&port->sparx5->tas_lock);
 
-	return err ?: sparx5_tc_prio_tc_set(port, NULL);
+	if (err)
+		return err;
+
+	sparx5_tas_guard_band_set(port->sparx5, port->portno, NULL);
+
+	return sparx5_tc_prio_tc_set(port, NULL);
 }
 
 int sparx5_tas_init(struct sparx5 *sparx5)
@@ -783,7 +819,7 @@ int sparx5_tas_init(struct sparx5 *sparx5)
 		if (!sparx5->ports[i])
 			continue;
 
-		sparx5_tas_guard_band_set(sparx5, i);
+		sparx5_tas_guard_band_set(sparx5, i, NULL);
 
 		/* Associate profile with port (profile idx = port on lan969x) */
 		if (is_sparx5(sparx5))
