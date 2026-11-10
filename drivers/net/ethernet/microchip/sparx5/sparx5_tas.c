@@ -136,13 +136,31 @@ static u32 sparx5_tas_list_stop(struct sparx5 *sparx5, bool *operating)
 	return state;
 }
 
-static void sparx5_tas_guard_band_set(struct sparx5 *sparx5, u32 portno)
+/* LAN969x drops a class's frames over its queueMaxSDU, read from the
+ * guard band register, so a class with one gets a guard band of its
+ * largest frame, rounded down.
+ */
+static void sparx5_tas_guard_band_set(struct sparx5 *sparx5, u32 portno,
+				      const u32 *max_sdu)
 {
 	int tc;
 
-	for (tc = 0; tc < SPX5_PRIOS; tc++)
-		spx5_wr(HSCH_TAS_QMAXSDU_CFG_QMAXSDU_VAL_SET(SPX5_TAS_GB_DEFAULT),
+	for (tc = 0; tc < SPX5_PRIOS; tc++) {
+		u32 sdu = max_sdu ? max_sdu[tc] : 0;
+		u32 val = SPX5_TAS_GB_DEFAULT, disc = 0;
+
+		if (sdu && sdu < ETH_DATA_LEN) {
+			val = SPX5_TAS_FRAME(sdu) / SPX5_TAS_GB_UNIT;
+			disc = HSCH_QMAXSDU_DISC_CFG_QMAXSDU_DISC_ENA_SET(1) |
+			       HSCH_QMAXSDU_DISC_CFG_QMAXSDU_LSB_SET(SPX5_TAS_FRAME(sdu) %
+								     SPX5_TAS_GB_UNIT);
+		}
+
+		spx5_wr(HSCH_TAS_QMAXSDU_CFG_QMAXSDU_VAL_SET(val),
 			sparx5, HSCH_TAS_QMAXSDU_CFG(portno, tc));
+		if (!is_sparx5(sparx5))
+			spx5_wr(disc, sparx5, HSCH_QMAXSDU_DISC_CFG(portno, tc));
+	}
 }
 
 static int sparx5_tas_list_shutdown(struct sparx5_port *port, u32 list)
@@ -266,6 +284,15 @@ static int sparx5_tas_check(struct sparx5 *sparx5,
 		return -EINVAL;
 	}
 
+	for (i = 0; i < SPX5_PRIOS; i++) {
+		if (qopt->max_sdu[i] &&
+		    SPX5_TAS_FRAME(qopt->max_sdu[i]) < SPX5_TAS_GB_UNIT) {
+			NL_SET_ERR_MSG_MOD(qopt->extack,
+					   "queueMaxSDU is below a minimum-size frame");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -387,6 +414,8 @@ int sparx5_tc_taprio_add(struct sparx5_port *port,
 	if (err)
 		return err;
 
+	sparx5_tas_guard_band_set(sparx5, port->portno, qopt->max_sdu);
+
 	sparx5_new_base_time(sparx5, qopt->cycle_time, qopt->base_time,
 			     &base_time);
 	ts = ktime_to_timespec64(base_time);
@@ -416,7 +445,12 @@ int sparx5_tc_taprio_del(struct sparx5_port *port)
 		err = sparx5_tas_list_shutdown(port,
 					       sparx5_tas_list_index(port, i));
 
-	return err ?: sparx5_tc_prio_tc_set(port, NULL);
+	if (err)
+		return err;
+
+	sparx5_tas_guard_band_set(port->sparx5, port->portno, NULL);
+
+	return sparx5_tc_prio_tc_set(port, NULL);
 }
 
 void sparx5_tas_speed(struct sparx5_port *port, int speed)
@@ -473,7 +507,7 @@ int sparx5_tas_init(struct sparx5 *sparx5)
 		if (!sparx5->ports[portno])
 			continue;
 
-		sparx5_tas_guard_band_set(sparx5, portno);
+		sparx5_tas_guard_band_set(sparx5, portno, NULL);
 
 		/* SparX-5 ties a profile to its port here, LAN969x in each list */
 		if (is_sparx5(sparx5))
