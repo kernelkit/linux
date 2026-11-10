@@ -17,6 +17,23 @@
 #define SPX5_TAS_MIN_TIME_NS		NSEC_PER_USEC
 #define SPX5_TAS_MAX_TIME_NS		(NSEC_PER_SEC - 1)
 
+/* The guard band counts minimum-size frames */
+#define SPX5_TAS_GB_UNIT		(ETH_ZLEN + ETH_FCS_LEN)
+
+/* Largest frame for an SDU of @sdu bytes, with two VLAN tags */
+#define SPX5_TAS_FRAME(sdu)		((sdu) + VLAN_ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
+
+/* Preamble, SFD and interframe gap, IEEE 802.1Q-2022 12.4.2.2 */
+#define SPX5_TAS_WIRE_OVERHEAD		20
+
+/* Minimum-size frames in the queue system when a gate closes */
+#define SPX5_TAS_GB_LATENCY		2
+
+/* A 1500-byte frame, its overhead and the queue system latency */
+#define SPX5_TAS_GB_DEFAULT						\
+	(DIV_ROUND_UP(SPX5_TAS_FRAME(ETH_DATA_LEN) + SPX5_TAS_WIRE_OVERHEAD,	\
+		      SPX5_TAS_GB_UNIT) + SPX5_TAS_GB_LATENCY)
+
 /* TAS link speeds for calculation of guard band */
 enum sparx5_tas_link_speed {
 	SPX5_TAS_SPEED_NO_GB,
@@ -117,6 +134,15 @@ static u32 sparx5_tas_list_stop(struct sparx5 *sparx5, bool *operating)
 	}
 
 	return state;
+}
+
+static void sparx5_tas_guard_band_set(struct sparx5 *sparx5, u32 portno)
+{
+	int tc;
+
+	for (tc = 0; tc < SPX5_PRIOS; tc++)
+		spx5_wr(HSCH_TAS_QMAXSDU_CFG_QMAXSDU_VAL_SET(SPX5_TAS_GB_DEFAULT),
+			sparx5, HSCH_TAS_QMAXSDU_CFG(portno, tc));
 }
 
 static int sparx5_tas_list_shutdown(struct sparx5_port *port, u32 list)
@@ -443,17 +469,17 @@ int sparx5_tas_init(struct sparx5 *sparx5)
 		 HSCH_TAS_CFG_CTRL_ALWAYS_GUARD_BAND_SCH_Q,
 		 sparx5, HSCH_TAS_CFG_CTRL);
 
-	/* SparX-5 ties a profile to its port here, LAN969x in each list */
-	if (!is_sparx5(sparx5))
-		return 0;
-
 	for (portno = 0; portno < consts->n_ports; portno++) {
 		if (!sparx5->ports[portno])
 			continue;
 
-		spx5_rmw(HSCH_TAS_PROFILE_CONFIG_PORT_NUM_SET(portno),
-			 HSCH_TAS_PROFILE_CONFIG_PORT_NUM,
-			 sparx5, HSCH_TAS_PROFILE_CONFIG(portno));
+		sparx5_tas_guard_band_set(sparx5, portno);
+
+		/* SparX-5 ties a profile to its port here, LAN969x in each list */
+		if (is_sparx5(sparx5))
+			spx5_rmw(HSCH_TAS_PROFILE_CONFIG_PORT_NUM_SET(portno),
+				 HSCH_TAS_PROFILE_CONFIG_PORT_NUM,
+				 sparx5, HSCH_TAS_PROFILE_CONFIG(portno));
 	}
 
 	return 0;
